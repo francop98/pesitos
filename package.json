@@ -1,0 +1,9 @@
+{
+  "name": "pesitos",
+  "private": true,
+  "type": "module",
+  "description": "Pesitos · tu economista de bolsillo. La app es estática; las funciones de /api corren en Vercel.",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

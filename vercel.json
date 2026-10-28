@@ -1,0 +1,12 @@
+{
+  "crons": [
+    { "path": "/api/actualizar", "schedule": "0 12 * * *" },
+    { "path": "/api/actualizar?turno=tarde", "schedule": "0 18 * * *" }
+  ],
+  "functions": {
+    "api/actualizar.js": { "maxDuration": 120 }
+  },
+  "headers": [
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ]
+}
