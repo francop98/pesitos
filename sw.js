@@ -1,14 +1,17 @@
 // Service worker: deja la app disponible sin conexión.
 // Cuando cambies archivos, subí el número de versión para refrescar la caché.
 
-const CACHE = 'pesitos-v9';
+const CACHE = 'pesitos-v11';
 const SHELL = [
-  './', './index.html', './manifest.webmanifest', './css/styles.css',
-  './js/app.js', './js/store.js', './js/format.js', './js/categories.js', './js/parser.js',
-  './js/calc.js', './js/advisor.js', './js/ui.js', './js/actions.js', './js/demo.js', './js/guide.js', './js/rates.js', './js/live.js', './js/promos-catalog.js', './js/views/tarjetas.js', './js/views/beneficios.js', './js/views/herramientas.js', './js/learn.js', './js/agenda.js', './js/cashflow.js', './js/views/pagos.js',
-  './js/views/onboarding.js', './js/views/inicio.js', './js/views/movimientos.js',
-  './js/views/sueldo.js', './js/views/ahorro.js', './js/views/asesor.js',
-  './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',
+  './', './index.html', './manifest.webmanifest', './styles.css', './main.js',
+  './js/acciones.js', './js/agenda.js', './js/ahorro.js', './js/almacenamiento.js', './js/aprender.js',
+  './js/asesor.js', './js/autenticacion.js', './js/beneficios.js', './js/bienvenida.js', './js/calculos.js',
+  './js/categorias.js', './js/cotizaciones.js', './js/datosvivos.js', './js/economista.js', './js/ejemplo.js',
+  './js/firebaseconfig.js', './js/flujo.js', './js/formato.js', './js/guia.js', './js/herramientas.js',
+  './js/inicio.js', './js/interfaz.js', './js/interprete.js', './js/menu.js', './js/movimientos.js',
+  './js/pagos.js', './js/promosrespaldo.js', './js/sincronizacion.js', './js/sueldo.js', './js/tarjetas.js',
+  './js/tema.js', './pages/terminos.html', './pages/privacidad.html', './assets/icon.svg', './assets/icon-192.png',
+  './assets/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -22,6 +25,15 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
+  // Firebase (cuenta y nube): se guarda para que la app abra aunque no haya internet
+  if (url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/firebasejs/')) {
+    e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(e.request, copy));
+      return res;
+    })));
+    return;
+  }
   if (url.origin !== location.origin) return; // cotizaciones y fuentes: siempre de la red
   if (url.pathname.includes('/api/')) return;  // datos del servicio: siempre frescos
   // Comprobante compartido: siempre devolvemos la app

@@ -12,7 +12,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="styles.css">
+  <script>/* Tema y tamaño de letra elegidos en el menú (antes de dibujar, para que no parpadee) */
+    try { var t = localStorage.getItem('pesitos_tema'); if (t === 'claro' || t === 'oscuro') document.documentElement.setAttribute('data-tema', t);
+      var l = localStorage.getItem('pesitos_letra'); if (l === 'grande' || l === 'enorme') document.documentElement.setAttribute('data-letra', l); } catch (e) {}</script>
 </head>
 <body>
   <div class="app">
@@ -34,6 +37,6 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

@@ -1,9 +1,9 @@
 // Cálculos: presupuesto del ciclo, "hoy podés gastar", ahorro por reglas,
 // metas, sueldo real, tarjetas y cuotas.
 
-import { toISO, parseISO, monthKey, addMonthKey, monthDiff, startOfToday, daysBetween, MONTHS_LONG, money } from './format.js';
-import { arsPer } from './rates.js';
-import { ipcMap, expectedInflation } from './live.js';
+import { toISO, parseISO, monthKey, addMonthKey, monthDiff, startOfToday, daysBetween, MONTHS_LONG, money } from './formato.js';
+import { arsPer } from './cotizaciones.js';
+import { ipcMap, expectedInflation } from './datosvivos.js';
 import { provisions } from './agenda.js';
 
 const share = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);

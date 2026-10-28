@@ -3,12 +3,12 @@
 // y propone correcciones (gastos que no son fijos, duplicados, etc.).
 // Máximo 3 preguntas por día; cualquiera se puede dejar para después.
 
-import { uid } from './store.js';
-import { money, todayISO, toISO, addDays, esc, normalize, addMonthKey, monthKey } from './format.js';
-import { parseAmount, merchantKey, guessCategory } from './parser.js';
-import { HOLDING_TYPES, ASSETS, catLabel, PROVINCES, provinceLabel } from './categories.js';
-import { refreshLive } from './live.js';
-import { sprout, icon, toast } from './ui.js';
+import { uid } from './almacenamiento.js';
+import { money, todayISO, toISO, addDays, esc, normalize, addMonthKey, monthKey } from './formato.js';
+import { parseAmount, merchantKey, guessCategory } from './interprete.js';
+import { HOLDING_TYPES, ASSETS, catLabel, PROVINCES, provinceLabel } from './categorias.js';
+import { refreshLive } from './datosvivos.js';
+import { sprout, icon, toast } from './interfaz.js';
 
 const DAILY_LIMIT = 3;
 const SNOOZE_DAYS = 3;

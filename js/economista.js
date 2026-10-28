@@ -2,11 +2,11 @@
 // Hoy funciona con reglas. Más adelante se puede conectar a un modelo
 // de IA (por ejemplo desde una función de Vercel en api/) sin cambiar las pantallas.
 
-import { money, pct, normalize, monthKey, addMonthKey, toISO, todayISO, WEEKDAYS } from './format.js';
-import { catLabel, CHALLENGES, walletName, provinceLabel } from './categories.js';
-import { PROMO_CATALOG } from './promos-catalog.js';
-import { livePromos, liveAge, expectedInflation } from './live.js';
-import { budget, buyImpact, installmentsVsCash, monthExpenses, salaryStats, mainGoal, holdingsTotal } from './calc.js';
+import { money, pct, normalize, monthKey, addMonthKey, toISO, todayISO, WEEKDAYS } from './formato.js';
+import { catLabel, CHALLENGES, walletName, provinceLabel } from './categorias.js';
+import { PROMO_CATALOG } from './promosrespaldo.js';
+import { livePromos, liveAge, expectedInflation } from './datosvivos.js';
+import { budget, buyImpact, installmentsVsCash, monthExpenses, salaryStats, mainGoal, holdingsTotal } from './calculos.js';
 
 export const DISCLAIMER = 'Información educativa y general, no es asesoramiento financiero personalizado.';
 

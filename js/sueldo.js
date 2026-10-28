@@ -1,11 +1,11 @@
 // Sueldo: evolución nominal vs real, mejor mes y crecimiento.
 
-import { money, pct, esc, monthName, monthKey, addMonthKey, num, MONTHS_LONG } from '../format.js';
-import { salaryStats, lastSalary } from '../calc.js';
-import { lastIpc } from '../live.js';
-import { sprout, screenHead, openModal, closeModal, toast } from '../ui.js';
-import { uid } from '../store.js';
-import { lessonCard } from '../learn.js';
+import { money, pct, esc, monthName, monthKey, addMonthKey, num, MONTHS_LONG } from './formato.js';
+import { salaryStats, lastSalary } from './calculos.js';
+import { lastIpc } from './datosvivos.js';
+import { sprout, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { uid } from './almacenamiento.js';
+import { lessonCard } from './aprender.js';
 
 function chart(series) {
   const pts = series.slice(-12);
@@ -17,9 +17,9 @@ function chart(series) {
   const y = (v) => H - 10 - ((v - min) / (max - min || 1)) * (H - 24);
   const line = (k) => pts.map((p, i) => `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join(' ');
   const last = pts[pts.length - 1];
-  const labels = pts.map((p, i) => (i % 2 === pts.length % 2 || i === pts.length - 1 ? `<text x="${x(i)}" y="${H + 14}" text-anchor="middle" font-size="11" fill="${i === pts.length - 1 ? '#16181D' : '#5C6067'}" font-weight="${i === pts.length - 1 ? 800 : 500}">${monthName(p.mk)}</text>` : '')).join('');
+  const labels = pts.map((p, i) => (i % 2 === pts.length % 2 || i === pts.length - 1 ? `<text x="${x(i)}" y="${H + 14}" text-anchor="middle" font-size="11" style="fill:${i === pts.length - 1 ? 'var(--ink)' : 'var(--muted)'}" font-weight="${i === pts.length - 1 ? 800 : 500}">${monthName(p.mk)}</text>` : '')).join('');
   return `<svg role="img" aria-label="Sueldo de los últimos ${pts.length} meses, nominal y real" viewBox="0 0 ${W} ${H + 20}" width="100%">
-    <line x1="0" y1="${H - 4}" x2="${W}" y2="${H - 4}" stroke="#ECEAE3"/>
+    <line x1="0" y1="${H - 4}" x2="${W}" y2="${H - 4}" style="stroke:var(--track)"/>
     <polyline points="${line('nominal')}" fill="none" stroke="#9A9DA3" stroke-width="2.5" stroke-dasharray="5 5" stroke-linecap="round" stroke-linejoin="round"/>
     <polyline points="${line('real')}" fill="none" stroke="#1F6F4A" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${x(pts.length - 1)}" cy="${y(last.real)}" r="5" fill="#1F6F4A"/>

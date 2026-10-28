@@ -1,10 +1,11 @@
 // Arranque como charla: pocas preguntas, una por vez, todas salteables.
-// Lo demás lo pregunta la app de a poco (ver js/guide.js).
+// Lo demás lo pregunta la app de a poco (ver js/guia.js).
+// Si la cuenta ya trae el nombre (por ejemplo, con Google), no lo pregunta.
 
-import { uid } from '../store.js';
-import { todayISO, esc, money } from '../format.js';
-import { parseAmount } from '../parser.js';
-import { wordmark, icon, sprout } from '../ui.js';
+import { uid } from './almacenamiento.js';
+import { todayISO, esc, money } from './formato.js';
+import { parseAmount } from './interprete.js';
+import { wordmark, icon, sprout } from './interfaz.js';
 
 const FOCUS = [
   { id: 'finmes', label: 'Llegar a fin de mes' },
@@ -12,16 +13,18 @@ const FOCUS = [
   { id: 'crecer', label: 'Hacer crecer mis ahorros' },
   { id: 'otro', label: 'Otro' },
 ];
-const MAIN_STEPS = ['nombre', 'sueldo', 'cobro', 'foco'];
+const ALL_STEPS = ['nombre', 'sueldo', 'cobro', 'foco'];
+const mainSteps = () => (knownName ? ALL_STEPS.slice(1) : ALL_STEPS);
 
 const fresh = () => ({ name: '', salary: 0, payday: 1, paydayVaries: false, focus: '', focusText: '', goal: '', target: 0 });
 let step = 'hola';
 let trail = []; // [{ step, q, a }]
 let draft = fresh();
+let knownName = ''; // nombre que vino con la cuenta
 
 function nextStep(cur) {
   switch (cur) {
-    case 'hola': return 'nombre';
+    case 'hola': return knownName ? 'sueldo' : 'nombre';
     case 'nombre': return 'sueldo';
     case 'sueldo': return draft.salary ? 'cobro' : 'foco';
     case 'cobro': return 'foco';
@@ -42,7 +45,7 @@ function current() {
   const n = draft.name ? `, ${draft.name}` : '';
   switch (step) {
     case 'hola': return {
-      bubbles: ['¡Hola! Soy Pesitos, tu economista de bolsillo.', 'Te ayudo a saber cuánto podés gastar, a ordenar tu plata y a llegar a lo que querés. Son 4 preguntas cortitas y arrancamos.'],
+      bubbles: [`¡Hola${knownName ? ', ' + knownName : ''}! Soy Pesitos, tu economista de bolsillo.`, `Te ayudo a saber cuánto podés gastar, a ordenar tu plata y a llegar a lo que querés. Son ${mainSteps().length} preguntas cortitas y arrancamos.`],
       controls: `<div class="chips">${chip('go', 'Dale, arranquemos', 'primary')}<button class="chip big" data-action="loadDemo">Mostrame un ejemplo primero</button></div>`,
     };
     case 'nombre': return {
@@ -51,7 +54,7 @@ function current() {
     };
     case 'sueldo': return {
       bubbles: [`Buenísimo${n}. ¿Cuánto cobrás por mes, más o menos?`],
-      controls: `${inputForm('salary', 'Ej: 900.000', 'decimal')}<p class="small muted guide-hint">Con eso calculo cuánto podés gastar por día. Queda guardado solo en tu celular.</p><div class="chips">${chip('', 'Prefiero no decirlo ahora')}</div>`,
+      controls: `${inputForm('salary', 'Ej: 900.000', 'decimal')}<p class="small muted guide-hint">Con eso calculo cuánto podés gastar por día. Queda guardado en tu cuenta y solo lo ves vos.</p><div class="chips">${chip('', 'Prefiero no decirlo ahora')}</div>`,
     };
     case 'cobro': return {
       bubbles: ['¿Qué día te pagan?'],
@@ -87,10 +90,14 @@ function current() {
   }
 }
 
-export function render() {
+export function render(s) {
+  knownName = ((s && s.profile && s.profile.name) || '').trim().split(' ')[0].slice(0, 30);
+  if (knownName && !draft.name) draft.name = knownName;
   const c = current();
+  const MAIN_STEPS = mainSteps();
+  const total = MAIN_STEPS.length;
   const idx = MAIN_STEPS.indexOf(step);
-  const progress = step === 'hola' || step === 'listo' ? '' : `<div class="dots" aria-label="Pregunta ${Math.min(idx < 0 ? 4 : idx + 1, 4)} de 4">${MAIN_STEPS.map((s, i) => `<span class="${i <= (idx < 0 ? 3 : idx) ? 'on' : ''}"></span>`).join('')}</div>`;
+  const progress = step === 'hola' || step === 'listo' ? '' : `<div class="dots" aria-label="Pregunta ${Math.min(idx < 0 ? total : idx + 1, total)} de ${total}">${MAIN_STEPS.map((x, i) => `<span class="${i <= (idx < 0 ? total - 1 : idx) ? 'on' : ''}"></span>`).join('')}</div>`;
   const canBack = step !== 'hola' && step !== 'listo';
   return `<section class="guide">
     <header class="guide-top">
@@ -154,7 +161,7 @@ export const actions = {
     const d = draft;
     ctx.commit((s) => {
       s.ready = true;
-      s.profile = { ...s.profile, name: d.name, payday: d.payday, paydayVaries: d.paydayVaries, focus: d.focus, focusText: d.focusText };
+      s.profile = { ...s.profile, name: d.name || s.profile.name, payday: d.payday, paydayVaries: d.paydayVaries, focus: d.focus, focusText: d.focusText };
       if (d.salary) s.incomes.push({ id: uid(), date: todayISO(), amount: d.salary, type: 'sueldo', note: 'Sueldo' });
       if (d.goal) s.goals.push({ id: uid(), name: d.goal.charAt(0).toUpperCase() + d.goal.slice(1), target: d.target, saved: 0, monthly: 0, main: true });
     });

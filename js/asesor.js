@@ -1,13 +1,13 @@
 // Asesor: reglas de ahorro (y propias), desafíos (y propios), medios de
 // aprendizaje y consultas.
 
-import { money, esc, num, monthKey, todayISO } from '../format.js';
-import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES } from '../categories.js';
-import { challengeStatus, allChallenges, answer, DISCLAIMER } from '../advisor.js';
-import { LESSONS } from '../learn.js';
-import { budget } from '../calc.js';
-import { sprout, icon, screenHead, openModal, closeModal, toast } from '../ui.js';
-import { uid } from '../store.js';
+import { money, esc, num, monthKey, todayISO } from './formato.js';
+import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES } from './categorias.js';
+import { challengeStatus, allChallenges, answer, DISCLAIMER } from './economista.js';
+import { LESSONS } from './aprender.js';
+import { budget } from './calculos.js';
+import { sprout, icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { uid } from './almacenamiento.js';
 
 const MODE_LABEL = (s) => ({
   payFirst: `Apartás el ${s.rules.payFirst.pct}% apenas cobrás.`,

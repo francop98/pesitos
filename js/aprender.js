@@ -1,8 +1,8 @@
 // "Aprendé en 1 minuto": lecciones cortas que aparecen donde tienen sentido.
 // Son conceptos estables (no dependen de cifras que cambian).
 
-import { esc } from './format.js';
-import { sprout } from './ui.js';
+import { esc } from './formato.js';
+import { sprout } from './interfaz.js';
 
 export const LESSONS = [
   { id: 'fijos', where: ['movimientos'], title: 'Gastos fijos y variables',

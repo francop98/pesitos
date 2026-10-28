@@ -1,12 +1,12 @@
 // Beneficios: descuentos y reintegros de tus bancos, billeteras y tarjetas,
-// día por día. Se actualizan solos (ver js/live.js y api/).
+// día por día. Se actualizan solos (ver js/datosvivos.js y api/).
 
-import { money, esc, num, WEEKDAYS } from '../format.js';
-import { allCategories, catLabel, walletName } from '../categories.js';
-import { promosForDay, promosStatus } from '../advisor.js';
-import { icon, screenHead, openModal, closeModal, toast } from '../ui.js';
-import { lessonCard } from '../learn.js';
-import { uid } from '../store.js';
+import { money, esc, num, WEEKDAYS } from './formato.js';
+import { allCategories, catLabel, walletName } from './categorias.js';
+import { promosForDay, promosStatus } from './economista.js';
+import { icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { lessonCard } from './aprender.js';
+import { uid } from './almacenamiento.js';
 
 let catFilter = 'all';
 const expanded = new Set(); // días con "Ver más" abierto

@@ -2,14 +2,14 @@
 // el cobro, alerta si no alcanza, vista calendario, totales por cuenta,
 // historial de cumplimiento y recordatorios.
 
-import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday } from '../format.js';
-import { allCategories, walletName } from '../categories.js';
-import { payCycle } from '../calc.js';
-import { agenda, agendaBetween, groups, pendingUntil, provisions, dueLabel, buildICS, REPEATS, repeatLabel, history, byAccount, statementDates, statementOf } from '../agenda.js';
-import { projection, coverage, inflows } from '../cashflow.js';
-import { icon, screenHead, openModal, closeModal, toast } from '../ui.js';
-import { lessonCard } from '../learn.js';
-import { uid } from '../store.js';
+import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday } from './formato.js';
+import { allCategories, walletName } from './categorias.js';
+import { payCycle } from './calculos.js';
+import { agenda, agendaBetween, groups, pendingUntil, provisions, dueLabel, buildICS, REPEATS, repeatLabel, history, byAccount, statementDates, statementOf } from './agenda.js';
+import { projection, coverage, inflows } from './flujo.js';
+import { icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { lessonCard } from './aprender.js';
+import { uid } from './almacenamiento.js';
 
 let view = 'lista';
 let showPaid = false;

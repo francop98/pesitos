@@ -1,14 +1,14 @@
 // Ahorro e inversiones: cuánto tenés, dónde y en qué moneda, cotizaciones
 // en vivo, conversor y metas.
 
-import { money, esc, num, todayISO } from '../format.js';
-import { holdingsTotal, holdingArs, goalEta, goalPct } from '../calc.js';
-import { HOLDING_TYPES, holdingType, ASSETS, assetById } from '../categories.js';
-import { insights } from '../advisor.js';
-import { arsPer, convert, refreshRates, ratesAge, ratesStale } from '../rates.js';
-import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody } from '../ui.js';
-import { uid } from '../store.js';
-import { lessonCard } from '../learn.js';
+import { money, esc, num, todayISO } from './formato.js';
+import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
+import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
+import { insights } from './economista.js';
+import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizaciones.js';
+import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody } from './interfaz.js';
+import { uid } from './almacenamiento.js';
+import { lessonCard } from './aprender.js';
 
 const nf = (d) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: d, minimumFractionDigits: 0 });
 export function fmtAsset(amount, assetId) {

@@ -12,7 +12,7 @@ HTML, CSS y JavaScript sin frameworks ni build. Se instala en el celular como ap
 
 Hace falta un servidor local porque la app usa módulos de JavaScript: abrir `index.html` con doble clic no funciona.
 
-Al entrar podés arrancar con tus datos o tocar **Ver la app con datos de ejemplo**.
+Al entrar te pide crear una cuenta o ingresar (mail y contraseña, o Google). Para que el ingreso funcione en tu compu con Live Server (que abre `127.0.0.1`), agregá `127.0.0.1` en Firebase → Authentication → Configuración → Dominios autorizados (`localhost` ya viene incluido).
 
 ### Probarla en el celular
 Con Live Server corriendo, entrá desde el celular a `http://IP-DE-TU-COMPU:5500` (misma red Wi-Fi). Para instalarla como app y usar "Compartir → Pesitos" hace falta publicarla con HTTPS: se publica en Vercel (ver `DEPLOY.md`).
@@ -39,13 +39,13 @@ Además: categorías propias, carga con fecha retroactiva ("15/10", "el lunes", 
 - Dólar blue: [DolarApi.com](https://dolarapi.com), que toma los valores de DolarHoy.
 - Euro, real, peso uruguayo y chileno: DolarApi.com.
 - Bitcoin, Ethereum, USDT y oro (PAX Gold, 1 token = 1 onza): CoinGecko.
-- Se actualizan cada 30 minutos o con el botón "Actualizar". Sin conexión usa las últimas guardadas o el dólar de respaldo de Ajustes.
+- Se actualizan cada 30 minutos o con el botón "Actualizar". Sin conexión usa las últimas guardadas.
 
 ### Promos
 Se actualizan solas, gratis, desde el servicio de Pesitos en Vercel (`api/`):
 - **Fuente principal:** [descuentos-ar-datos](https://github.com/lubelrivero-design/descuentos-ar-datos), que publica a diario las promos de más de 40 bancos y billeteras (la mantiene la app "Con qué pago").
 - **Complemento opcional:** Tavily + Gemini (planes gratis) buscan los medios de pago que falten.
-- Pesitos las cruza con tus medios de pago y tu provincia. `js/promos-catalog.js` queda solo como respaldo.
+- Pesitos las cruza con tus medios de pago y tu provincia. `js/promosrespaldo.js` queda solo como respaldo.
 
 ### Sugerencias de mejora
 Pesitos revisa lo que cargaste y propone correcciones: gastos cargados como fijos que en realidad varían, gastos anotados dos veces (como fijo y como gasto) y pagos que se repiten todos los meses y conviene pasar a fijos.
@@ -61,41 +61,57 @@ Si corregís la categoría de un gasto, la próxima vez la reconoce sola.
 
 ## Estructura
 
+Misma base que DBTYCS y Rutenda: archivos principales en la raíz, una carpeta `js/` plana con un archivo por función, `api/` para el servidor y las reglas de Firebase en el repositorio.
+
 ```
 pesitos/
 ├── index.html              Estructura base y navegación
+├── main.js                 Arranque: cuenta, nube, navegación y eventos
+├── styles.css              Estilos (colores de la marca y tema oscuro en :root)
 ├── manifest.webmanifest    PWA: ícono, nombre y "Compartir → Pesitos"
 ├── sw.js                   Funcionamiento sin conexión
-├── css/styles.css          Estilos (colores de la marca en :root)
+├── firestore.rules         Reglas de seguridad de Firestore (se pegan en la consola)
+├── vercel.json             Tareas programadas y configuración de Vercel
+├── package.json            Dependencia del servidor (firebase-admin)
+├── pages/                  terminos.html y privacidad.html
 ├── assets/                 Íconos de la app
+├── api/                    Servidor en Vercel: datos.js, actualizar.js y _lib/
 └── js/
-    ├── app.js              Arranque, navegación y eventos
-    ├── store.js            Guardado de datos (hoy en el dispositivo)
-    ├── firebase.js         Plantilla para pasar a Firebase
-    ├── calc.js             Presupuesto, reglas, metas, sueldo real, tarjetas
-    ├── rates.js            Cotizaciones en vivo y conversor
-    ├── promos-catalog.js   Promos de referencia (actualizar cada mes)
-    ├── guide.js            Preguntas de a poco y sugerencias de mejora
-    ├── advisor.js          Consejos automáticos y respuestas del asesor
-    ├── parser.js           Entiende "súper 48 lucas"
-    ├── categories.js       Categorías, tipos de ahorro y desafíos
-    ├── actions.js          Acciones compartidas (carga, edición, ajustes)
-    ├── demo.js             Datos de ejemplo
-    ├── format.js / ui.js   Formatos, íconos, logo y modales
-    └── views/              Una pantalla por archivo
+    ├── firebaseconfig.js   Conexión con Firebase (Authentication + Firestore)
+    ├── autenticacion.js    Ingreso, crear cuenta, Google, verificación, Mi cuenta
+    ├── sincronizacion.js   Tus datos en la nube (usuarios/{uid}) con cola de pendientes
+    ├── almacenamiento.js   Copia local por cuenta y estructura de los datos
+    ├── menu.js             Menú ☰: Mis datos, tema, letra, copia, Mi cuenta…
+    ├── tema.js             Tema claro/oscuro y tamaño de letra
+    ├── bienvenida.js       Charla de arranque
+    ├── inicio.js           Pantalla principal
+    ├── movimientos.js · tarjetas.js · pagos.js · sueldo.js · ahorro.js
+    ├── asesor.js · beneficios.js · herramientas.js     (una pantalla por archivo)
+    ├── calculos.js         Presupuesto, reglas, metas, sueldo real, tarjetas
+    ├── agenda.js · flujo.js   Vencimientos, cobros y proyección de la plata
+    ├── cotizaciones.js     Cotizaciones en vivo y conversor
+    ├── datosvivos.js       Inflación y promos que se actualizan solas
+    ├── promosrespaldo.js   Promos de respaldo (se ocultan solas al vencer)
+    ├── guia.js             Preguntas de a poco y sugerencias de mejora
+    ├── economista.js       Consejos automáticos y respuestas del asesor
+    ├── aprender.js         Lecciones de 1 minuto
+    ├── interprete.js       Entiende "súper 48 lucas"
+    ├── categorias.js       Categorías, medios de pago, provincias y desafíos
+    ├── acciones.js         Acciones compartidas (carga, edición, copias)
+    ├── ejemplo.js          Datos de ejemplo
+    └── formato.js · interfaz.js   Formatos, íconos, logo y modales
 ```
 
 Para agregar una acción: poné `data-action="miAccion"` en un botón (o `data-submit` en un form) y definí `miAccion(ctx, el)` en el `actions` de la pantalla.
 
-## Datos importantes
-- **La inflación de los datos de ejemplo es inventada.** Con tus datos, cargá el IPC mensual del INDEC en *Sueldo → Inflación mensual*.
-- Las promos de ejemplo también son inventadas: cargá las de tus bancos en *Asesor → Tus promos*.
-- Los datos quedan en el navegador del dispositivo. Desde *Ajustes* (tu inicial arriba a la derecha) podés exportar e importar una copia.
+## Cuentas y datos
+- La cuenta es obligatoria: mail y contraseña (con verificación de mail) o Google.
+- Tus datos se guardan en Firestore en `usuarios/{uid}` y solo vos podés verlos (`firestore.rules`). El dispositivo guarda una copia para abrir rápido y funcionar sin conexión; lo que cargás sin internet se envía solo cuando vuelve.
+- Desde *Menú → Copia de seguridad* podés descargar o restaurar un archivo, y desde *Menú → Mi cuenta*, eliminar la cuenta con todos sus datos.
 - Las recomendaciones son educativas y generales, no asesoramiento financiero personalizado.
 
 ## Próximos pasos
-1. **Publicar en Vercel** (ver `DEPLOY.md`) y sumar login con Google + sincronización entre dispositivos con Firebase (ver `js/firebase.js`).
-2. **Importar el resumen de la tarjeta** en PDF.
-3. **Asesor con IA**: conectar `advisor.js` a un modelo desde una función de Vercel (`api/`).
-4. **Leer comprobantes en imagen** (captura de pantalla).
-5. App nativa de Android con Capacitor para leer notificaciones de pago.
+1. **Importar el resumen de la tarjeta** en PDF.
+2. **Asesor con IA**: conectar `economista.js` a un modelo desde una función de Vercel (`api/`).
+3. **Leer comprobantes en imagen** (captura de pantalla).
+4. App nativa de Android con Capacitor para leer notificaciones de pago.

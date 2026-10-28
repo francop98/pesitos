@@ -1,4 +1,4 @@
-// ¿La promo vale en la provincia del usuario? (misma lógica que js/live.js)
+// ¿La promo vale en la provincia del usuario? (misma lógica que js/datosvivos.js)
 const norm = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const KEYS = { 'Buenos Aires': ['provincia de buenos aires', 'pba', 'amba', 'bonaerense'], CABA: ['caba', 'ciudad de buenos aires', 'ciudad autonoma', 'amba'] };
 

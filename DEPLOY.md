@@ -17,6 +17,9 @@ Se configura **una sola vez**. Después, cada vez que subís cambios a GitHub, V
 
 ### 1. Firebase
 - Firestore creada (ya está).
+- **App web:** ⚙️ Configuración del proyecto → General → *Tus apps* → **`</>`** → sobrenombre `Pesitos` → Registrar app. Copiá el bloque `firebaseConfig` a `js/firebaseconfig.js`.
+- **Authentication:** Compilación → Authentication → Comenzar → *Método de acceso*: activá **Correo electrónico/contraseña** y **Google**. En *Configuración → Dominios autorizados* agregá `pesitos-one.vercel.app`.
+- **Reglas:** Firestore Database → Reglas → pegá el contenido de `firestore.rules` → **Publicar**.
 - **Cuenta de servicio:** Consola de Firebase → ⚙️ Configuración del proyecto → *Cuentas de servicio* → **Generar nueva clave privada**. Se descarga un archivo `.json`. **No lo subas a GitHub.**
 
 ### 2. Complemento de promos (opcional, gratis, sin tarjeta)

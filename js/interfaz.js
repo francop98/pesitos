@@ -1,7 +1,7 @@
 // Íconos, logo y componentes visuales compartidos.
 
-import { esc, toISO } from './format.js';
-import { allCategories } from './categories.js';
+import { esc, toISO } from './formato.js';
+import { allCategories } from './categorias.js';
 
 const P = {
   home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -35,6 +35,16 @@ const P = {
   calendar: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
   bulb: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
   send: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  logout: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  text: '<path d="M4 7V5h16v2M9 19h6M12 5v14"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  cloud: '<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>',
   paste: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
 };
 
@@ -48,17 +58,17 @@ export function sprout(size = 24, color = '#C6F36B') {
 }
 
 // Logotipo: "pesitos" con el brote en la i
-export function wordmark(size = 26, ink = '#16181D', leaf = '#1F6F4A') {
+export function wordmark(size = 26, ink = 'var(--ink)', leaf = 'var(--logo-leaf)') {
   const w = Math.round(size * 0.34); const h = Math.round(size * 1.1);
-  return `<span class="wordmark" style="font-size:${size}px;color:${ink}" role="img" aria-label="Pesitos"><span aria-hidden="true">pe$</span><svg aria-hidden="true" width="${w}" height="${h}" viewBox="0 0 16 50"><rect x="4.5" y="22" width="7" height="25" rx="2" fill="${ink}"/><path d="M8 18C8 12 11 8 16 8 16 13 13 17 8 18Z" fill="${leaf}"/><path d="M8 19C8 14 5 11 0 11 0 16 3 18.5 8 19Z" fill="${leaf}"/></svg><span aria-hidden="true">tos</span></span>`;
+  return `<span class="wordmark" style="font-size:${size}px;color:${ink}" role="img" aria-label="Pesitos"><span aria-hidden="true">pe$</span><svg aria-hidden="true" width="${w}" height="${h}" viewBox="0 0 16 50"><rect x="4.5" y="22" width="7" height="25" rx="2" fill="currentColor"/><path d="M8 18C8 12 11 8 16 8 16 13 13 17 8 18Z" style="fill:${leaf}"/><path d="M8 19C8 14 5 11 0 11 0 16 3 18.5 8 19Z" style="fill:${leaf}"/></svg><span aria-hidden="true">tos</span></span>`;
 }
 
-export function ring(p, size = 72, stroke = 8, label = '', color = '#1F6F4A', track = '#ECEAE3') {
+export function ring(p, size = 72, stroke = 8, label = '', color = 'var(--green)', track = 'var(--track)') {
   const r = (size - stroke) / 2; const c = 2 * Math.PI * r; const v = Math.max(0, Math.min(1, p));
   return `<svg class="ring" role="img" aria-label="${esc(label || Math.round(v * 100) + '%')}" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">
-    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${track}" stroke-width="${stroke}"/>
-    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
-    ${size >= 60 ? `<text x="50%" y="50%" dy="0.35em" text-anchor="middle" fill="#16181D" font-size="${Math.round(size * 0.22)}" font-weight="800">${Math.round(v * 100)}%</text>` : ''}
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" style="stroke:${track}" stroke-width="${stroke}"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" style="stroke:${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
+    ${size >= 60 ? `<text x="50%" y="50%" dy="0.35em" text-anchor="middle" style="fill:var(--ink)" font-size="${Math.round(size * 0.22)}" font-weight="800">${Math.round(v * 100)}%</text>` : ''}
   </svg>`;
 }
 

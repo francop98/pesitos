@@ -1,14 +1,14 @@
 // Movimientos: ingresos y gastos separados, fijos que se cargan solos,
 // sugerencias de mejora y acceso a tarjetas.
 
-import { money, esc, monthKey, addMonthKey, monthName, relDay, num } from '../format.js';
-import { catById, catLabel } from '../categories.js';
-import { monthExpenses, monthIncome, fixedTotal } from '../calc.js';
-import { suggestions, renderSuggestion } from '../guide.js';
-import { icon, screenHead, quickForm, openModal, closeModal, toast } from '../ui.js';
-import { uid } from '../store.js';
-import { lessonCard } from '../learn.js';
-import { agenda } from '../agenda.js';
+import { money, esc, monthKey, addMonthKey, monthName, relDay, num } from './formato.js';
+import { catById, catLabel } from './categorias.js';
+import { monthExpenses, monthIncome, fixedTotal } from './calculos.js';
+import { suggestions, renderSuggestion } from './guia.js';
+import { icon, screenHead, quickForm, openModal, closeModal, toast } from './interfaz.js';
+import { uid } from './almacenamiento.js';
+import { lessonCard } from './aprender.js';
+import { agenda } from './agenda.js';
 import { payOptions } from './pagos.js';
 
 let filter = 'todo';

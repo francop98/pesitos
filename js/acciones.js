@@ -2,20 +2,20 @@
 // movimientos, "¿Me lo compro?", comprobantes, cierre semanal,
 // medios de pago, sugerencias de mejora y ajustes.
 
-import { uid, emptyState, clear, migrate } from './store.js';
-import { parseEntry, merchantKey } from './parser.js';
-import { CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel } from './categories.js';
-import { money, esc, todayISO, num, monthKey, relDay, normalize, toISO, addDays, parseISO, MONTHS } from './format.js';
-import { parseAmount } from './parser.js';
-import { weekSummary } from './calc.js';
-import { suggestions, renderSuggestion } from './guide.js';
-import { LESSONS } from './learn.js';
-import { buyImpact, expectedBalance, mainGoal, lastSalary } from './calc.js';
-import { demoState } from './demo.js';
-import { openModal, closeModal, modalBack, toast, setModalBody, icon } from './ui.js';
-import { OPTIONS_TEXT, DISCLAIMER, promosStatus } from './advisor.js';
-import { ratesAge } from './rates.js';
-import { lastIpc, refreshLive } from './live.js';
+import { uid, emptyState, clear, migrate } from './almacenamiento.js';
+import { parseEntry, merchantKey } from './interprete.js';
+import { CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel } from './categorias.js';
+import { money, esc, todayISO, num, monthKey, relDay, normalize, toISO, addDays, parseISO, MONTHS } from './formato.js';
+import { parseAmount } from './interprete.js';
+import { weekSummary } from './calculos.js';
+import { suggestions, renderSuggestion } from './guia.js';
+import { LESSONS } from './aprender.js';
+import { buyImpact, expectedBalance, mainGoal, lastSalary } from './calculos.js';
+import { demoState } from './ejemplo.js';
+import { openModal, closeModal, modalBack, toast, setModalBody, icon } from './interfaz.js';
+import { OPTIONS_TEXT, DISCLAIMER, promosStatus } from './economista.js';
+import { ratesAge } from './cotizaciones.js';
+import { lastIpc, refreshLive } from './datosvivos.js';
 
 const catOptions = (sel) => allCategories().map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${c.label}</option>`).join('');
 const cardOptions = (s, sel) => `<option value="">Efectivo, débito o transferencia</option>${s.cards.map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>Tarjeta ${esc(c.name)}</option>`).join('')}`;
@@ -372,37 +372,7 @@ export const commonActions = {
     openModal('¿Dónde pongo mis ahorros?', `<p class="text" style="white-space:pre-line">${esc(OPTIONS_TEXT)}</p><p class="small muted">${DISCLAIMER}</p>`);
   },
 
-  // ---------- ajustes ----------
-  openSettings(ctx) {
-    const s = ctx.state;
-    openModal('Ajustes', `<form class="form" data-submit="saveSettings">
-      <div class="field"><label for="s-name">Tu nombre</label><input id="s-name" name="name" value="${esc(s.profile.name)}"></div>
-      <div class="field"><label for="s-pay">Día de cobro</label><input id="s-pay" name="payday" inputmode="numeric" value="${s.profile.payday}"></div>
-      <div class="field"><label for="s-prov">Provincia (para las promos de tu zona)</label><select id="s-prov" name="province"><option value="">Sin elegir: solo promos de todo el país</option>${PROVINCES.map((p) => `<option value="${esc(p)}" ${s.profile.province === p ? 'selected' : ''}>${esc(provinceLabel(p))}</option>`).join('')}</select></div>
-      <button class="btn primary block" type="submit">Guardar</button>
-    </form>
-    <div class="card"><strong>Datos que se actualizan solos</strong>
-      <span class="small">Cotizaciones (dólar blue de DolarHoy, monedas, cripto y oro): ${ratesAge(s)}.</span>
-      <span class="small">Inflación del INDEC: ${(() => { const l = lastIpc(s); return l ? `último dato ${l.mk.split('-').reverse().join('/')} (${String(l.value).replace('.', ',')}%)` : 'esperando el primer dato'; })()}.</span>
-      <span class="small">Promos: ${esc(promosStatus(s))}</span>
-    </div>
-    <button class="btn block" data-action="openWallets">${icon('wallet', 20)} Mis medios de pago</button>
-    <div class="card"><strong>Tus datos</strong><p class="text muted">Quedan guardados solo en este dispositivo.</p>
-      <div class="btn-row"><button class="btn small" data-action="exportData">Exportar copia</button><label class="btn small" for="import-file">Importar copia</label></div>
-      <input id="import-file" type="file" accept="application/json" class="sr-only" data-change="importData">
-      <button class="btn small" data-action="loadDemo">Cargar datos de ejemplo</button>
-      <button class="btn small ghost" data-action="resetAll">Borrar todo y empezar de cero</button>
-    </div>`);
-  },
-  saveSettings(ctx, d) {
-    ctx.commit((s) => {
-      s.profile.name = d.name.trim();
-      s.profile.payday = Math.min(31, Math.max(1, parseInt(d.payday, 10) || 1));
-      s.profile.province = PROVINCES.includes(d.province) ? d.province : '';
-    });
-    closeModal(); toast('Ajustes guardados');
-    refreshLive(ctx, true);
-  },
+  // ---------- copia de seguridad (el menú está en js/menu.js) ----------
   exportData(ctx) {
     const blob = new Blob([JSON.stringify(ctx.state, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -420,7 +390,7 @@ export const commonActions = {
   loadDemo(ctx) { ctx.replace(demoState()); closeModal(); ctx.go('inicio'); toast('Datos de ejemplo cargados'); },
   resetAll(ctx, el) {
     if (el.dataset.confirm !== 'yes') { el.dataset.confirm = 'yes'; el.textContent = 'Tocá de nuevo para borrar todo'; return; }
-    clear(); ctx.replace(emptyState()); closeModal();
+    clear(); ctx.replace({ ...emptyState(), profile: { ...emptyState().profile, name: ctx.state.profile.name } }); closeModal();
   },
 };
 

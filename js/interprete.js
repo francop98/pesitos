@@ -2,8 +2,8 @@
 // "heladera 540000 en 12 cuotas", "cobré sueldo 1,2 palos"
 // o el texto de un comprobante: "Pagaste $ 12.500,00 a FARMACITY".
 
-import { allCategories } from './categories.js';
-import { normalize, toISO, addDays } from './format.js';
+import { allCategories } from './categorias.js';
+import { normalize, toISO, addDays } from './formato.js';
 
 const STOP = new Set(['pagaste', 'pague', 'compre', 'gaste', 'gastaste', 'pagamos', 'en', 'a', 'al', 'de', 'del', 'por', 'el', 'la', 'los', 'las', 'con', 'un', 'una', 'para', 'me', 'mi', 'y', 'hoy', 'ayer', 'anteayer', 'cuotas', 'cuota', 'sin', 'interes', 'pesos', 'transferiste', 'enviaste', 'realizaste', 'pago', 'compra', 'cobre', 'me', 'pagaron', 'ingreso', 'ingresaron', 'recibiste', 'recibi']);
 const MULT = { luca: 1e3, lucas: 1e3, mil: 1e3, k: 1e3, palo: 1e6, palos: 1e6, millon: 1e6, millones: 1e6 };

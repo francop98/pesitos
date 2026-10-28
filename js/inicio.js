@@ -1,15 +1,15 @@
 // Inicio: cuánto podés gastar hoy, tu meta, lo que necesita tu atención
 // (sueldo del mes, ahorro, resumen semanal) y accesos rápidos.
 
-import { money, esc, monthKey, MONTHS_LONG, MONTHS, num, todayISO, monthName, parseISO } from '../format.js';
-import { budget, mainGoal, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary } from '../calc.js';
-import { insights } from '../advisor.js';
-import { renderQuestion, suggestions, renderSuggestion } from '../guide.js';
-import { lessonCard } from '../learn.js';
-import { catLabel } from '../categories.js';
-import { alerts, dueLabel, closings } from '../agenda.js';
-import { projection, coverage } from '../cashflow.js';
-import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from '../ui.js';
+import { money, esc, monthKey, MONTHS_LONG, MONTHS, num, todayISO, monthName, parseISO } from './formato.js';
+import { budget, mainGoal, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary } from './calculos.js';
+import { insights } from './economista.js';
+import { renderQuestion, suggestions, renderSuggestion } from './guia.js';
+import { lessonCard } from './aprender.js';
+import { catLabel } from './categorias.js';
+import { alerts, dueLabel, closings } from './agenda.js';
+import { projection, coverage } from './flujo.js';
+import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
 
 const MODE_TEXT = {
   payFirst: (s) => `Elegiste apartar el ${s.rules.payFirst.pct}% apenas cobrás`,
@@ -126,11 +126,11 @@ export function render(s) {
 
   return `<section class="screen">
     <div class="topbar">
-      ${wordmark(26)}
-      <button class="avatar" data-action="openSettings" aria-label="Ajustes">${esc(initial)}</button>
+      <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${wordmark(26)}</div>
+      <button class="avatar" data-action="openMiCuenta" aria-label="Mi cuenta">${esc(initial)}</button>
     </div>
 
-    ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde Ajustes.</span></div>' : ''}
+    ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
 
     <div class="card green" style="padding:22px;gap:4px">
       <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}</span>

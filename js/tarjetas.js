@@ -1,14 +1,14 @@
 // Tarjetas de crédito: próximo resumen, cuotas pendientes y lo que ya
 // tenés comprometido en los próximos meses.
 
-import { money, esc, num, monthName } from '../format.js';
-import { cardSummary } from '../calc.js';
-import { icon, sprout, screenHead, openModal, closeModal, toast } from '../ui.js';
-import { agenda, dueLabel, bestBuyDay } from '../agenda.js';
-import { cardPlan } from '../cashflow.js';
+import { money, esc, num, monthName } from './formato.js';
+import { cardSummary } from './calculos.js';
+import { icon, sprout, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { agenda, dueLabel, bestBuyDay } from './agenda.js';
+import { cardPlan } from './flujo.js';
 import { payOptions } from './pagos.js';
-import { uid } from '../store.js';
-import { lessonCard } from '../learn.js';
+import { uid } from './almacenamiento.js';
+import { lessonCard } from './aprender.js';
 
 // Plan para pagar el próximo resumen + mejor día para compras grandes
 function planBlock(s, c) {

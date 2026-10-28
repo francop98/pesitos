@@ -1,4 +1,4 @@
-// Lo que consulta la app (js/live.js): promos vigentes e inflación.
+// Lo que consulta la app (js/datosvivos.js): promos vigentes e inflación.
 // ?prov=<provincia> devuelve solo las promos nacionales y las de esa provincia.
 // ?extra=<nombres> registra los bancos o billeteras que agregaron los usuarios
 // para que el complemento busque también sus promos.

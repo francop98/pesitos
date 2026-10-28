@@ -1,8 +1,19 @@
-// Capa de datos. Hoy guarda en el dispositivo (localStorage).
-// Para pasar a Firebase, reemplazá load/save por lecturas y escrituras
-// en Firestore (ver js/firebase.js). El resto de la app no cambia.
+// Capa de datos local: la copia rápida de tus datos en este dispositivo.
+// Hay una copia por cuenta (pesitos:v1:<uid>). La nube (Firestore) la maneja
+// js/sincronizacion.js: cada guardado acá también se envía a tu cuenta.
 
-const KEY = 'pesitos:v1';
+const LEGACY_KEY = 'pesitos:v1'; // datos de antes de que existieran las cuentas
+let KEY = LEGACY_KEY;
+
+/** Elige la copia local de la cuenta que ingresó. */
+export function useAccount(uid) { KEY = uid ? `${LEGACY_KEY}:${uid}` : LEGACY_KEY; }
+
+/** Datos de antes de las cuentas (para subirlos en el primer ingreso). */
+export function loadLegacy() {
+  try { const raw = localStorage.getItem(LEGACY_KEY); return raw ? migrate(JSON.parse(raw)) : null; } catch { return null; }
+}
+export function clearLegacy() { try { localStorage.removeItem(LEGACY_KEY); } catch { /* nada */ } }
+export function hasLocal() { try { return Boolean(localStorage.getItem(KEY)); } catch { return false; } }
 
 export function defaultRules() {
   return {

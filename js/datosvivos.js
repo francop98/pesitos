@@ -5,7 +5,7 @@
 //   que las junta todos los días de fuentes gratuitas. Ver DEPLOY.md.
 // Nada de esto se carga a mano.
 
-import { monthKey, addMonthKey, todayISO, normalize } from './format.js';
+import { monthKey, addMonthKey, todayISO, normalize } from './formato.js';
 
 const norm = (t) => normalize(t).replace(/[^a-z0-9]+/g, ' ').trim();
 // para comparar nombres de bancos: "Banco Patagonia" = "Patagonia"

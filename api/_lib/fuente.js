@@ -9,7 +9,7 @@ export const FUENTE = {
   json: 'https://raw.githubusercontent.com/lubelrivero-design/descuentos-ar-datos/main/promos.json',
 };
 
-// medio de la fuente → id de medio de pago de la app (js/categories.js)
+// medio de la fuente → id de medio de pago de la app (js/categorias.js)
 const MEDIOS = {
   cuenta_dni: 'cuentadni', mercado_pago: 'mercadopago', mercado_pago_tarjeta: 'mercadopago', modo: 'modo',
   naranja_x: 'naranjax', uala: 'uala', personal_pay: 'personalpay', bna_mas: 'bnamas', banco_provincia: 'provincia',

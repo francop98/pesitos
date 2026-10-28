@@ -1,0 +1,36 @@
+rules_version = '2';
+// =========================================================
+// Pesitos — reglas de seguridad de Firestore
+// Pegalas en Firebase → Firestore Database → Reglas → Publicar.
+//   usuarios/{uid}           perfil de la cuenta: solo lo ve y cambia su dueño
+//   usuarios/{uid}/estado/*  datos de la app: solo los ve y cambia su dueño
+//   publico/*                promos e inflación: los escribe solo el servidor
+//                            (Vercel, con su clave propia); la app los lee por /api/datos
+// Todo lo demás está cerrado.
+// =========================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esDueno(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /usuarios/{uid} {
+      allow read, delete: if esDueno(uid);
+      allow create, update: if esDueno(uid) && request.resource.data.keys().hasOnly(['nombre', 'email', 'proveedor', 'creado', 'ultimoIngreso']);
+
+      match /estado/{docId} {
+        allow read, delete: if esDueno(uid);
+        allow create, update: if esDueno(uid)
+          && docId.matches('^(general|(expenses|incomes|transfers)-([0-9]{4}|sin-fecha))$')
+          && request.resource.data.keys().hasOnly(['json', 'actualizado'])
+          && request.resource.data.json is string
+          && request.resource.data.json.size() < 900000;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

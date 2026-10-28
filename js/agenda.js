@@ -7,7 +7,7 @@
 // También calcula cuánto conviene ir apartando para los pagos grandes,
 // arma el archivo de calendario con recordatorios y muestra avisos.
 
-import { toISO, parseISO, addMonthKey, monthKey, startOfToday, daysBetween, money } from './format.js';
+import { toISO, parseISO, addMonthKey, monthKey, startOfToday, daysBetween, money } from './formato.js';
 
 export const REPEATS = [
   { id: 'once', label: 'Una sola vez', months: 0 },

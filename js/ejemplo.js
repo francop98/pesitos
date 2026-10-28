@@ -2,8 +2,8 @@
 // Las cotizaciones se toman en vivo cuando hay conexión.
 // La inflación de ejemplo NO es la real: cargá el IPC del INDEC en la pestaña Sueldo.
 
-import { emptyState, uid } from './store.js';
-import { monthKey, addMonthKey, toISO, addDays, startOfToday } from './format.js';
+import { emptyState, uid } from './almacenamiento.js';
+import { monthKey, addMonthKey, toISO, addDays, startOfToday } from './formato.js';
 
 export function demoState() {
   const s = emptyState();

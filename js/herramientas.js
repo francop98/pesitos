@@ -1,12 +1,12 @@
 // Herramientas para decidir: ¿me lo compro?, cuotas o contado,
 // cuánto ahorrar por mes, cuánto rinde mi plata y conversor.
 
-import { money, MONTHS_LONG } from '../format.js';
-import { installmentsVsCash, lastSalary } from '../calc.js';
-import { expectedInflation } from '../live.js';
-import { parseAmount } from '../parser.js';
-import { icon, screenHead, openModal, setModalBody } from '../ui.js';
-import { lessonCard } from '../learn.js';
+import { money, MONTHS_LONG } from './formato.js';
+import { installmentsVsCash, lastSalary } from './calculos.js';
+import { expectedInflation } from './datosvivos.js';
+import { parseAmount } from './interprete.js';
+import { icon, screenHead, openModal, setModalBody } from './interfaz.js';
+import { lessonCard } from './aprender.js';
 
 const TOOLS = [
   { action: 'openBuy', icon: 'cart', title: '¿Me lo compro?', text: 'Cómo impacta una compra en tu día, tu mes y tus metas.' },

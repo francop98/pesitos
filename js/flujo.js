@@ -6,8 +6,8 @@
 // - Cobertura: si algún día no alcanza, cuánto falta y qué hacer.
 // - Plan para pagar cada resumen de tarjeta.
 
-import { toISO, parseISO, startOfToday, daysBetween, addDays, money, monthName } from './format.js';
-import { payCycle, lastSalary, expectedBalance } from './calc.js';
+import { toISO, parseISO, startOfToday, daysBetween, addDays, money, monthName } from './formato.js';
+import { payCycle, lastSalary, expectedBalance } from './calculos.js';
 import { agendaBetween, billOccurrences, repeatLabel } from './agenda.js';
 
 const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + f(x), 0);
