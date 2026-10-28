@@ -7,6 +7,7 @@
 import { db } from './firebase.js';
 import { FUENTE, promosFuente } from './fuente.js';
 import { complementoActivo, promosComplemento } from './complemento.js';
+import { enviarAvisos } from './avisos.js';
 
 export const TZ = 'America/Argentina/Buenos_Aires';
 export const todayAR = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date()); // AAAA-MM-DD
@@ -64,6 +65,9 @@ export async function actualizar({ turno = 'manana' } = {}) {
 
   let ipc = prev.ipc || {};
   try { ipc = { ...ipc, ...(await ipcOficial(today)) }; status.ipc = 'ok'; } catch (e) { status.ipc = `error: ${e.message}`; }
+
+  // avisos de la mañana (solo en la corrida de las 9)
+  if (turno !== 'tarde') { try { status.avisos = await enviarAvisos(today); } catch (e) { status.avisos = `error: ${e.message}`; } }
 
   const base = promos || (prev.promos || []).filter((p) => !p.auto && p.validTo >= today); // si la fuente falló, se conservan las anteriores vigentes
   const doc = {

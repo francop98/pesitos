@@ -12,29 +12,66 @@ import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
 import { buyImpact, expectedBalance, mainGoal, lastSalary } from './calculos.js';
 import { demoState } from './ejemplo.js';
-import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon } from './interfaz.js';
+import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus } from './economista.js';
-import { ratesAge } from './cotizaciones.js';
+import { ratesAge, arsPer } from './cotizaciones.js';
+import { listaCuentas, cuentaPrincipal, nombreCuenta } from './cuentas.js';
+import { avancePresupuesto } from './presupuestos.js';
+import { ASSETS } from './categorias.js';
+import { extraerEtiquetas, etiquetasDeTexto } from './formato.js';
 import { lastIpc, refreshLive } from './datosvivos.js';
 
-const catOptions = (sel) => allCategories().map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${c.label}</option>`).join('');
-const cardOptions = (s, sel) => `<option value="">Efectivo, débito o transferencia</option>${s.cards.map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>Tarjeta ${esc(c.name)}</option>`).join('')}`;
+const catOptions = (sel) => allCategories().map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.emoji ? c.emoji + ' ' : '')}${esc(c.label)}</option>`).join('');
+const MONEDAS = ASSETS.filter((a) => ['ARS', 'USD', 'EUR', 'BRL', 'UYU', 'CLP', 'USDT'].includes(a.id));
 
-function entryForm(s, e, kind) {
+/** Opciones de "con qué pagaste": cuentas y tarjetas de crédito. Valor: 'acc:<id>' o 'card:<id>'. */
+export function medioOptions(s, sel, { conTarjetas = true, auto = false } = {}) {
+  const ppal = cuentaPrincipal(s);
+  return `${auto ? `<option value="">Automático (${esc(nombreCuenta(s, ppal))})</option>` : ''}
+    <optgroup label="Cuentas">${listaCuentas(s).map((c) => `<option value="acc:${esc(c.id)}" ${sel === 'acc:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>
+    ${conTarjetas && s.cards.length ? `<optgroup label="Tarjetas de crédito">${s.cards.map((c) => `<option value="card:${esc(c.id)}" ${sel === 'card:' + c.id ? 'selected' : ''}>Tarjeta ${esc(c.name)}</option>`).join('')}</optgroup>` : ''}`;
+}
+export const medioDe = (e) => (e.cardId ? `card:${e.cardId}` : e.accountId ? `acc:${e.accountId}` : '');
+
+export function entryForm(s, e, kind) {
   const isIncome = kind === 'income';
-  return `<form class="form" data-submit="saveEntry">
+  const cur = e.currency || 'ARS';
+  const original = e.original || e.amount;
+  const sh = e.shared || null;
+  const splits = Array.isArray(e.splits) ? e.splits : [];
+  const medio = medioDe(e) || `acc:${cuentaPrincipal(s)}`;
+  const montoTxt = (v) => (v ? String(Math.round(v * 100) / 100).replace('.', ',') : '');
+  return `<form class="form" data-submit="saveEntry" data-change-form="entry">
     <input type="hidden" name="id" value="${esc(e.id || '')}">
     <input type="hidden" name="kind" value="${kind}">
-    <div class="field"><label for="f-amount">Monto</label><input id="f-amount" name="amount" inputmode="decimal" required value="${e.amount ? Math.round(e.amount) : ''}" placeholder="Ej: 48.000"></div>
+    <div class="field-row money-row">
+      <div class="field"><label for="f-amount">${sh ? 'Total del gasto' : 'Monto'}</label><input id="f-amount" name="amount" inputmode="decimal" required value="${montoTxt(sh ? (cur === 'ARS' ? sh.total : original) : original)}" placeholder="Ej: 48.000"></div>
+      <div class="field"><label for="f-cur">Moneda</label><select id="f-cur" name="currency" data-change="entryCurrency">${MONEDAS.map((a) => `<option value="${a.id}" ${a.id === cur ? 'selected' : ''}>${a.id === 'ARS' ? 'Pesos' : a.label}</option>`).join('')}</select></div>
+    </div>
+    <div class="field" data-cur-box ${cur === 'ARS' ? 'hidden' : ''}><label for="f-rate">Cotización (pesos por unidad)</label><input id="f-rate" name="rate" inputmode="decimal" value="${montoTxt(e.rate || (cur !== 'ARS' ? arsPer(s, cur) : 0))}"><span class="hint">La pongo sola con la cotización del día. Si pagaste con otra (por ejemplo, dólar tarjeta), cambiala.</span></div>
     <div class="field"><label for="f-note">Descripción</label><input id="f-note" name="note" value="${esc(e.note || '')}"></div>
     ${isIncome
-      ? `<div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Sueldo</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>`
+      ? `<div class="field-row"><div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Sueldo</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>
+         <div class="field"><label for="f-acc">Entró en</label><select id="f-acc" name="medio">${medioOptions(s, medio, { conTarjetas: false })}</select></div></div>`
       : `<div class="field"><label for="f-cat">Categoría</label><select id="f-cat" name="category">${catOptions(e.category)}</select><span class="hint">Si la corregís, la próxima vez la reconozco sola.</span></div>
-         <div class="field"><label for="f-card">Medio de pago</label><select id="f-card" name="cardId">${cardOptions(s, e.cardId)}</select></div>`}
+         <label class="check"><input type="checkbox" name="dividir" data-change="entryToggle" data-box="split" ${splits.length ? 'checked' : ''}> <span>Dividir en varias categorías<br><span class="small muted">Ej: en el súper compraste comida y cosas de limpieza.</span></span></label>
+         <div class="split-box" data-box-id="split" ${splits.length ? '' : 'hidden'}>
+           ${[0, 1, 2, 3].map((i) => `<div class="field-row"><select name="sc${i}" aria-label="Categoría ${i + 1}">${catOptions((splits[i] || {}).category || (i === 0 ? e.category : ''))}</select><input name="sa${i}" inputmode="decimal" aria-label="Monto ${i + 1}" placeholder="Monto" value="${montoTxt((splits[i] || {}).amount)}"></div>`).join('')}
+           <span class="hint">Las partes tienen que sumar el total. La que dejes vacía no se usa.</span>
+         </div>
+         <div class="field-row"><div class="field"><label for="f-medio">Con qué pagaste</label><select id="f-medio" name="medio">${medioOptions(s, medio)}</select></div>
+         <div class="field"><label for="f-inst">Cuotas (con tarjeta)</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments || 1}"></div></div>`}
     <div class="field-row">
       <div class="field"><label for="f-date">Fecha</label><input id="f-date" name="date" type="date" value="${esc(e.date || todayISO())}"></div>
-      ${isIncome ? '' : `<div class="field"><label for="f-inst">Cuotas</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments || 1}"></div>`}
+      <div class="field"><label for="f-tags">Etiquetas</label><input id="f-tags" name="tags" value="${esc((e.tags || []).join(', '))}" placeholder="Ej: vacaciones, auto"></div>
     </div>
+    ${isIncome ? '' : `<label class="check"><input type="checkbox" name="compartido" data-change="entryToggle" data-box="shared" ${sh ? 'checked' : ''}> <span>Lo compartí con otras personas<br><span class="small muted">Cuento solo tu parte como gasto y te anoto lo que te deben (o lo que debés).</span></span></label>
+    <div class="split-box" data-box-id="shared" ${sh ? '' : 'hidden'}>
+      <div class="field-row"><div class="field"><label for="f-with">Con quién</label><input id="f-with" name="with" value="${esc((sh && sh.with) || '')}" placeholder="Ej: Juan"></div>
+      <div class="field"><label for="f-payer">¿Quién pagó?</label><select id="f-payer" name="payer"><option value="yo" ${!sh || sh.paidByMe ? 'selected' : ''}>Yo</option><option value="otro" ${sh && !sh.paidByMe ? 'selected' : ''}>La otra persona</option></select></div></div>
+      <div class="field"><label for="f-mine">Mi parte</label><input id="f-mine" name="mine" inputmode="decimal" value="${montoTxt(sh ? (cur === 'ARS' ? e.amount : e.amount / (e.rate || 1)) : '')}" placeholder="Ej: la mitad">
+        <div class="chips" style="margin-top:6px">${[2, 3, 4].map((n) => `<button type="button" class="chip" data-action="entryParte" data-n="${n}">Entre ${n}</button>`).join('')}</div></div>
+    </div>`}
     <button class="btn primary block" type="submit">${e.pending ? 'Confirmar' : 'Guardar'}</button>
     ${e.id ? `<button class="btn ghost block" type="button" data-action="deleteEntry" data-id="${esc(e.id)}" data-kind="${kind}">Borrar</button>` : ''}
   </form>`;
@@ -134,25 +171,45 @@ export const commonActions = {
     input.focus();
   },
   quickAdd(ctx, data) {
-    const p = parseEntry(data.q, ctx.state.learned);
+    const { texto, tags } = extraerEtiquetas(data.q);
+    const p = parseEntry(texto, ctx.state.learned);
     if (!p.amount) { toast('No encontré el monto. Ejemplo: "Supermercado 48.000"'); return; }
     const kind = data.kind === 'income' ? 'income' : 'expense';
-    const cardId = kind === 'expense' ? detectCard(ctx.state, data.q) : undefined;
+    const [medioTipo, medioId] = String(data.medio || '').split(':');
+    const cardId = kind === 'expense' ? (medioTipo === 'card' ? medioId : medioTipo === 'acc' ? undefined : detectCard(ctx.state, texto)) : undefined;
+    const accountId = cardId ? undefined : (medioTipo === 'acc' ? medioId : cuentaPrincipal(ctx.state));
     const chosenCat = data.category && data.category !== 'auto' && data.category !== '__new' ? data.category : null;
     const category = chosenCat || p.category;
+    // gastos en otra moneda: "Netflix US$ 10", "hotel 200 reales", "50 usd"
+    const t = normalize(texto);
+    const currency = /\b(us\$|u\$s|usd|dolar(es)?)\b|us\$|u\$s/.test(t) ? 'USD' : /\b(euros?|eur)\b|€/.test(t) ? 'EUR' : /\b(reales?|brl)\b|r\$/.test(t) ? 'BRL' : 'ARS';
+    const rate = currency === 'ARS' ? 1 : arsPer(ctx.state, currency);
+    if (currency !== 'ARS' && !rate) { toast('No tengo la cotización ahora: cargalo desde "Gasto detallado"'); return; }
+    const amount = Math.round(p.amount * rate * 100) / 100;
+    const moneda = currency === 'ARS' ? {} : { currency, original: p.amount, rate };
+    const note = p.note.replace(/\b(us\$|u\$s|usd|dolares|dolar|euros?|reales?)\b/gi, '').replace(/\s+/g, ' ').trim() || p.note;
     // la fecha elegida en el selector manda; si quedó en hoy, vale la del texto ("ayer", "15/10")
     const date = data.date && data.date !== todayISO() ? data.date : p.date;
+    const antes = kind === 'expense' ? avancePresupuesto(ctx.state, category) : null;
     ctx.commit((s) => {
-      if (kind === 'income') s.incomes.push({ id: uid(), date, amount: p.amount, type: /sueldo/i.test(data.q) ? 'sueldo' : 'extra', note: p.note === 'Gasto' ? 'Ingreso' : p.note });
+      if (kind === 'income') s.incomes.push({ id: uid(), date, amount, type: /sueldo/i.test(texto) ? 'sueldo' : 'extra', note: note === 'Gasto' ? 'Ingreso' : note, ...(accountId ? { accountId } : {}), ...(tags.length ? { tags } : {}), ...moneda });
       else {
-        s.expenses.push({ id: uid(), date, amount: p.amount, category, note: p.note, installments: p.installments, ...(cardId ? { cardId } : {}) });
-        if (chosenCat && chosenCat !== p.category) { const key = merchantKey(p.note); if (key) s.learned[key] = chosenCat; }
+        s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...moneda });
+        if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
       }
     });
     const when = date !== todayISO() ? ` (${relDay(date).toLowerCase()})` : '';
-    toast(kind === 'income'
-      ? `Ingreso anotado: ${money(p.amount)}${when}`
-      : `Anotado en ${catLabel(category)}: ${money(p.amount)}${p.installments > 1 ? ` en ${p.installments} cuotas` : ''}${cardId ? ' con tarjeta' : ''}${when}`);
+    const enMoneda = currency !== 'ARS' ? ` (${currency} ${String(p.amount).replace('.', ',')})` : '';
+    let msg = kind === 'income'
+      ? `Ingreso anotado: ${money(amount)}${enMoneda}${when}`
+      : `Anotado en ${catLabel(category)}: ${money(amount)}${enMoneda}${p.installments > 1 && cardId ? ` en ${p.installments} cuotas` : ''}${cardId ? ' con tarjeta' : ''}${when}`;
+    // aviso de presupuesto al cruzar el 80% o el 100%
+    if (antes) {
+      const ahora = avancePresupuesto(ctx.state, category);
+      if (ahora && ahora.pct >= 1 && antes.pct < 1) msg += `. Ojo: te pasaste del presupuesto de ${catLabel(category)}`;
+      else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
+    }
+    toast(msg);
   },
   pickCat(ctx, el) {
     const form = el.closest('form');
@@ -222,34 +279,100 @@ export const commonActions = {
     if (!e) return;
     openModal(kind === 'income' ? 'Editar ingreso' : (e.pending ? 'Revisar comprobante' : 'Editar gasto'), entryForm(ctx.state, e, kind), { push: !!el.dataset.push });
   },
+  entryCurrency(ctx, el) {
+    const f = el.closest('form');
+    const box = f.querySelector('[data-cur-box]');
+    box.hidden = el.value === 'ARS';
+    const r = arsPer(ctx.state, el.value);
+    if (el.value !== 'ARS' && r) f.querySelector('[name=rate]').value = String(Math.round(r * 100) / 100).replace('.', ',');
+  },
+  entryToggle(ctx, el) {
+    const box = el.closest('form').querySelector(`[data-box-id="${el.dataset.box}"]`);
+    if (box) box.hidden = !el.checked;
+    if (el.dataset.box === 'shared') { const l = el.closest('form').querySelector('label[for=f-amount]'); if (l) l.textContent = el.checked ? 'Total del gasto' : 'Monto'; }
+  },
+  entryParte(ctx, el) {
+    const f = el.closest('form');
+    const total = num(f.querySelector('[name=amount]').value);
+    if (total) f.querySelector('[name=mine]').value = String(Math.round((total / Number(el.dataset.n)) * 100) / 100).replace('.', ',');
+  },
   saveEntry(ctx, d) {
-    const amount = num(d.amount);
-    if (!amount) { toast('Ingresá un monto válido'); return; }
+    const original = num(d.amount);
+    if (!original) { toast('Ingresá un monto válido'); return; }
+    const currency = d.currency || 'ARS';
+    const rate = currency === 'ARS' ? 1 : (num(d.rate) || arsPer(ctx.state, currency));
+    if (!rate) { toast('Poné la cotización de esa moneda'); return; }
+    const ars = (v) => Math.round(v * rate * 100) / 100;
+    const tags = etiquetasDeTexto(d.tags);
+    const [medioTipo, medioId] = String(d.medio || '').split(':');
+    const moneda = currency === 'ARS' ? {} : { currency, original, rate };
+    let msg = 'Guardado';
     ctx.commit((s) => {
+      s.deudas = s.deudas || [];
       if (d.kind === 'income') {
-        const item = { id: d.id || uid(), date: d.date || todayISO(), amount, type: d.type, note: d.note || (d.type === 'sueldo' ? 'Sueldo' : 'Ingreso') };
+        const item = { id: d.id || uid(), date: d.date || todayISO(), amount: ars(original), type: d.type, note: d.note || (d.type === 'sueldo' ? 'Sueldo' : 'Ingreso'), ...moneda };
+        if (medioTipo === 'acc') item.accountId = medioId;
+        if (tags.length) item.tags = tags;
         const i = s.incomes.findIndex((x) => x.id === d.id);
         if (i >= 0) s.incomes[i] = item; else s.incomes.push(item);
-      } else {
-        const prev = s.expenses.find((x) => x.id === d.id);
-        const item = { id: d.id || uid(), date: d.date || todayISO(), amount, category: d.category, note: d.note || catLabel(d.category), installments: Math.max(1, parseInt(d.installments, 10) || 1) };
-        if (d.cardId) item.cardId = d.cardId;
-        if (prev && prev.category !== d.category) {
-          const key = merchantKey(item.note);
-          if (key) s.learned[key] = d.category;
-        }
-        const i = s.expenses.findIndex((x) => x.id === d.id);
-        if (i >= 0) s.expenses[i] = item; else s.expenses.push(item);
+        return;
       }
+      const prev = s.expenses.find((x) => x.id === d.id);
+      const id = d.id || uid();
+      const total = ars(original);
+      // compartido: el gasto es solo tu parte; lo demás queda como deuda
+      let amount = total; let shared = null;
+      if (d.compartido) {
+        const mine = ars(num(d.mine));
+        if (!mine || mine > total) { msg = ''; return; }
+        amount = mine;
+        shared = { total, paidByMe: d.payer !== 'otro', with: String(d.with || '').trim().slice(0, 40) || 'Otra persona' };
+      }
+      // dividido en categorías
+      let splits = [];
+      if (d.dividir) {
+        splits = [0, 1, 2, 3].map((i) => ({ category: d['sc' + i], amount: ars(num(d['sa' + i])) })).filter((p) => p.amount > 0);
+        const suma = splits.reduce((a, p) => a + p.amount, 0);
+        if (splits.length > 1 && Math.abs(suma - total) > 1) { msg = `Las partes suman ${money(suma)} y el total es ${money(total)}`; return; }
+        // si es compartido, cada parte se achica en proporción a lo que te toca
+        if (shared) splits = splits.map((p) => ({ ...p, amount: Math.round((p.amount * amount / total) * 100) / 100 }));
+      }
+      const main = splits && splits.length ? splits.slice().sort((a, b) => b.amount - a.amount)[0].category : d.category;
+      const item = { id, date: d.date || todayISO(), amount, category: main, note: d.note || catLabel(main), installments: Math.max(1, parseInt(d.installments, 10) || 1), ...moneda };
+      if (medioTipo === 'card') item.cardId = medioId; else if (medioTipo === 'acc') item.accountId = medioId;
+      if (!item.cardId) item.installments = 1;
+      if (splits && splits.length > 1) item.splits = splits;
+      if (tags.length) item.tags = tags;
+      if (shared) item.shared = shared;
+      if (prev && prev.category !== item.category && !item.splits) {
+        const key = merchantKey(item.note);
+        if (key) s.learned[key] = item.category;
+      }
+      // deuda vinculada al gasto compartido
+      const prevDeuda = s.deudas.find((x) => x.origen === id);
+      if (shared) {
+        const tipo = shared.paidByMe ? 'meDeben' : 'debo';
+        const monto = shared.paidByMe ? Math.round((total - amount) * 100) / 100 : amount;
+        const datos = { tipo, persona: shared.with, monto, date: item.date, nota: item.note, origen: id };
+        if (prevDeuda) Object.assign(prevDeuda, datos); else if (monto > 0) s.deudas.push({ id: uid(), pagos: [], ...datos });
+        msg = shared.paidByMe ? `Guardado: ${shared.with} te debe ${money(monto)}` : `Guardado: le debés ${money(monto)} a ${shared.with}`;
+      } else if (prevDeuda && !(prevDeuda.pagos || []).length) s.deudas = s.deudas.filter((x) => x !== prevDeuda);
+      const i = s.expenses.findIndex((x) => x.id === d.id);
+      if (i >= 0) s.expenses[i] = item; else s.expenses.push(item);
     });
+    if (!msg) { toast('Revisá "Mi parte": tiene que ser menor o igual al total'); return; }
+    if (msg.startsWith('Las partes')) { toast(msg); return; }
     closeModal();
-    toast('Guardado');
+    toast(msg);
   },
   deleteEntry(ctx, el) {
     const key = el.dataset.kind === 'income' ? 'incomes' : 'expenses';
-    ctx.commit((s) => { s[key] = s[key].filter((x) => x.id !== el.dataset.id); });
+    const it = ctx.state[key].find((x) => x.id === el.dataset.id);
     closeModal();
-    toast('Borrado');
+    borrarConDeshacer(ctx, `Borraste ${it ? `"${it.note}"` : 'el movimiento'}`, (s) => {
+      s[key] = s[key].filter((x) => x.id !== el.dataset.id);
+      s.deudas = (s.deudas || []).filter((x) => x.origen !== el.dataset.id || (x.pagos || []).length);
+    });
   },
 
   // ---------- ¿Me lo compro? ----------
@@ -272,7 +395,8 @@ export const commonActions = {
 
   // ---------- comprobantes ----------
   openPaste() {
-    openModal('Cargar comprobante', `<p class="text muted">Desde Mercado Pago o la app de tu banco tocá <b>Compartir</b> y elegí Pesitos (con la app instalada). También podés copiar el texto del comprobante y pegarlo acá.</p>
+    openModal('Cargar comprobante', `<div class="chips" style="margin-bottom:12px"><button class="chip" data-action="openTicket" data-push="1">${icon('camera', 16)} Foto del ticket</button><button class="chip" data-action="openImportar" data-push="1">${icon('upload', 16)} Importar resumen o Excel</button></div>
+      <p class="text muted">Desde Mercado Pago o la app de tu banco tocá <b>Compartir</b> y elegí Pesitos (con la app instalada). También podés copiar el texto del comprobante y pegarlo acá.</p>
       <form class="form" data-submit="pasteSubmit">
         <div class="field"><label for="p-text">Texto del comprobante</label><textarea id="p-text" name="text" placeholder="Pagaste $ 12.500,00 a FARMACITY" required></textarea></div>
         <button class="btn primary block" type="submit">Leer comprobante</button>
@@ -400,8 +524,7 @@ export const commonActions = {
     toast('Listo: ahora lo anotás como gasto variable cuando ocurra');
   },
   deleteDuplicate(ctx, el) {
-    ctx.commit((s) => { s.expenses = s.expenses.filter((e) => e.id !== el.dataset.id); });
-    toast('Borrado: ya no se cuenta dos veces');
+    borrarConDeshacer(ctx, 'Borrado: ya no se cuenta dos veces', (s) => { s.expenses = s.expenses.filter((e) => e.id !== el.dataset.id); });
   },
   makeFixed(ctx, el) {
     ctx.commit((s) => {

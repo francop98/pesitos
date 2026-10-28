@@ -3,7 +3,7 @@
 
 import { money, esc, num, monthName } from './formato.js';
 import { cardSummary } from './calculos.js';
-import { icon, sprout, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { icon, sprout, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { agenda, dueLabel, bestBuyDay } from './agenda.js';
 import { cardPlan } from './flujo.js';
 import { payOptions } from './pagos.js';
@@ -37,7 +37,8 @@ function cardBlock(s, c) {
   return `<div class="card credit">
     <div class="credit-head">
       <span class="credit-name">${icon('card', 20)} ${esc(c.name)}</span>
-      <button class="chip" data-action="editCard" data-id="${c.id}">Editar</button>
+      <span class="head-actions"><button class="chip" data-action="openImportar" data-medio="card:${c.id}">Importar</button>
+      <button class="chip" data-action="editCard" data-id="${c.id}">Editar</button></span>
     </div>
     <div style="display:flex;flex-direction:column;gap:2px">
       <span class="small on-green-muted">Resumen de ${monthName(sum.current, true)} · cierra el ${c.closeDay} · vence el ${c.dueDay}</span>
@@ -111,10 +112,10 @@ export const actions = {
     closeModal(); toast('Tarjeta guardada');
   },
   deleteCard(ctx, el) {
-    ctx.commit((s) => {
+    closeModal();
+    borrarConDeshacer(ctx, 'Tarjeta borrada', (s) => {
       s.cards = s.cards.filter((c) => c.id !== el.dataset.id);
       s.expenses.forEach((e) => { if (e.cardId === el.dataset.id) delete e.cardId; });
     });
-    closeModal(); toast('Tarjeta borrada');
   },
 };

@@ -242,9 +242,11 @@ export async function detener({ borrarLocal = false } = {}) {
 export async function borrarNube() {
   if (!uid) return;
   const { db } = firebase();
-  const snap = await getDocs(collection(db, 'usuarios', uid, 'estado'));
   const batch = writeBatch(db);
-  snap.forEach((d) => batch.delete(d.ref));
+  for (const sub of ['estado', 'push', 'avisos']) {
+    const snap = await getDocs(collection(db, 'usuarios', uid, sub)).catch(() => null);
+    if (snap) snap.forEach((d) => batch.delete(d.ref));
+  }
   batch.delete(doc(db, 'usuarios', uid));
   await batch.commit();
   try { localStorage.removeItem(kPend()); localStorage.removeItem(kFirmas()); } catch { /* nada */ }

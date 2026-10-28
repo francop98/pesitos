@@ -13,7 +13,11 @@ import * as cuenta from './js/autenticacion.js';
 import * as nube from './js/sincronizacion.js';
 import { cifradoDisponible, llaveDelDispositivo, guardarEnDispositivo, borrarDelDispositivo } from './js/cifrado.js';
 import { crearClave, pedirClave, abrirGestionClave, claveActions } from './js/clave.js';
+import { iniciarBloqueo, terminarBloqueo, mostrarBloqueo, bloqueoActions } from './js/bloqueo.js';
+import { publicarAgenda } from './js/avisos.js';
 import { menuActions } from './js/menu.js';
+import { ticketActions } from './js/ticket.js';
+import { importarActions } from './js/importar.js';
 import { aplicarTema, aplicarLetra } from './js/tema.js';
 import { commonActions, addPendingFromText } from './js/acciones.js';
 import { guideActions } from './js/guia.js';
@@ -32,10 +36,15 @@ import * as tarjetas from './js/tarjetas.js';
 import * as beneficios from './js/beneficios.js';
 import * as herramientas from './js/herramientas.js';
 import * as pagos from './js/pagos.js';
+import * as buscar from './js/buscar.js';
+import * as presupuestos from './js/presupuestos.js';
+import * as cuentas from './js/miscuentas.js';
+import * as deudas from './js/deudas.js';
+import * as estadisticas from './js/estadisticas.js';
 import { notifyDue } from './js/agenda.js';
 import { setCustomCategories, setCustomWallets } from './js/categorias.js';
 
-const views = { inicio, movimientos, sueldo, ahorro, asesor, tarjetas, beneficios, herramientas, pagos };
+const views = { inicio, movimientos, sueldo, ahorro, asesor, tarjetas, beneficios, herramientas, pagos, buscar, presupuestos, cuentas, deudas, estadisticas };
 const NAV_ORDER = ['inicio', 'movimientos', 'sueldo', 'ahorro', 'asesor'];
 
 let state = emptyState();
@@ -55,6 +64,7 @@ function persist() { save(state); nube.guardar(state); }
 const ctx = {
   get state() { return state; },
   get syncStatus() { return syncStatus; },
+  get uid() { return uidActual; },
   commit(mutate) { mutate(state); persist(); render(); },
   // Guarda sin redibujar si estás escribiendo
   update(mutate) { mutate(state); persist(); if (!isTyping()) render(); },
@@ -98,14 +108,14 @@ function render() {
   goingBack = false;
   lastRoute = route;
 
-  const navRoute = { tarjetas: 'movimientos', beneficios: 'inicio', herramientas: 'inicio', pagos: 'movimientos' }[route] || route;
+  const navRoute = { tarjetas: 'movimientos', beneficios: 'inicio', herramientas: 'inicio', pagos: 'movimientos', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'inicio', deudas: 'inicio', estadisticas: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   refreshAll();
 }
 
-const actions = Object.assign({ recargar: () => location.reload() }, commonActions, guideActions, menuActions, claveActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, {
+const actions = Object.assign({ recargar: () => location.reload() }, commonActions, ticketActions, importarActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, {
   goBack() {
     trail.pop();
     const prev = trail.pop() || 'inicio';
@@ -139,6 +149,15 @@ document.addEventListener('change', (e) => {
   if (el && actions[el.dataset.change]) actions[el.dataset.change](ctx, el, e);
 });
 
+// mientras escribís (búsqueda en vivo), con una pequeña espera
+let inputTimer = null;
+document.addEventListener('input', (e) => {
+  const el = e.target.closest('[data-input]');
+  if (!el || !actions[el.dataset.input]) return;
+  clearTimeout(inputTimer);
+  inputTimer = setTimeout(() => actions[el.dataset.input](ctx, el, e), 250);
+});
+
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
 window.addEventListener('hashchange', () => {
@@ -146,6 +165,16 @@ window.addEventListener('hashchange', () => {
   if (trail[trail.length - 1] !== r) trail.push(r);
   closeModal(); render(); window.scrollTo(0, 0);
 });
+
+// Atajos del ícono (mantener apretado): ?accion=gasto | ticket
+function handleAtajo() {
+  const params = new URLSearchParams(location.search);
+  const accion = params.get('accion');
+  if (!accion || !state.ready) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  if (accion === 'gasto') setTimeout(() => { const i = document.getElementById('q-home'); if (i) { i.focus(); i.scrollIntoView({ block: 'center' }); } }, 300);
+  if (accion === 'ticket' && actions.openTicket) setTimeout(() => actions.openTicket(ctx), 300);
+}
 
 // Comprobantes compartidos desde otras apps (Web Share Target, ver manifest)
 function handleShare() {
@@ -167,6 +196,7 @@ function refreshAll(force = false) {
   refreshRendimientos(ctx, force);
   refreshFeriados(ctx);
   notifyDue(ctx);
+  publicarAgenda(state, uidActual);
 }
 // al volver a la app: cambios hechos desde otro dispositivo
 async function traerDeOtroDispositivo() {
@@ -238,6 +268,9 @@ async function conSesion(u) {
   }
   perfilActual = perfil;
   uidActual = u.uid;
+  // bloqueo con huella o PIN (de este dispositivo)
+  iniciarBloqueo(u.uid, { onOlvido: async () => { await borrarDelDispositivo(u.uid); cuenta.salir(); } });
+  await mostrarBloqueo();
   main.onclick = null; main.onsubmit = null; main.onchange = null;
   pantallaCarga();
 
@@ -263,6 +296,7 @@ async function conSesion(u) {
   render();
   refreshAll(true);
   handleShare();
+  handleAtajo();
 }
 
 async function arrancar() {
@@ -280,6 +314,7 @@ async function arrancar() {
     // la llave se borra de este dispositivo: para volver a entrar se pide la clave de Pesitos
     if (uidActual) await borrarDelDispositivo(uidActual);
     uidActual = null;
+    terminarBloqueo();
     const quedan = await nube.detener({ borrarLocal: true });
     // al cerrar sesión no queda la copia local en el dispositivo (salvo cambios que no llegaron a la nube)
     if (!quedan) { try { Object.keys(localStorage).filter((k) => k.startsWith('pesitos:v1:')).forEach((k) => localStorage.removeItem(k)); } catch { /* nada */ } }

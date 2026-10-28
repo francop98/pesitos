@@ -6,7 +6,7 @@ import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES } from './c
 import { challengeStatus, allChallenges, answer, DISCLAIMER } from './economista.js';
 import { LESSONS } from './aprender.js';
 import { budget } from './calculos.js';
-import { sprout, icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { sprout, icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 
 const MODE_LABEL = (s) => ({
@@ -169,7 +169,7 @@ export const actions = {
     closeModal(); toast('Regla guardada y activada');
   },
   toggleCustomRule(ctx, el) { ctx.commit((s) => { const c = s.rules.custom.find((x) => x.id === el.dataset.id); if (c) c.on = !c.on; }); },
-  deleteCustomRule(ctx, el) { ctx.commit((s) => { s.rules.custom = s.rules.custom.filter((x) => x.id !== el.dataset.id); }); closeModal(); },
+  deleteCustomRule(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Regla borrada', (s) => { s.rules.custom = s.rules.custom.filter((x) => x.id !== el.dataset.id); }); },
 
   newChallenge() { openModal('Crear desafío', challengeForm()); },
   saveChallenge(ctx, d) {

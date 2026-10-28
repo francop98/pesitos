@@ -10,6 +10,8 @@ import { catLabel } from './categorias.js';
 import { alerts, dueLabel, closings } from './agenda.js';
 import { projection, coverage } from './flujo.js';
 import { reglaDeCobro } from './feriados.js';
+import { alertaPresupuestos } from './presupuestos.js';
+import { medioOptions } from './acciones.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
 
 const MODE_TEXT = {
@@ -139,8 +141,9 @@ export function render(s) {
       <div class="split on-green-muted"><span>Ciclo usado: ${Math.round(b.usedPct * 100)}%</span><span>Libre hasta el cobro: ${money(Math.max(0, b.free))}</span></div>
     </div>
 
-    ${quickForm('q-home', s)}
+    ${quickForm('q-home', s, medioOptions(s, '', { auto: true }))}
 
+    ${alertaPresupuestos(s)}
     ${coverageAlert(s)}
     ${payAlerts(s)}
     ${closingTip(s)}
@@ -154,6 +157,10 @@ export function render(s) {
       <a class="tile" href="#/pagos">${icon('calendar', 22)}<span>Por pagar</span></a>
       <a class="tile" href="#/beneficios">${icon('ticket', 22)}<span>Beneficios</span></a>
       <a class="tile" href="#/herramientas">${icon('swap', 22)}<span>Herramientas</span></a>
+      <a class="tile" href="#/cuentas">${icon('bank', 22)}<span>Mis cuentas</span></a>
+      <a class="tile" href="#/presupuestos">${icon('target', 22)}<span>Presupuestos</span></a>
+      <a class="tile" href="#/estadisticas">${icon('pie', 22)}<span>Estadísticas</span></a>
+      <a class="tile" href="#/deudas">${icon('people', 22)}<span>Deudas</span></a>
     </div>
 
     ${g ? `<a class="card goal-row" href="#/ahorro" style="text-decoration:none;color:inherit;flex-direction:row">

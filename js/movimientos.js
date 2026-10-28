@@ -8,29 +8,36 @@ import { catById, catLabel } from './categorias.js';
 import { monthExpenses, monthIncome, fixedTotal, fixedActive, fixedProgress } from './calculos.js';
 import { parseAmount } from './interprete.js';
 import { suggestions, renderSuggestion } from './guia.js';
-import { icon, catIcon, screenHead, quickForm, openModal, closeModal, toast } from './interfaz.js';
+import { medioOptions } from './acciones.js';
+import { icon, catIcon, screenHead, quickForm, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
 import { payOptions } from './pagos.js';
+import { nombreCuenta } from './cuentas.js';
 
 let filter = 'todo';
 let offset = 0; // meses hacia atrás
 
-function expenseRow(s, e) {
+const tagsHtml = (t) => ((t && t.length) ? `<span class="tags">${t.map((x) => `<span class="tag">#${esc(x)}</span>`).join('')}</span>` : '');
+const enMoneda = (x) => (x.currency && x.currency !== 'ARS' ? ` · ${x.currency} ${String(x.original).replace('.', ',')}` : '');
+
+export function expenseRow(s, e) {
   const c = catById(e.category);
   const green = ['super', 'salud', 'hogar'].includes(c.id);
   const card = e.cardId ? s.cards.find((x) => x.id === e.cardId) : null;
+  const medio = card ? esc(card.name) : (e.accountId ? esc(nombreCuenta(s, e.accountId)) : '');
+  const cat = e.splits && e.splits.length > 1 ? `${e.splits.length} categorías` : c.label;
   return `<button class="row" data-action="openEntry" data-id="${e.id}" data-kind="expense">
     <span class="cat-icon ${green ? 'green' : ''}">${catIcon(c, 18)}</span>
-    <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${relDay(e.date)} · ${c.label}${e.installments > 1 ? ` · ${e.installments} cuotas` : ''}${card ? ` · ${esc(card.name)}` : ''}</span></span>
+    <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${relDay(e.date)} · ${esc(cat)}${e.installments > 1 ? ` · ${e.installments} cuotas` : ''}${medio ? ` · ${medio}` : ''}${enMoneda(e)}${e.shared ? ` · tu parte (con ${esc(e.shared.with)})` : ''}</span>${tagsHtml(e.tags)}</span>
     <span class="amount">−${money(e.amount)}</span>
   </button>`;
 }
-function incomeRow(i) {
+export function incomeRow(i, s = null) {
   return `<button class="row" data-action="openEntry" data-id="${i.id}" data-kind="income">
     <span class="cat-icon green">${icon('up', 18)}</span>
-    <span class="grow"><span class="name">${esc(i.note)}</span><span class="meta">${relDay(i.date)} · ${i.type === 'sueldo' ? 'Sueldo' : 'Ingreso extra'}</span></span>
+    <span class="grow"><span class="name">${esc(i.note)}</span><span class="meta">${relDay(i.date)} · ${i.type === 'sueldo' ? 'Sueldo' : 'Ingreso extra'}${s && i.accountId ? ` · ${esc(nombreCuenta(s, i.accountId))}` : ''}${enMoneda(i)}</span>${tagsHtml(i.tags)}</span>
     <span class="amount pos">+${money(i.amount)}</span>
   </button>`;
 }
@@ -51,7 +58,7 @@ export function render(s) {
   const top = Object.entries(exp.byCat).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
   return `<section class="screen">
-    ${screenHead('Movimientos', `<a class="btn small" href="#/tarjetas">${icon('card', 18)} Tarjetas</a>`)}
+    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos">${icon('upload', 20)}</button><a class="btn small" href="#/tarjetas">${icon('card', 18)} Tarjetas</a></span>`)}
 
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
@@ -64,7 +71,7 @@ export function render(s) {
       <div class="stat"><span class="k">Gastos</span><span class="v">${money(exp.total + fixed)}</span><span class="small muted">Fijos ${money(fixed)} · Variables ${money(exp.total)}</span></div>
     </div>
 
-    ${quickForm('q-mov', s)}
+    ${quickForm('q-mov', s, medioOptions(s, '', { auto: true }))}
 
     ${(() => { const it = agenda(s, 7).filter((i) => !i.paid && i.days <= 7); const t = it.reduce((a, i) => a + i.amount, 0);
       return `<a class="card" href="#/pagos" style="text-decoration:none;color:inherit;flex-direction:row;align-items:center">
@@ -97,7 +104,7 @@ export function render(s) {
       ${['todo', 'gastos', 'ingresos'].map((f) => `<button data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}
     </div>
     <div class="card tight">
-      ${list.length ? list.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x))).join('') : '<p class="empty">Todavía no hay movimientos.</p>'}
+      ${list.length ? list.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('') : '<p class="empty">Todavía no hay movimientos.</p>'}
     </div>
     ${lessonCard(s, 'movimientos')}
     <div class="btn-row">
@@ -175,5 +182,5 @@ export const actions = {
     if (again) { openModal('Nuevo gasto fijo', fixedForm(ctx.state)); toast(`${d.name.trim()} guardado`); }
     else { closeModal(); toast('Gasto fijo guardado'); }
   },
-  deleteFixed(ctx, el) { ctx.commit((s) => { s.fixed = s.fixed.filter((x) => x.id !== el.dataset.id); }); closeModal(); },
+  deleteFixed(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Gasto fijo borrado', (s) => { s.fixed = s.fixed.filter((x) => x.id !== el.dataset.id); }); },
 };

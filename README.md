@@ -32,8 +32,13 @@ Con Live Server corriendo, entrá desde el celular a `http://IP-DE-TU-COMPU:5500
 | **Por pagar** | Agenda de vencimientos (fijos, resúmenes de tarjeta, pagos programados) y de cobros (sueldo, aguinaldo estimado, cobros propios, plazos fijos). Proyección de la plata hasta el cobro con alerta y opciones si no alcanza; vista lista o calendario; débitos automáticos; totales por cuenta; pagos parciales; ahorro de a poco para pagos grandes; historial de pagos a tiempo y aumentos; recordatorios en el calendario del celular (.ics) y avisos del dispositivo |
 | **Tarjetas** (además) | Plan de pago del próximo resumen (cuánto cubre tu plata y cuánto saldría de ahorros), costo de pagar solo una parte (con la TNA del resumen), mejor día para compras grandes y aviso antes del cierre |
 | **Herramientas** | ¿Me lo compro?, cuotas o contado, cuánto ahorrar por mes, cuánto rinde mi plata, conversor |
+| **Buscar** | Búsqueda en vivo por texto, categoría, medio de pago, etiqueta, fechas y monto; exporta lo encontrado a Excel (CSV) |
+| **Presupuestos** | Tope por categoría con barra de avance, sugerencia según tu promedio y aviso al pasar el 80 % y el 100 % |
+| **Mis cuentas** | Saldo de cada cuenta (efectivo, bancos, billeteras) que se mueve solo con cada gasto, ingreso y pago; transferencias entre cuentas; patrimonio neto |
+| **Deudas** | Lo que te deben y lo que debés, pagos parciales, recordatorio por WhatsApp; los gastos compartidos crean la deuda solos |
+| **Estadísticas** | Torta por categoría, comparación con el período anterior, ingresos y gastos mes a mes, comercios, etiquetas y medios de pago; exporta a Excel o PDF |
 
-Además: categorías propias, carga con fecha retroactiva ("15/10", "el lunes", "ayer" o el selector de fecha), resumen semanal automático cada lunes a las 00:00, confirmación del sueldo de cada mes y sugerencias ordenadas por impacto.
+Además: gastos en otras monedas (con la cotización del día), dividir un gasto en varias categorías, gastos compartidos, etiquetas (`#viaje`), deshacer al borrar, foto del ticket (se lee en el dispositivo), importar el resumen de la tarjeta (PDF) o el Excel/CSV del banco, bloqueo con huella o PIN, avisos en el celular con la app cerrada, atajos al mantener apretado el ícono, categorías propias, carga con fecha retroactiva ("15/10", "el lunes", "ayer" o el selector de fecha), resumen semanal automático cada lunes a las 00:00, confirmación del sueldo de cada mes y sugerencias ordenadas por impacto.
 
 ### Cotizaciones
 - Dólar blue: [DolarApi.com](https://dolarapi.com), que toma los valores de DolarHoy.
@@ -72,9 +77,9 @@ pesitos/
 ├── sw.js                   Funcionamiento sin conexión
 ├── firestore.rules         Reglas de seguridad de Firestore (se pegan en la consola)
 ├── vercel.json             Tareas programadas y configuración de Vercel
-├── package.json            Dependencia del servidor (firebase-admin)
+├── package.json            Dependencias del servidor (firebase-admin, web-push)
 ├── pages/                  terminos.html y privacidad.html
-├── assets/                 Íconos de la app
+├── assets/                 Íconos de la app y vendor/ (Tesseract, pdf.js y SheetJS, para leer tickets y resúmenes en el dispositivo)
 ├── api/                    Servidor en Vercel: datos.js, actualizar.js y _lib/
 └── js/
     ├── firebaseconfig.js   Conexión con Firebase (Authentication + Firestore)
@@ -103,6 +108,13 @@ pesitos/
     ├── categorias.js       Categorías, medios de pago, provincias y desafíos
     ├── acciones.js         Acciones compartidas (carga, edición, copias)
     ├── ejemplo.js          Datos de ejemplo
+    ├── cuentas.js · miscuentas.js     Saldos por cuenta, transferencias y patrimonio
+    ├── presupuestos.js · deudas.js · buscar.js · estadisticas.js   (una pantalla por archivo)
+    ├── exportar.js         Excel (CSV) y PDF
+    ├── ticket.js           Foto del ticket (OCR en el dispositivo)
+    ├── importar.js         Importar resumen de tarjeta (PDF) o Excel/CSV del banco
+    ├── bloqueo.js          Bloqueo con huella o PIN
+    ├── avisos.js           Avisos en el celular (push)
     └── formato.js · interfaz.js   Formatos, íconos, logo y modales
 ```
 
@@ -112,11 +124,11 @@ Para agregar una acción: poné `data-action="miAccion"` en un botón (o `data-s
 - La cuenta es obligatoria: mail y contraseña (con verificación de mail) o Google.
 - Tus datos se cifran en el dispositivo (AES-GCM) con una llave que solo abre tu **clave de Pesitos** o tu **código de recuperación**: en Firestore (`usuarios/{uid}`) solo hay texto ilegible y nadie más puede leerlo, ni quien administra el proyecto (`js/cifrado.js`, `firestore.rules`).
 - Encabezados de seguridad (CSP, HSTS, X-Frame-Options…) en `vercel.json`. Si cambiás el `<script>` de `index.html` o de `pages/`, hay que actualizar su hash en la CSP. El dispositivo guarda una copia para abrir rápido y funcionar sin conexión; lo que cargás sin internet se envía solo cuando vuelve.
+- Avisos en el celular (opcional): si los activás, se guarda sin cifrar solo **qué días** hay algo y cuántas cosas (`usuarios/{uid}/avisos/agenda`) y la suscripción del navegador (`usuarios/{uid}/push`). Nunca montos ni nombres.
+- La clave de Pesitos es libre (la que quieras); cuanto más larga, más segura.
 - Desde *Menú → Copia de seguridad* podés descargar o restaurar un archivo, y desde *Menú → Mi cuenta*, eliminar la cuenta con todos sus datos.
 - Las recomendaciones son educativas y generales, no asesoramiento financiero personalizado.
 
 ## Próximos pasos
-1. **Importar el resumen de la tarjeta** en PDF.
-2. **Asesor con IA**: conectar `economista.js` a un modelo desde una función de Vercel (`api/`).
-3. **Leer comprobantes en imagen** (captura de pantalla).
-4. App nativa de Android con Capacitor para leer notificaciones de pago.
+1. **Asesor con IA**: conectar `economista.js` a un modelo desde una función de Vercel (`api/`).
+2. App nativa de Android con Capacitor para leer notificaciones de pago.

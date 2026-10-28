@@ -4,7 +4,7 @@
 import { money, esc, num, WEEKDAYS } from './formato.js';
 import { allCategories, catLabel, walletName } from './categorias.js';
 import { promosForDay, promosStatus } from './economista.js';
-import { icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
 
@@ -81,6 +81,6 @@ export const actions = {
     ctx.commit((s) => { s.promos.push({ id: uid(), name: d.name.trim(), day: Number(d.day), category: d.category, pct: num(d.pct), cap: num(d.cap) }); });
     closeModal(); toast('Promo guardada: te aviso el día antes');
   },
-  deletePromo(ctx, el) { ctx.commit((s) => { s.promos = s.promos.filter((p) => p.id !== el.dataset.id); }); toast('Promo borrada'); },
+  deletePromo(ctx, el) { borrarConDeshacer(ctx, 'Promo borrada', (s) => { s.promos = s.promos.filter((p) => p.id !== el.dataset.id); }); },
 };
 

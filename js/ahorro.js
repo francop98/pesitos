@@ -6,7 +6,7 @@ import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
 import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizaciones.js';
-import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody } from './interfaz.js';
+import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { BILLETERAS_QUE_RINDEN, tnaDe, valorHoy, rinde, refreshRendimientos } from './rendimientos.js';
@@ -221,7 +221,7 @@ export const actions = {
     });
     closeModal(); toast('Meta guardada');
   },
-  deleteGoal(ctx, el) { ctx.commit((s) => { s.goals = s.goals.filter((x) => x.id !== el.dataset.id); }); closeModal(); },
+  deleteGoal(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Meta borrada', (s) => { s.goals = s.goals.filter((x) => x.id !== el.dataset.id); }); },
   newHolding(ctx) { refreshRendimientos(ctx); openModal('¿Dónde ahorrás?', holdingForm({}, ctx.state)); },
   editHolding(ctx, el) {
     const h = ctx.state.holdings.find((x) => x.id === el.dataset.id);
@@ -244,5 +244,5 @@ export const actions = {
     });
     closeModal(); toast('Guardado');
   },
-  deleteHolding(ctx, el) { ctx.commit((s) => { s.holdings = s.holdings.filter((x) => x.id !== el.dataset.id); }); closeModal(); },
+  deleteHolding(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Ahorro borrado', (s) => { s.holdings = s.holdings.filter((x) => x.id !== el.dataset.id); }); },
 };

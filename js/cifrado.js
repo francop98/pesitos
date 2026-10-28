@@ -53,12 +53,9 @@ export function nuevoCodigo() {
 }
 export const limpiarCodigo = (c) => String(c || '').toUpperCase().replace(/[^0-9A-Z]/g, '').replace(/[IL]/g, '1').replace(/O/g, '0').replace(/U/g, 'V').match(/.{1,4}/g)?.join('-') || '';
 
-/** Clave de Pesitos válida: 8 o más caracteres, con letras y números. */
+/** Clave de Pesitos: libre (la elige cada uno). Solo no puede quedar vacía. */
 export function claveValida(c) {
-  const t = String(c || '');
-  if (t.length < 8) return 'Tiene que tener al menos 8 caracteres.';
-  if (!/[a-záéíóúñ]/i.test(t) || !/\d/.test(t)) return 'Usá letras y números (por ejemplo, una frase con un número).';
-  return '';
+  return String(c || '').trim() ? '' : 'Escribí tu clave.';
 }
 
 /** Crea la llave de datos. Devuelve lo que se guarda en la nube, el código de recuperación y la llave. */

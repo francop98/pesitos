@@ -37,6 +37,16 @@ const P = {
   send: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   logout: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  pie: '<path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>',
+  bank: '<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  upload: '<path d="M12 21V9M7 14l5-5 5 5M5 3h14"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
@@ -139,7 +149,7 @@ export function catIcon(c, size = 18) {
   return c && c.emoji ? `<span class="cat-emoji" style="font-size:${Math.round(size * 1.05)}px" aria-hidden="true">${c.emoji}</span>` : icon((c && c.icon) || 'tag', size);
 }
 
-export function quickForm(id, s = null) {
+export function quickForm(id, s = null, medioHtml = '') {
   const cats = s ? categoriasOrdenadas(s) : allCategories();
   return `<form class="quick-card" data-submit="quickAdd" autocomplete="off">
     <div class="kind-toggle" role="group" aria-label="Tipo de movimiento">
@@ -160,7 +170,7 @@ export function quickForm(id, s = null) {
       <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>
     </div>
     <div class="quick-opts">
-      <span class="small muted quick-date-label">Fecha</span>
+      ${medioHtml ? `<label class="sr-only" for="${id}-medio">Con qué pagaste</label><select id="${id}-medio" name="medio" class="mini-select medio-select">${medioHtml}</select>` : '<span class="small muted quick-date-label">Fecha</span>'}
       <label class="sr-only" for="${id}-date">Fecha</label>
       <input id="${id}-date" name="date" type="date" class="mini-select" value="${toISO(new Date())}" max="${toISO(new Date())}">
     </div>
@@ -173,11 +183,27 @@ export function setModalBody(selector, html) {
 
 // ---------- toast ----------
 let toastTimer;
-export function toast(msg) {
+// toast('Guardado') o toast('Borraste Coto', { label: 'Deshacer', fn: () => … })
+export function toast(msg, accion = null) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.hidden = false;
+  t.innerHTML = '';
+  const span = document.createElement('span'); span.textContent = msg; t.appendChild(span);
+  if (accion) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'toast-btn'; b.textContent = accion.label;
+    b.onclick = () => { t.hidden = true; clearTimeout(toastTimer); accion.fn(); };
+    t.appendChild(b);
+  }
+  t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+  toastTimer = setTimeout(() => { t.hidden = true; }, accion ? 6000 : 3200);
+}
+
+/** Borra algo con la opción de deshacerlo durante unos segundos. */
+export function borrarConDeshacer(ctx, mensaje, borrar) {
+  const antes = JSON.stringify(ctx.state);
+  ctx.commit(borrar);
+  toast(mensaje, { label: 'Deshacer', fn: () => { const prev = JSON.parse(antes); ctx.commit((s) => { for (const k of Object.keys(s)) if (!(k in prev)) delete s[k]; Object.assign(s, prev); }); toast('Listo, lo recuperé'); } });
 }
 
 export function hydrateNavIcons() {

@@ -7,11 +7,12 @@ import { allCategories, walletName } from './categorias.js';
 import { payCycle } from './calculos.js';
 import { agenda, agendaBetween, groups, pendingUntil, provisions, dueLabel, buildICS, REPEATS, repeatLabel, history, byAccount, statementDates, statementOf } from './agenda.js';
 import { projection, coverage, inflows } from './flujo.js';
-import { icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
 import { fechaDeCobro, reglaDeCobro } from './feriados.js';
 import { parseAmount } from './interprete.js';
+import { listaCuentas } from './cuentas.js';
 
 let view = 'lista';
 let showPaid = false;
@@ -208,7 +209,7 @@ export function render(s) {
   </section>`;
 }
 
-const payOptions = (s, sel) => `<option value="">Sin asignar</option><option value="efectivo" ${sel === 'efectivo' ? 'selected' : ''}>Efectivo</option>${(s.wallets || []).map((w) => `<option value="${esc(w)}" ${w === sel ? 'selected' : ''}>${esc(walletName(w))}</option>`).join('')}`;
+const payOptions = (s, sel) => `<option value="">Sin asignar</option>${listaCuentas(s).map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`;
 export { payOptions };
 
 function billForm(s, b = {}) {
@@ -277,7 +278,7 @@ export const actions = {
     });
     closeModal(); toast('Pago agendado: te aviso antes del vencimiento');
   },
-  deleteBill(ctx, el) { ctx.commit((s) => { s.bills = s.bills.filter((b) => b.id !== el.dataset.id); }); closeModal(); },
+  deleteBill(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Pago borrado', (s) => { s.bills = s.bills.filter((b) => b.id !== el.dataset.id); }); },
 
   newIncome() { openModal('Nuevo cobro', incomeForm()); },
   editIncome(ctx, el) { const c = (ctx.state.expectedIncomes || []).find((x) => x.id === el.dataset.id); if (c) openModal('Editar cobro', incomeForm(c)); },
@@ -292,7 +293,7 @@ export const actions = {
     });
     closeModal(); toast('Cobro agendado');
   },
-  deleteIncome(ctx, el) { ctx.commit((s) => { s.expectedIncomes = s.expectedIncomes.filter((c) => c.id !== el.dataset.id); }); closeModal(); },
+  deleteIncome(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Cobro borrado', (s) => { s.expectedIncomes = s.expectedIncomes.filter((c) => c.id !== el.dataset.id); }); },
   markReceived(ctx, el) {
     const key = el.dataset.key;
     const it = inflows(ctx.state, addDays(startOfToday(), -62), startOfToday()).find((i) => i.key === key);
@@ -320,6 +321,7 @@ export const actions = {
           <div class="field"><label for="pp-a">Monto pagado</label><input id="pp-a" name="amount" inputmode="decimal" value="${Math.round(it.amount)}"></div>
           <div class="field"><label for="pp-d">Fecha</label><input id="pp-d" name="date" type="date" value="${todayISO()}" max="${todayISO()}"></div>
         </div>
+        <div class="field"><label for="pp-c">Pagado con</label><select id="pp-c" name="account">${payOptions(ctx.state, it.payWith || '').replace('Sin asignar', 'No sé / no importa')}</select></div>
         ${it.kind === 'card' ? '<span class="small muted">Si pagaste el mínimo o una parte, poné el monto: te muestro cuánto quedó.</span>' : ''}
         ${it.variable ? '<span class="small muted">Este gasto varía: poné lo que pagaste este mes y lo uso como referencia para los próximos.</span>' : ''}
         <button class="btn green block" type="submit">Marcar como pagado</button>
@@ -332,7 +334,7 @@ export const actions = {
     if (it && it.variable) { actions.openPayment(ctx, el); return; }
     pay(ctx, el.dataset.key);
   },
-  markPaidForm(ctx, d) { pay(ctx, d.key, num(d.amount) || parseAmount(d.amount), d.date); closeModal(); },
+  markPaidForm(ctx, d) { pay(ctx, d.key, num(d.amount) || parseAmount(d.amount), d.date, d.account || ''); closeModal(); },
   unmarkPaid(ctx, el) {
     const key = el.dataset.key;
     ctx.commit((s) => {
@@ -356,7 +358,7 @@ export const actions = {
   },
 };
 
-function pay(ctx, key, amount, date) {
+function pay(ctx, key, amount, date, account) {
   const it = findItem(ctx.state, key);
   if (!it) return;
   const paidAmount = amount || it.amount;
@@ -365,7 +367,9 @@ function pay(ctx, key, amount, date) {
   ctx.commit((s) => {
     const prev = s.paid[key];
     const total = (prev ? Number(prev.amount) : 0) + paidAmount;
-    s.paid[key] = { date: when, amount: total, due: it.due, onTime: when <= it.due };
+    // de qué cuenta salió: la elegida, o la que tiene asignada el pago
+    const cuenta = account !== undefined ? account : (it.payWith && it.payWith !== 'efectivo' ? it.payWith : it.payWith === 'efectivo' ? 'efectivo' : '');
+    s.paid[key] = { date: when, amount: total, due: it.due, onTime: when <= it.due, ...(cuenta ? { account: cuenta } : {}) };
     // fijo que varía: lo que pagaste pasa a ser el monto aproximado de los próximos meses
     if (it.kind === 'fixed') {
       const f = s.fixed.find((x) => x.id === it.refId);
@@ -374,7 +378,8 @@ function pay(ctx, key, amount, date) {
     // los pagos programados no están en otro lado: se anotan como gasto
     if (it.kind === 'bill') {
       const b = s.bills.find((x) => x.id === it.refId);
-      s.expenses.push({ id: uid(), date: when, amount: paidAmount, category: (b && b.category) || 'otros', note: it.name, installments: 1, fromPayment: key, ...(b && b.saveAhead ? { fromSavings: true } : {}) });
+      const cuentaBill = account !== undefined ? account : (b && b.payWith) || '';
+      s.expenses.push({ id: uid(), date: when, amount: paidAmount, category: (b && b.category) || 'otros', note: it.name, installments: 1, fromPayment: key, ...(cuentaBill ? { accountId: cuentaBill } : {}), ...(b && b.saveAhead ? { fromSavings: true } : {}) });
     }
   });
   if (it.kind === 'card' && paidAmount < it.amount - 1) msg = `Pagaste ${money(paidAmount)} de ${money(it.amount)}: quedan ${money(it.amount - paidAmount)} que generan intereses en el próximo resumen.`;

@@ -164,7 +164,10 @@ export function monthExpenses(s, mk) {
     const k = monthDiff(e.date.slice(0, 7), mk);
     if (k < 0 || k >= n) continue;
     const v = e.amount / n;
-    total += v; byCat[e.category] = (byCat[e.category] || 0) + v;
+    total += v;
+    // gasto dividido en varias categorías: cada parte va a la suya
+    if (Array.isArray(e.splits) && e.splits.length) for (const p of e.splits) byCat[p.category] = (byCat[p.category] || 0) + (Number(p.amount) || 0) / n;
+    else byCat[e.category] = (byCat[e.category] || 0) + v;
   }
   return { total, byCat };
 }

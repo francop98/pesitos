@@ -14,6 +14,8 @@ import { promosStatus } from './economista.js';
 import { temaActual, letraActual, aplicarTema, aplicarLetra } from './tema.js';
 import { usuarioActual, abrirMiCuenta, salir, verLegal } from './autenticacion.js';
 import { reglaDeCobro, textoDeCobro, fechaDeCobro } from './feriados.js';
+import { abrirConfigBloqueo } from './bloqueo.js';
+import { avisosActivos, avisosSoportados, activarAvisos, desactivarAvisos } from './avisos.js';
 
 // Cuándo cobrás: tipo + número (día del mes o número de día hábil)
 export function campoCobro(profile) {
@@ -84,11 +86,14 @@ function menuHtml(ctx) {
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Automático'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
+      ${item('openImportar', 'upload', 'Importar movimientos', 'Resumen de tarjeta (PDF) o Excel del banco')}
       ${item('openCopia', 'download', 'Copia de seguridad', 'Descargar o restaurar tus datos')}
     </div>
 
     <div class="menu-grupo ambar"><span class="menu-label">Tu cuenta y seguridad</span>
       ${item('openMiCuenta', 'user', 'Mi cuenta', 'Nombre, contraseña, clave de Pesitos y eliminar cuenta')}
+      ${item('openBloqueo', 'lock', 'Bloqueo con huella o PIN', 'Que nadie abra Pesitos sin vos')}
+      ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
       ${item('openSeguridad', 'shield', 'Seguridad y privacidad', 'Cómo se cuidan tus datos')}
       <button class="menu-item salir" data-action="cerrarSesion"><span class="menu-ic">${icon('logout', 20)}</span><span class="grow"><span class="name">Cerrar sesión</span></span></button>
     </div>`;
@@ -98,6 +103,16 @@ export const menuActions = {
   openMenu(ctx) { openModal('Menú', menuHtml(ctx)); },
 
   openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
+  openAvisos(ctx) {
+    const on = avisosActivos(ctx.uid);
+    openModal('Avisos en el celular', `<p class="text" style="margin:0">Te aviso a la mañana cuando:</p>
+      <div class="card"><span class="small">📅 Mañana o hoy vence un pago (fijos, tarjetas, pagos programados)</span><span class="small">💳 Hoy cierra tu tarjeta</span><span class="small">💸 Hoy es día de cobro</span><span class="small">🤝 Vence una deuda o préstamo</span></div>
+      <p class="small muted" style="margin:0">🔒 Para poder avisarte con la app cerrada, el servidor guarda solo <b>qué días</b> hay algo y cuántas cosas (por ejemplo, "2 vencimientos el 5/11"). Nunca montos, nombres ni comercios: eso sigue cifrado.</p>
+      ${avisosSoportados() ? `<button class="btn ${on ? '' : 'primary'} block" data-action="${on ? 'avisosOff' : 'avisosOn'}">${on ? 'Desactivar avisos' : 'Activar avisos'}</button>` : '<p class="text"><b>Este navegador no permite avisos.</b> En iPhone, primero instalá Pesitos en la pantalla de inicio (Compartir → Agregar a inicio) y abrila desde ahí.</p>'}`, { push: true });
+  },
+  async avisosOn(ctx) { try { if (await activarAvisos(ctx.state, ctx.uid)) { closeModal(); toast('Listo: te aviso a la mañana cuando haya algo'); } } catch (e) { console.warn(e); toast('No se pudieron activar los avisos. Probá de nuevo.'); } },
+  async avisosOff(ctx) { await desactivarAvisos(ctx.uid); closeModal(); toast('Avisos desactivados'); },
+  openBloqueo() { const u = usuarioActual(); abrirConfigBloqueo(u && u.email); },
 
   cerrarSesion() { closeModal(); salir(); },
 

@@ -8,6 +8,10 @@ rules_version = '2';
 //   usuarios/{uid}/estado/*  datos de la app, CIFRADOS en el dispositivo (AES-GCM):
 //                            solo { c, iv, actualizado }. Nadie puede leerlos sin la
 //                            clave de su dueño, ni siquiera quien administra el proyecto.
+//   usuarios/{uid}/push/*    solo si activás los avisos: la suscripción del
+//                            navegador para mandarte notificaciones.
+//   usuarios/{uid}/avisos/agenda  solo si activás los avisos: qué días hay algo
+//                            (cantidades por día, sin montos, nombres ni comercios).
 //   publico/*                promos e inflación: los escribe solo el servidor (Vercel,
 //                            con su clave propia); la app los lee por /api/datos.
 // Todo lo demás está cerrado. Solo entra una cuenta con el mail verificado
@@ -50,6 +54,28 @@ service cloud.firestore {
           && request.resource.data.c.size() < 1000000
           && request.resource.data.iv is string
           && request.resource.data.iv.size() < 40;
+      }
+
+      match /push/{subId} {
+        allow read, delete: if esDueno(uid);
+        allow create, update: if esDueno(uid)
+          && subId.matches('^[0-9a-f]{24}$')
+          && request.resource.data.keys().hasOnly(['endpoint', 'keys', 'creado'])
+          && request.resource.data.endpoint is string
+          && request.resource.data.endpoint.matches('^https://.{10,900}$')
+          && request.resource.data.keys is map
+          && request.resource.data.keys.keys().hasOnly(['p256dh', 'auth'])
+          && request.resource.data.keys.p256dh is string && request.resource.data.keys.p256dh.size() < 200
+          && request.resource.data.keys.auth is string && request.resource.data.keys.auth.size() < 100;
+      }
+
+      match /avisos/{docId} {
+        allow read, delete: if esDueno(uid);
+        allow create, update: if esDueno(uid)
+          && docId == 'agenda'
+          && request.resource.data.keys().hasOnly(['dias', 'actualizado'])
+          && request.resource.data.dias is map
+          && request.resource.data.dias.size() <= 60;
       }
     }
 

@@ -69,7 +69,7 @@ export function crearClave(cont, { nombre = '' } = {}) {
     let paso = 'explicar'; let primera = ''; let nota = '';
     const render = () => {
       if (paso === 'explicar') {
-        dibujar(cont, { nota, bubbles: [`${nombre ? `${esc(nombre)}, ahora` : 'Ahora'} lo más importante: tu <b>clave de Pesitos</b>.`, 'Con ella cifro tus datos en tu celular antes de guardarlos. Así nadie más puede leerlos: ni otras personas, ni quien administra la app.', 'Elegí una que te acuerdes: al menos 8 caracteres, con letras y números. Por ejemplo, una frase corta con un número.'],
+        dibujar(cont, { nota, bubbles: [`${nombre ? `${esc(nombre)}, ahora` : 'Ahora'} lo más importante: tu <b>clave de Pesitos</b>.`, 'Con ella cifro tus datos en tu celular antes de guardarlos. Así nadie más puede leerlos: ni otras personas, ni quien administra la app.', 'Elegí la que quieras, una que te acuerdes. Cuanto más larga, más segura: una frase corta funciona muy bien.'],
           controls: campo('nueva', 'Tu clave de Pesitos', 'autocomplete="new-password"') + '<p class="small muted guide-hint">Es distinta de la contraseña con la que entrás. Te la pido solo cuando entrás desde otro dispositivo.</p>' });
       } else {
         dibujar(cont, { nota, atras: true, bubbles: ['Escribila de nuevo, para confirmar.'], controls: campo('repetir', 'Repetí tu clave', 'autocomplete="new-password"') });
@@ -160,7 +160,7 @@ export function abrirGestionClave(llave, { guardarLlave }) {
     <div class="card"><span class="small">🔐 Tus datos están cifrados con tu clave de Pesitos. Ni Pesitos ni nadie más puede leerlos.</span></div>
     <form class="form" id="f-cambiar-clave"><strong>Cambiar la clave</strong>
       <div class="field"><label for="ck-a">Clave actual</label><input id="ck-a" name="actual" type="password" autocomplete="current-password" required></div>
-      <div class="field"><label for="ck-n">Clave nueva</label><input id="ck-n" name="nueva" type="password" autocomplete="new-password" required><span class="hint">Al menos 8 caracteres, con letras y números.</span></div>
+      <div class="field"><label for="ck-n">Clave nueva</label><input id="ck-n" name="nueva" type="password" autocomplete="new-password" required><span class="hint">La que quieras. Cuanto más larga, más segura.</span></div>
       <p class="auth-error" role="alert" hidden></p>
       <button class="btn small" type="submit">Cambiar clave</button></form>
     <form class="form" id="f-nuevo-codigo"><strong>Nuevo código de recuperación</strong>

@@ -70,3 +70,11 @@ export function num(v) {
   const n = Number(t);
   return Number.isFinite(n) ? n : 0;
 }
+
+// "#vacaciones #auto Nafta 30.000" → { texto: 'Nafta 30.000', tags: ['vacaciones', 'auto'] }
+export function extraerEtiquetas(texto) {
+  const tags = [];
+  const limpio = String(texto || '').replace(/(^|\s)#([\p{L}\p{N}_-]{1,24})/gu, (m, sp, t) => { tags.push(t.toLowerCase()); return sp; }).replace(/\s+/g, ' ').trim();
+  return { texto: limpio, tags: [...new Set(tags)] };
+}
+export const etiquetasDeTexto = (t) => [...new Set(String(t || '').split(/[\s,#]+/).map((x) => x.trim().toLowerCase().replace(/[^\p{L}\p{N}_-]/gu, '')).filter(Boolean))].slice(0, 8);

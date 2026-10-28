@@ -13,6 +13,8 @@ Se configura **una sola vez**. Después, cada vez que subís cambios a GitHub, V
 | Inflación (IPC INDEC) | API oficial de series de tiempo (datos.gob.ar); respaldo: `/api/datos` | Cada 6 horas |
 | Promos de bancos, billeteras y tarjetas | Fuente gratuita [descuentos-ar-datos](https://github.com/lubelrivero-design/descuentos-ar-datos) (la publica a diario la app "Con qué pago"); lo que falta lo completan Tavily + Gemini (opcional, gratis). Se guarda en Firestore | Todos los días a las 9:00 y a las 15:00 (Vercel Cron) |
 
+| Avisos en el celular (vencimientos, cierres, cobros) | Los manda el servidor a las 9:00 a quien los activó | Todos los días (misma tarea de las 9:00) |
+
 ## Puesta en marcha (una vez)
 
 ### 1. Firebase
@@ -36,6 +38,7 @@ Sirve para los bancos que la fuente principal no cubre (por ejemplo Banco Nació
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | El contenido completo del `.json` de la cuenta de servicio (todo, con las llaves) |
 | `CRON_SECRET` | Una clave inventada **solo con letras y números** (sin `$` ni símbolos) |
+| `VAPID_PRIVATE_KEY` | La clave privada de los avisos en el celular (te la paso aparte; la pública ya está en el código) |
 | `TAVILY_API_KEY` | Opcional. La clave de Tavily |
 | `GEMINI_API_KEY` | Opcional. La clave de Gemini |
 | `GEMINI_MODEL` | Opcional. Por defecto usa el Gemini Flash más nuevo |
@@ -57,6 +60,7 @@ api/
     ├── complemento.js  Tavily + Gemini para los medios que faltan
     ├── zona.js         Promos por provincia
     └── firebase.js     Firebase Admin con FIREBASE_SERVICE_ACCOUNT_JSON
+    └── avisos.js       Avisos push de la mañana (web-push, VAPID_PRIVATE_KEY)
 vercel.json             Programación: 9:00 y 15:00 todos los días (hora de Argentina)
 package.json            Dependencia firebase-admin para las funciones
 ```

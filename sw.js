@@ -1,16 +1,19 @@
 // Service worker: deja la app disponible sin conexión.
 // Cuando cambies archivos, subí el número de versión para refrescar la caché.
 
-const CACHE = 'pesitos-v12';
+const CACHE = 'pesitos-v13';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './styles.css', './main.js',
   './js/acciones.js', './js/agenda.js', './js/ahorro.js', './js/almacenamiento.js', './js/aprender.js',
-  './js/asesor.js', './js/autenticacion.js', './js/beneficios.js', './js/bienvenida.js', './js/calculos.js',
-  './js/categorias.js', './js/cifrado.js', './js/clave.js', './js/cotizaciones.js', './js/datosvivos.js',
-  './js/economista.js', './js/ejemplo.js', './js/feriados.js', './js/firebaseconfig.js', './js/flujo.js',
-  './js/formato.js', './js/guia.js', './js/herramientas.js', './js/inicio.js', './js/interfaz.js',
-  './js/interprete.js', './js/menu.js', './js/movimientos.js', './js/pagos.js', './js/promosrespaldo.js',
+  './js/asesor.js', './js/autenticacion.js', './js/avisos.js', './js/beneficios.js', './js/bienvenida.js',
+  './js/bloqueo.js', './js/buscar.js', './js/calculos.js', './js/categorias.js', './js/cifrado.js',
+  './js/clave.js', './js/cotizaciones.js', './js/cuentas.js', './js/datosvivos.js', './js/deudas.js',
+  './js/economista.js', './js/ejemplo.js', './js/estadisticas.js', './js/exportar.js', './js/feriados.js',
+  './js/firebaseconfig.js', './js/flujo.js', './js/formato.js', './js/guia.js', './js/herramientas.js',
+  './js/importar.js', './js/inicio.js', './js/interfaz.js', './js/interprete.js', './js/menu.js',
+  './js/miscuentas.js', './js/movimientos.js', './js/pagos.js', './js/presupuestos.js', './js/promosrespaldo.js',
   './js/rendimientos.js', './js/sincronizacion.js', './js/sueldo.js', './js/tarjetas.js', './js/tema.js',
+  './js/ticket.js',
   './pages/terminos.html', './pages/privacidad.html', './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',
 ];
 
@@ -48,4 +51,26 @@ self.addEventListener('fetch', (e) => {
       return res;
     }).catch(() => caches.match(e.request).then((r) => r || caches.match('./index.html')))
   );
+});
+
+// ---------- avisos (notificaciones push) ----------
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'Pesitos', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Pesitos', {
+    body: d.body || 'Tenés novedades en Pesitos.',
+    icon: './assets/icon-192.png',
+    badge: './assets/icon-192.png',
+    tag: d.tag || 'pesitos',
+    data: { url: d.url || './#/pagos' },
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+    for (const w of wins) if (w.url.startsWith(self.registration.scope)) { w.navigate(url); return w.focus(); }
+    return self.clients.openWindow(url);
+  }));
 });
