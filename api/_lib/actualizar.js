@@ -13,14 +13,15 @@ export const todayAR = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).
 
 // Medios de la app que la fuente principal no trae: los busca el complemento
 const SIN_FUENTE = { 'Banco Nación': 'nacion', 'Tarjeta Naranja': 'naranja' }; // nombre → id en la app
-const IPC_URL = 'https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26:percent_change&limit=24&sort=desc&format=json';
+// Ojo: con sort=desc la API pierde el último mes publicado; se pide en orden normal desde hace 2 años
+const ipcUrl = (today) => `https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26:percent_change&start_date=${Number(today.slice(0, 4)) - 2}-01&limit=1000&format=json`;
 
 export const refs = () => { const d = db(); return { DOC: d.collection('publico').doc('datos'), CFG: d.collection('publico').doc('config') }; };
 
 const norm = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\b(banco|tarjeta|de|del|la|el)\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 
-async function ipcOficial() {
-  const r = await fetch(IPC_URL, { headers: { Accept: 'application/json' } });
+async function ipcOficial(today) {
+  const r = await fetch(ipcUrl(today), { headers: { Accept: 'application/json' } });
   if (!r.ok) throw new Error(`IPC ${r.status}`);
   const out = {};
   for (const [date, v] of (await r.json()).data || []) {
@@ -62,7 +63,7 @@ export async function actualizar({ turno = 'manana' } = {}) {
   } else if (!complementoActivo()) status.complemento = 'apagado (faltan TAVILY_API_KEY o GEMINI_API_KEY)';
 
   let ipc = prev.ipc || {};
-  try { ipc = { ...ipc, ...(await ipcOficial()) }; status.ipc = 'ok'; } catch (e) { status.ipc = `error: ${e.message}`; }
+  try { ipc = { ...ipc, ...(await ipcOficial(today)) }; status.ipc = 'ok'; } catch (e) { status.ipc = `error: ${e.message}`; }
 
   const base = promos || (prev.promos || []).filter((p) => !p.auto && p.validTo >= today); // si la fuente falló, se conservan las anteriores vigentes
   const doc = {

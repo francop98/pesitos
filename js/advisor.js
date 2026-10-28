@@ -26,7 +26,8 @@ export function promosForDay(s, day) {
     .filter((p) => (mine.has(p.wallet) || (p.wallet === 'todos' && mine.size)) && (p.days || []).includes(day))
     .map((p) => ({ ...p, name: p.wallet === 'todos' ? 'Cualquier medio de pago' : walletName(p.wallet), source: 'catalog' }));
   const manual = (s.promos || []).filter((p) => p.day === day).map((p) => ({ ...p, merchant: '', source: 'manual' }));
-  return [...fromCatalog, ...manual].sort((a, b) => (b.category === 'super') - (a.category === 'super') || b.pct - a.pct);
+  // primero las de tus medios de pago; las que valen con cualquier medio, después
+  return [...fromCatalog, ...manual].sort((a, b) => (a.wallet === 'todos') - (b.wallet === 'todos') || (b.category === 'super') - (a.category === 'super') || b.pct - a.pct);
 }
 export function promosStatus(s) {
   const c = currentPromos(s);
