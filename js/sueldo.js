@@ -1,10 +1,11 @@
 // Sueldo: evolución nominal vs real, mejor mes y crecimiento.
 
-import { money, pct, esc, monthName, monthKey, addMonthKey, num, MONTHS_LONG } from './formato.js';
+import { money, pct, esc, monthName, monthKey, addMonthKey, num, todayISO, toISO, MONTHS_LONG } from './formato.js';
 import { salaryStats, lastSalary } from './calculos.js';
 import { lastIpc } from './datosvivos.js';
-import { sprout, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { sprout, icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
 import { uid } from './almacenamiento.js';
+import { fechaDeCobro } from './feriados.js';
 import { lessonCard } from './aprender.js';
 
 function chart(series) {
@@ -49,8 +50,8 @@ export function render(s) {
     ${screenHead('Tu sueldo')}
     ${st ? `
     <div class="card" style="gap:12px">
-      <div class="topbar" style="align-items:flex-start">
-        <div style="display:flex;flex-direction:column;gap:2px">
+      <div class="topbar" style="align-items:flex-start;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
           <span class="small muted" style="font-weight:600">${monthName(st.cur.mk, true).replace(/^./, (c) => c.toUpperCase())} · neto</span>
           <span style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">${money(st.cur.nominal)}</span>
         </div>
@@ -76,6 +77,7 @@ export function render(s) {
       <button class="btn primary" data-action="newSalary" data-mk="${nextMk}">Cargar sueldo de ${monthName(nextMk, true)}</button>
       <button class="btn" data-action="newEntry" data-kind="income" style="flex:0 0 auto">+ Extra</button>
     </div>
+    <button class="btn small block" data-action="pastSalaries">${icon('calendar', 18)} Cargar sueldos de meses anteriores</button>
 
     ${history.length ? `<div class="section-title"><span>Últimos sueldos</span></div>
     <div class="card tight">${history.map((i) => `<button class="row" data-action="openEntry" data-id="${i.id}" data-kind="income"><span class="grow"><span class="name">${monthName(i.date.slice(0, 7), true).replace(/^./, (c) => c.toUpperCase())} ${i.date.slice(0, 4)}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
@@ -88,19 +90,47 @@ export const actions = {
     const mk = el.dataset.mk;
     const last = lastSalary(ctx.state);
     openModal(`Sueldo de ${monthName(mk, true)}`, `<form class="form" data-submit="saveSalary">
-      <div class="field"><label for="sal-a">Neto cobrado</label><input id="sal-a" name="amount" inputmode="numeric" value="${last ? last.amount : ''}" placeholder="Ej: 900.000" required></div>
-      <div class="field"><label for="sal-d">Fecha de cobro</label><input id="sal-d" name="date" type="date" value="${mk}-${String(ctx.state.profile.payday || 1).padStart(2, '0')}"></div>
+      <div class="field"><label for="sal-a">Neto cobrado</label><input id="sal-a" name="amount" inputmode="decimal" value="${last ? last.amount : ''}" placeholder="Ej: 900.000" required></div>
+      <div class="field"><label for="sal-d">Fecha de cobro</label><input id="sal-d" name="date" type="date" value="${toISO(fechaDeCobro(ctx.state.profile, Number(mk.slice(0, 4)), Number(mk.slice(5, 7)) - 1))}" ><span class="hint">Podés elegir una fecha anterior para cargar sueldos de otros meses.</span></div>
       <button class="btn primary block" type="submit">Guardar</button>
     </form>`);
+  },
+  // varios meses de una: los últimos 12 que no tienen sueldo cargado
+  pastSalaries(ctx) {
+    const s = ctx.state;
+    const loaded = new Set(s.incomes.filter((i) => i.type === 'sueldo').map((i) => i.date.slice(0, 7)));
+    const months = [];
+    for (let k = 1; k <= 12; k++) { const mk = addMonthKey(monthKey(), -k); if (!loaded.has(mk)) months.push(mk); }
+    openModal('Sueldos anteriores', months.length ? `<form class="form" data-submit="savePastSalaries">
+      <p class="text muted" style="margin:0">Completá los que te acuerdes (el neto que cobraste). Los que dejes vacíos no se cargan. Con más meses, mejor te muestro si le ganás a la inflación.</p>
+      ${months.map((mk) => `<div class="field"><label for="ps-${mk}">${monthName(mk, true).replace(/^./, (c) => c.toUpperCase())} ${mk.slice(0, 4)}</label><input id="ps-${mk}" name="m_${mk}" inputmode="decimal" placeholder="Ej: 850.000"></div>`).join('')}
+      <div class="field"><label for="ps-x">¿Es de un mes más viejo?</label><div class="field-row"><input id="ps-x" name="otherMonth" type="month" max="${addMonthKey(monthKey(), -1)}"><input name="otherAmount" inputmode="decimal" placeholder="Monto"></div></div>
+      <button class="btn primary block" type="submit">Guardar</button></form>`
+      : `<p class="text">Ya tenés cargados los sueldos de los últimos 12 meses. Si querés uno más viejo, elegí el mes:</p>
+      <form class="form" data-submit="savePastSalaries"><div class="field-row"><input name="otherMonth" type="month" max="${addMonthKey(monthKey(), -1)}" aria-label="Mes"><input name="otherAmount" inputmode="decimal" placeholder="Monto" aria-label="Monto"></div><button class="btn primary block" type="submit">Guardar</button></form>`);
+  },
+  savePastSalaries(ctx, d) {
+    const fecha = (mk) => toISO(fechaDeCobro(ctx.state.profile, Number(mk.slice(0, 4)), Number(mk.slice(5, 7)) - 1));
+    const add = Object.entries(d).filter(([k, v]) => k.startsWith('m_') && num(v)).map(([k, v]) => ({ mk: k.slice(2), amount: num(v) }));
+    if (/^\d{4}-\d{2}$/.test(d.otherMonth || '') && num(d.otherAmount)) add.push({ mk: d.otherMonth, amount: num(d.otherAmount) });
+    if (!add.length) { toast('Completá al menos un mes'); return; }
+    ctx.commit((s) => {
+      for (const x of add) {
+        s.incomes = s.incomes.filter((i) => !(i.type === 'sueldo' && i.date.slice(0, 7) === x.mk));
+        s.incomes.push({ id: uid(), date: fecha(x.mk), amount: x.amount, type: 'sueldo', note: 'Sueldo' });
+      }
+    });
+    closeModal(); toast(add.length === 1 ? 'Sueldo cargado' : `Cargué ${add.length} sueldos`);
   },
   saveSalary(ctx, d) {
     const amount = num(d.amount);
     if (!amount) return;
     const prev = lastSalary(ctx.state);
+    const isLatest = !prev || (d.date || '') >= prev.date;
     let msg = 'Sueldo cargado';
     ctx.commit((s) => {
       s.incomes.push({ id: uid(), date: d.date, amount, type: 'sueldo', note: 'Sueldo' });
-      if (prev && amount > prev.amount) {
+      if (isLatest && prev && amount > prev.amount) {
         const raise = amount - prev.amount;
         msg = `Tu sueldo subió ${money(raise)}`;
         const g = s.goals.find((x) => x.main) || s.goals[0];

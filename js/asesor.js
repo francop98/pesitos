@@ -105,7 +105,7 @@ function ruleForm(c = {}) {
     <div class="field"><label for="r-n">Nombre</label><input id="r-n" name="name" value="${esc(c.name || '')}" placeholder="Ej: Impuesto al antojo" required></div>
     <div class="field"><label for="r-t">¿Cuánto apartar?</label><select id="r-t" name="type">${CUSTOM_RULE_TYPES.map((t) => `<option value="${t.id}" ${t.id === c.type ? 'selected' : ''}>${t.label}</option>`).join('')}</select></div>
     <div class="field-row">
-      <div class="field"><label for="r-v">Valor (% o $)</label><input id="r-v" name="value" inputmode="numeric" value="${c.value || ''}" placeholder="Ej: 10" required></div>
+      <div class="field"><label for="r-v">Valor (% o $)</label><input id="r-v" name="value" inputmode="decimal" value="${c.value || ''}" placeholder="Ej: 10" required></div>
       <div class="field"><label for="r-c">Categoría</label><select id="r-c" name="category">${catOpts(c.category)}</select><span class="hint">Solo para la opción por categoría.</span></div>
     </div>
     <button class="btn primary block" type="submit">Guardar regla</button>
@@ -121,7 +121,7 @@ function challengeForm() {
       <div class="field"><label for="ch-c">Categoría</label><select id="ch-c" name="category">${catOpts('delivery')}</select></div>
       <div class="field"><label for="ch-d">Duración (días)</label><input id="ch-d" name="days" inputmode="numeric" value="30"></div>
     </div>
-    <div class="field"><label for="ch-a">Monto (tope o gasto mínimo)</label><input id="ch-a" name="amount" inputmode="numeric" placeholder="Ej: 20.000"><span class="hint">Para "No pasar un monto": el tope. Para "Sin gastos chicos": el monto mínimo.</span></div>
+    <div class="field"><label for="ch-a">Monto (tope o gasto mínimo)</label><input id="ch-a" name="amount" inputmode="decimal" placeholder="Ej: 20.000"><span class="hint">Para "No pasar un monto": el tope. Para "Sin gastos chicos": el monto mínimo.</span></div>
     <label style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;min-height:44px"><input type="checkbox" name="start" checked style="width:20px;height:20px"> Empezarlo hoy</label>
     <button class="btn primary block" type="submit">Crear desafío</button>
   </form>`;
@@ -147,7 +147,7 @@ export const actions = {
     const v = ctx.state.rules[r.key][r.param];
     openModal(r.name, `<form class="form" data-submit="saveRuleParam"><input type="hidden" name="key" value="${r.key}">
       <div class="field"><label for="rp">${r.unit === '$' ? 'Redondear a' : 'Porcentaje'}</label>
-      ${r.unit === '$' ? `<select id="rp" name="value">${[100, 500, 1000, 5000].map((n) => `<option value="${n}" ${n === v ? 'selected' : ''}>${money(n)}</option>`).join('')}</select>` : `<input id="rp" name="value" inputmode="numeric" value="${v}">`}</div>
+      ${r.unit === '$' ? `<select id="rp" name="value">${[100, 500, 1000, 5000].map((n) => `<option value="${n}" ${n === v ? 'selected' : ''}>${money(n)}</option>`).join('')}</select>` : `<input id="rp" name="value" inputmode="decimal" value="${v}">`}</div>
       <button class="btn primary block" type="submit">Guardar</button></form>`);
   },
   saveRuleParam(ctx, d) {

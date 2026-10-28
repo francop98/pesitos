@@ -89,7 +89,7 @@ function cardForm(s, c = {}) {
       <div class="field"><label for="cd-v">Día de vencimiento</label><input id="cd-v" name="dueDay" inputmode="numeric" value="${c.dueDay || 5}"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label for="cd-l">Límite de compra</label><input id="cd-l" name="limit" inputmode="numeric" value="${c.limit || ''}" placeholder="Opcional"></div>
+      <div class="field"><label for="cd-l">Límite de compra</label><input id="cd-l" name="limit" inputmode="decimal" value="${c.limit || ''}" placeholder="Opcional"></div>
       <div class="field"><label for="cd-t">TNA de financiación (%)</label><input id="cd-t" name="tna" inputmode="decimal" value="${c.tna || ''}" placeholder="Figura en el resumen"></div>
     </div>
     <div class="field"><label for="cd-w">El resumen lo pagás con</label><select id="cd-w" name="payFrom">${payOptions(s, c.payFrom)}</select></div>

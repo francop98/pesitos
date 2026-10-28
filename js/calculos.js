@@ -3,6 +3,8 @@
 
 import { toISO, parseISO, monthKey, addMonthKey, monthDiff, startOfToday, daysBetween, MONTHS_LONG, money } from './formato.js';
 import { arsPer } from './cotizaciones.js';
+import { valorHoy } from './rendimientos.js';
+import { fechaDeCobro } from './feriados.js';
 import { ipcMap, expectedInflation } from './datosvivos.js';
 import { provisions } from './agenda.js';
 
@@ -15,11 +17,12 @@ function dateWithDay(y, m, day) {
 }
 
 // Ciclo de cobro: del último día de cobro al próximo.
+// Ciclo de cobro: desde el último cobro hasta el próximo (día fijo, día hábil, último hábil…)
 export function payCycle(s, today = startOfToday()) {
-  const pd = Number(s.profile.payday) || 1;
-  let next = dateWithDay(today.getFullYear(), today.getMonth(), pd);
-  if (next <= today) next = dateWithDay(today.getFullYear(), today.getMonth() + 1, pd);
-  const start = dateWithDay(next.getFullYear(), next.getMonth() - 1, pd);
+  let next = fechaDeCobro(s.profile, today.getFullYear(), today.getMonth());
+  if (next <= today) { const n = new Date(today.getFullYear(), today.getMonth() + 1, 1); next = fechaDeCobro(s.profile, n.getFullYear(), n.getMonth()); }
+  const p = new Date(next.getFullYear(), next.getMonth() - 1, 1);
+  const start = fechaDeCobro(s.profile, p.getFullYear(), p.getMonth());
   return { start, next, startISO: toISO(start), nextISO: toISO(next), daysLeft: Math.max(1, daysBetween(today, next)) };
 }
 
@@ -27,7 +30,16 @@ export function lastSalary(s) {
   return [...s.incomes].filter((i) => i.type === 'sueldo').sort((a, b) => b.date.localeCompare(a.date))[0] || null;
 }
 
-export const fixedTotal = (s) => sum(s.fixed, (f) => f.amount);
+// Un gasto fijo cuenta solo hasta su mes de fin (créditos, cuotas, contratos)
+export const fixedActive = (f, mk = monthKey()) => !f.endMonth || mk <= f.endMonth;
+export const fixedTotal = (s, mk = monthKey()) => sum(s.fixed.filter((f) => fixedActive(f, mk)), (f) => f.amount);
+// "cuota 7 de 24" para los fijos con cantidad de cuotas
+export function fixedProgress(f, mk = monthKey()) {
+  if (!f.endMonth || !f.totalCuotas) return null;
+  const restantes = monthDiff(mk, f.endMonth) + 1;
+  const actual = f.totalCuotas - restantes + 1;
+  return actual >= 1 && actual <= f.totalCuotas ? { actual, total: f.totalCuotas } : null;
+}
 
 function cycleExpenses(s, cycle) {
   return s.expenses.filter((e) => !e.pending && e.date >= cycle.startISO && e.date < cycle.nextISO);
@@ -193,7 +205,8 @@ export function salaryStats(s) {
 }
 
 // ---------- ahorro ----------
-export const holdingArs = (s, h) => h.amount * arsPer(s, h.currency || 'ARS');
+// incluye los intereses ganados desde que cargaste el monto (ver js/rendimientos.js)
+export const holdingArs = (s, h) => valorHoy(s, h) * arsPer(s, h.currency || 'ARS');
 export const holdingsTotal = (s) => sum(s.holdings, (h) => holdingArs(s, h));
 export const savedThisMonth = (s) => s.savedByApp[monthKey()] || 0;
 
@@ -275,7 +288,7 @@ export function expectedBalance(s, todayStr = toISO(startOfToday())) {
   let fixedDue = 0;
   const a = parseISO(since); const b = parseISO(todayStr);
   for (let d = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1); d <= b; d.setDate(d.getDate() + 1)) {
-    for (const f of s.fixed) if (Number(f.dueDay) === d.getDate()) fixedDue += f.amount;
+    for (const f of s.fixed) if (Number(f.dueDay) === d.getDate() && fixedActive(f, monthKey(d))) fixedDue += f.amount;
   }
   return s.lastClose.balance + inc - exp - tr - fixedDue;
 }

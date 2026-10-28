@@ -4,10 +4,11 @@
 // Máximo 3 preguntas por día; cualquiera se puede dejar para después.
 
 import { uid } from './almacenamiento.js';
-import { money, todayISO, toISO, addDays, esc, normalize, addMonthKey, monthKey } from './formato.js';
+import { money, num, todayISO, toISO, addDays, esc, normalize, addMonthKey, monthKey } from './formato.js';
 import { parseAmount, merchantKey, guessCategory } from './interprete.js';
 import { HOLDING_TYPES, ASSETS, catLabel, PROVINCES, provinceLabel } from './categorias.js';
 import { refreshLive } from './datosvivos.js';
+import { BILLETERAS_QUE_RINDEN, rinde } from './rendimientos.js';
 import { sprout, icon, toast } from './interfaz.js';
 
 const DAILY_LIMIT = 3;
@@ -19,12 +20,19 @@ function candidates(s) {
   const focus = s.profile.focus;
   if (!s.incomes.some((i) => i.type === 'sueldo')) q.push({ id: 'salary', p: 100, text: '¿Cuánto cobrás por mes? Sin ese dato no puedo calcular cuánto podés gastar por día.', kind: 'amount', placeholder: 'Ej: 900.000' });
   if (!s.fixed.length) q.push({ id: 'fixedIntro', p: 90, kind: 'info', title: 'Tus gastos fijos', text: 'Son los que pagás todos los meses por un monto parecido: alquiler, expensas, servicios, prepaga, cuotas, suscripciones… Cargalos una sola vez, con el nombre que quieras, y los descuento solos cada mes.', button: { label: 'Cargar mis gastos fijos', action: 'newFixed' } });
-  if (!s.goals.length) q.push({ id: 'goal', p: focus === 'meta' ? 95 : 65, text: '¿Tenés algún objetivo para el que te gustaría juntar plata?', kind: 'choice', options: ['Un viaje', 'Fondo de emergencia', 'Cambiar el auto', 'Mi casa', 'Estudiar'], other: 'Otro objetivo…', no: 'Por ahora no' });
+  // el objetivo se pregunta cuando ya hay movimientos: con eso la respuesta sirve más
+  const actividad = (s.expenses || []).filter((e) => !e.pending).length;
+  if (!s.goals.length && actividad >= 8) q.push({ id: 'goal', p: focus === 'meta' ? 95 : 65, text: 'Ya conozco un poco tus gastos. ¿Hay algo para lo que te gustaría juntar plata? Te digo cuánto apartar por mes y cuándo llegás.', kind: 'choice', options: ['Un viaje', 'Fondo de emergencia', 'Cambiar el auto', 'Mi casa', 'Estudiar'], other: 'Otro objetivo…', no: 'Por ahora no' });
   const noTarget = s.goals.find((g) => !g.target);
   if (noTarget) q.push({ id: 'goalTarget', p: 80, goalId: noTarget.id, text: `¿Cuánto necesitás para "${noTarget.name}"? Alcanza con un monto aproximado.`, kind: 'amount', placeholder: 'Ej: 1.500.000' });
   if (!s.holdings.length) q.push({ id: 'savings', p: focus === 'crecer' ? 95 : 55, text: '¿Tenés algo ahorrado hoy? Así te muestro cuánto vale y si te está rindiendo.', kind: 'amountWhere', no: 'Todavía no' });
   if (!(s.wallets || []).length) q.push({ id: 'wallets', p: focus === 'finmes' ? 70 : 50, kind: 'info', title: 'Promos para vos', text: '¿Qué bancos, billeteras y tarjetas usás? Con eso te aviso el día antes qué descuentos tenés.', button: { label: 'Elegir mis medios de pago', action: 'openWallets' } });
   if ((s.wallets || []).length && !(s.profile && s.profile.province)) q.push({ id: 'province', p: 60, title: 'Promos de tu zona', kind: 'select', text: '¿En qué provincia vivís? Muchas promos valen solo en una provincia: así te muestro las tuyas y las de todo el país.', options: PROVINCES.map((p) => ({ value: p, label: provinceLabel(p) })) });
+  // ahorros que pueden dar intereses y todavía no sé si los dan
+  const sinTasa = (s.holdings || []).find((h) => rinde(h.type) && h.type !== 'plazo_fijo' && !h.rinde && (h.currency || 'ARS') === 'ARS');
+  if (sinTasa) q.push({ id: `rinde:${sinTasa.id}`, p: 75, holdingId: sinTasa.id, title: 'Que tu plata rinda', kind: 'choice',
+    text: `¿"${sinTasa.name}" te da intereses? Si me decís dónde está, sumo los intereses de cada día solo.`,
+    options: [...BILLETERAS_QUE_RINDEN.map((b) => ({ value: b.id, label: b.nombre })), { value: 'otra', label: 'Otra (cargo la tasa)' }], no: 'No da intereses' });
   if (!s.savingMode) q.push({ id: 'savingMode', p: 92, title: 'Tu forma de ahorrar', kind: 'choice', lesson: 'modos',
     text: '¿Cómo te gustaría ahorrar? Elegí la que te resulte más cómoda; la podés cambiar cuando quieras en Asesor.',
     options: [
@@ -105,11 +113,12 @@ function apply(ctx, qid, input) {
   const q = candidates(ctx.state).find((x) => x.id === qid);
   if (!q) return;
   const no = input.value === '__no';
-  const amount = input.amount ? parseAmount(input.amount) || parseFloat(String(input.amount).replace(',', '.')) || 0 : 0;
+  const amount = input.amount ? num(input.amount) || parseAmount(input.amount) || 0 : 0;
   if (!no && (q.kind === 'amount' || q.kind === 'amountWhere') && !amount) { toast('No entendí el monto. Ejemplo: 60.000'); return; }
   if (!no && q.id === 'goal' && !(input.other || input.value || '').trim()) return;
   if (q.kind === 'select' && !input.value) { toast('Elegí una opción'); return; }
   let msg = 'Anotado, gracias';
+  let openHoldingAfter = '';
   ctx.commit((s) => {
     if (!no) {
       switch (q.id) {
@@ -158,9 +167,16 @@ function apply(ctx, qid, input) {
           msg = `Listo: ${money(amount)} por mes`;
           break;
         }
-        default: break;
+        default:
+          if (q.holdingId) {
+            const h = s.holdings.find((x) => x.id === q.holdingId);
+            if (h && input.value === 'otra') { h.rinde = 'manual'; h.since = h.since || todayISO(); openHoldingAfter = h.id; msg = 'Cargá la tasa y listo'; }
+            else if (h) { h.rinde = input.value; h.since = todayISO(); msg = 'Listo: desde hoy sumo los intereses de cada día'; }
+          }
+          break;
       }
     }
+    if (no && q.holdingId) { const h = s.holdings.find((x) => x.id === q.holdingId); if (h) h.rinde = 'no'; }
     if (no && q.id === 'savingMode') { s.savingMode = 'none'; s.rules.payFirst.on = false; }
     // si la meta principal no tiene aporte, usa lo que marcan las reglas
     const g = s.goals.find((x) => x.main) || s.goals[0];
@@ -169,6 +185,7 @@ function apply(ctx, qid, input) {
     markDone(s, q.id);
   });
   if (q.id === 'province') refreshLive(ctx, true);
+  if (openHoldingAfter) { const b = document.createElement('button'); b.dataset.action = 'editHolding'; b.dataset.id = openHoldingAfter; document.body.appendChild(b); b.click(); b.remove(); }
   toast(no ? (q.id === 'savingMode' ? 'Entendido. Cuando quieras, lo activás en Asesor' : 'Perfecto, sigo con otra cosa') : msg);
 }
 

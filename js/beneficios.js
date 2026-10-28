@@ -71,8 +71,8 @@ export const actions = {
         <div class="field"><label for="pr-c">Rubro</label><select id="pr-c" name="category">${allCategories().filter((c) => !['varios', 'otros'].includes(c.id)).map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}</select></div>
       </div>
       <div class="field-row">
-        <div class="field"><label for="pr-p">Descuento %</label><input id="pr-p" name="pct" inputmode="numeric" required></div>
-        <div class="field"><label for="pr-t">Tope de reintegro</label><input id="pr-t" name="cap" inputmode="numeric" placeholder="Opcional"></div>
+        <div class="field"><label for="pr-p">Descuento %</label><input id="pr-p" name="pct" inputmode="decimal" required></div>
+        <div class="field"><label for="pr-t">Tope de reintegro</label><input id="pr-t" name="cap" inputmode="decimal" placeholder="Opcional"></div>
       </div>
       <button class="btn primary block" type="submit">Guardar</button>
     </form>`);

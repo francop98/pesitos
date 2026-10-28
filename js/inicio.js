@@ -9,6 +9,7 @@ import { lessonCard } from './aprender.js';
 import { catLabel } from './categorias.js';
 import { alerts, dueLabel, closings } from './agenda.js';
 import { projection, coverage } from './flujo.js';
+import { reglaDeCobro } from './feriados.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
 
 const MODE_TEXT = {
@@ -116,9 +117,8 @@ export function render(s) {
   const g = mainGoal(s);
   const tips = insights(s);
   const sugg = suggestions(s);
-  const initial = (s.profile.name || 'P').trim().charAt(0).toUpperCase();
   const days = b.cycle.daysLeft;
-  const payText = s.profile.paydayVaries
+  const payText = reglaDeCobro(s.profile).tipo === 'varia'
     ? (days === 1 ? 'último día del mes' : `quedan ${days} días del mes`)
     : (days === 1 ? 'cobrás mañana' : `cobrás en ${days} días`);
   const pending = s.expenses.filter((e) => e.pending).length;
@@ -127,7 +127,6 @@ export function render(s) {
   return `<section class="screen">
     <div class="topbar">
       <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${wordmark(26)}</div>
-      <button class="avatar" data-action="openMiCuenta" aria-label="Mi cuenta">${esc(initial)}</button>
     </div>
 
     ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
@@ -140,7 +139,7 @@ export function render(s) {
       <div class="split on-green-muted"><span>Ciclo usado: ${Math.round(b.usedPct * 100)}%</span><span>Libre hasta el cobro: ${money(Math.max(0, b.free))}</span></div>
     </div>
 
-    ${quickForm('q-home')}
+    ${quickForm('q-home', s)}
 
     ${coverageAlert(s)}
     ${payAlerts(s)}
@@ -192,7 +191,7 @@ export const actions = {
   promoUsed(ctx, el) {
     const cap = num(el.dataset.id);
     openModal('¿Cuánto te ahorraste?', `<form class="form" data-submit="promoSaved">
-      <div class="field"><label for="ps">Ahorro con la promo</label><input id="ps" name="amount" inputmode="numeric" value="${cap || ''}" placeholder="Ej: 8.000" required></div>
+      <div class="field"><label for="ps">Ahorro con la promo</label><input id="ps" name="amount" inputmode="decimal" value="${cap || ''}" placeholder="Ej: 8.000" required></div>
       <button class="btn primary block" type="submit">Sumar al contador</button>
     </form>`);
   },

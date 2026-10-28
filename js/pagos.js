@@ -10,6 +10,8 @@ import { projection, coverage, inflows } from './flujo.js';
 import { icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
+import { fechaDeCobro, reglaDeCobro } from './feriados.js';
+import { parseAmount } from './interprete.js';
 
 let view = 'lista';
 let showPaid = false;
@@ -80,7 +82,7 @@ function calendar(s) {
   const first = new Date(y, m - 1, 1); const last = new Date(y, m, 0);
   const items = agendaBetween(s, first, last);
   const ins = inflows(s, first, last);
-  const pd = Number(s.profile.payday) || 1;
+  const payDay = reglaDeCobro(s.profile).tipo === 'varia' ? 0 : fechaDeCobro(s.profile, y, m - 1).getDate();
   const closes = (s.cards || []).map((c) => ({ c, d: statementDates(c, mk).close }));
   const today = todayISO();
   const cells = [];
@@ -94,7 +96,7 @@ function calendar(s) {
     const iso = toISO(new Date(y, m - 1, d));
     const dayItems = items.filter((i) => i.due === iso);
     const dayIns = ins.filter((i) => i.date === iso);
-    const isPay = d === Math.min(pd, last.getDate()) && !s.profile.paydayVaries;
+    const isPay = d === payDay;
     const isClose = closes.some((c) => toISO(c.d) === iso);
     const load = totals[iso] ? totals[iso] / maxDay : 0;
     if (load > 0.5) heavy++;
@@ -319,12 +321,18 @@ export const actions = {
           <div class="field"><label for="pp-d">Fecha</label><input id="pp-d" name="date" type="date" value="${todayISO()}" max="${todayISO()}"></div>
         </div>
         ${it.kind === 'card' ? '<span class="small muted">Si pagaste el mínimo o una parte, poné el monto: te muestro cuánto quedó.</span>' : ''}
+        ${it.variable ? '<span class="small muted">Este gasto varía: poné lo que pagaste este mes y lo uso como referencia para los próximos.</span>' : ''}
         <button class="btn green block" type="submit">Marcar como pagado</button>
       </form>`}
       ${goto}`);
   },
-  markPaid(ctx, el) { pay(ctx, el.dataset.key); },
-  markPaidForm(ctx, d) { pay(ctx, d.key, num(d.amount), d.date); closeModal(); },
+  markPaid(ctx, el) {
+    // los fijos que varían: antes de marcar, preguntar cuánto fue
+    const it = findItem(ctx.state, el.dataset.key);
+    if (it && it.variable) { actions.openPayment(ctx, el); return; }
+    pay(ctx, el.dataset.key);
+  },
+  markPaidForm(ctx, d) { pay(ctx, d.key, num(d.amount) || parseAmount(d.amount), d.date); closeModal(); },
   unmarkPaid(ctx, el) {
     const key = el.dataset.key;
     ctx.commit((s) => {
@@ -358,6 +366,11 @@ function pay(ctx, key, amount, date) {
     const prev = s.paid[key];
     const total = (prev ? Number(prev.amount) : 0) + paidAmount;
     s.paid[key] = { date: when, amount: total, due: it.due, onTime: when <= it.due };
+    // fijo que varía: lo que pagaste pasa a ser el monto aproximado de los próximos meses
+    if (it.kind === 'fixed') {
+      const f = s.fixed.find((x) => x.id === it.refId);
+      if (f && f.variable && paidAmount && Math.abs(paidAmount - f.amount) >= 1) { f.lastAmount = f.amount; f.amount = paidAmount; }
+    }
     // los pagos programados no están en otro lado: se anotan como gasto
     if (it.kind === 'bill') {
       const b = s.bills.find((x) => x.id === it.refId);

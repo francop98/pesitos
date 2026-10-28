@@ -4,7 +4,7 @@
 
 import { uid, emptyState, clear, migrate } from './almacenamiento.js';
 import { parseEntry, merchantKey } from './interprete.js';
-import { CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel } from './categorias.js';
+import { CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel, categoriasOrdenadas, soloEmoji } from './categorias.js';
 import { money, esc, todayISO, num, monthKey, relDay, normalize, toISO, addDays, parseISO, MONTHS } from './formato.js';
 import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
@@ -12,7 +12,7 @@ import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
 import { buyImpact, expectedBalance, mainGoal, lastSalary } from './calculos.js';
 import { demoState } from './ejemplo.js';
-import { openModal, closeModal, modalBack, toast, setModalBody, icon } from './interfaz.js';
+import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus } from './economista.js';
 import { ratesAge } from './cotizaciones.js';
 import { lastIpc, refreshLive } from './datosvivos.js';
@@ -25,7 +25,7 @@ function entryForm(s, e, kind) {
   return `<form class="form" data-submit="saveEntry">
     <input type="hidden" name="id" value="${esc(e.id || '')}">
     <input type="hidden" name="kind" value="${kind}">
-    <div class="field"><label for="f-amount">Monto</label><input id="f-amount" name="amount" inputmode="numeric" required value="${e.amount ? Math.round(e.amount) : ''}" placeholder="Ej: 48.000"></div>
+    <div class="field"><label for="f-amount">Monto</label><input id="f-amount" name="amount" inputmode="decimal" required value="${e.amount ? Math.round(e.amount) : ''}" placeholder="Ej: 48.000"></div>
     <div class="field"><label for="f-note">Descripción</label><input id="f-note" name="note" value="${esc(e.note || '')}"></div>
     ${isIncome
       ? `<div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Sueldo</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>`
@@ -69,25 +69,41 @@ function walletsBody(s) {
     <form class="form card" data-submit="addWallet" autocomplete="off">
       <strong style="font-size:14px">¿No está el tuyo?</strong>
       <div class="field-row">
-        <div class="field"><label for="w-n">Nombre</label><input id="w-n" name="name" placeholder="Ej: Banco Patagonia" required></div>
+        <div class="field"><label for="w-n">Nombre</label><input id="w-n" name="name" placeholder="Ej: Banco Patagonia" list="w-n-list" required></div>
         <div class="field"><label for="w-k">Tipo</label><select id="w-k" name="kind">${groups.map((g) => `<option>${g}</option>`).join('')}</select></div>
       </div>
       <button class="btn small green" type="submit">Agregar</button>
-      <span class="small muted">También busco sus promos en la actualización diaria.</span>
+      <span class="small muted">Si aparece en las sugerencias al escribir, ya tengo sus promos. Si no, igual lo anoto y se suman cuando aparezcan en las fuentes.</span>
+      <datalist id="w-n-list">${[...new Set(((s.live && s.live.promos) || []).map((p) => p.walletName).filter(Boolean))].sort().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
     </form>
     <p class="small muted">${esc(promosStatus(s))}</p>
     <button class="btn primary block" data-action="closeModal">Listo</button>`;
 }
 
+// Administrar categorías: crear (con emoji opcional), ordenar y ocultar
 function categoriesBody(s) {
-  const custom = s.customCategories || [];
-  return `<p class="text muted">Además de las categorías de Pesitos, podés crear las tuyas. Las reconozco solas cuando el texto las nombra.</p>
-    <div class="card tight">${custom.length ? custom.map((c) => `<div class="row"><span class="grow"><span class="name">${esc(c.label)}</span></span><button class="chip" data-action="deleteCategory" data-id="${esc(c.id)}">Borrar</button></div>`).join('') : '<p class="empty">Todavía no creaste categorías.</p>'}</div>
-    <form class="form" data-submit="saveCategory" autocomplete="off">
-      <div class="field"><label for="cat-n">Nueva categoría</label><input id="cat-n" name="label" placeholder="Ej: Mascotas, Hijos, Auto" required></div>
+  const prefs = s.catPrefs || {};
+  const orden = prefs.orden || 'frecuentes';
+  const ocultas = new Set(prefs.ocultas || []);
+  const lista = categoriasOrdenadas(s, { conOcultas: true });
+  return `<form class="form card" data-submit="saveCategory" autocomplete="off">
+      <strong style="font-size:15px">Crear categoría</strong>
+      <div class="field-row cat-new">
+        <div class="field"><label for="cat-e">Emoji (opcional)</label><input id="cat-e" name="emoji" class="emoji-input" maxlength="8" placeholder="🙂" aria-describedby="cat-e-h"></div>
+        <div class="field"><label for="cat-n">Nombre</label><input id="cat-n" name="label" placeholder="Ej: Mascotas" required maxlength="30"></div>
+      </div>
+      <span class="hint" id="cat-e-h">Para el emoji, tocá el campo y elegilo desde el teclado del celular (en la compu: Windows + punto).</span>
       <button class="btn primary block" type="submit">Crear categoría</button>
     </form>
-    <details><summary class="small muted" style="cursor:pointer;min-height:36px">Ver las categorías de Pesitos</summary><div class="chips" style="margin-top:8px">${CATEGORIES.map((c) => `<span class="pill">${c.label}</span>`).join('')}</div></details>`;
+    <div class="field"><span class="small" style="font-weight:700">Ordenar por</span>
+      <div class="tabs">${[['frecuentes', 'Más usadas'], ['personalizado', 'A mi gusto'], ['alfabetico', 'A-Z']].map(([v, l]) => `<button type="button" data-action="catOrden" data-v="${v}" aria-pressed="${orden === v}">${l}</button>`).join('')}</div>
+      <span class="hint">${orden === 'frecuentes' ? 'Primero las que más usaste en los últimos 3 meses.' : orden === 'personalizado' ? 'Usá las flechas para acomodarlas como quieras.' : 'Por orden alfabético.'} El ojo oculta una categoría de la carga rápida (no se borra).</span></div>
+    <div class="card tight">${lista.map((c, i) => `<div class="row cat-admin ${ocultas.has(c.id) ? 'oculta' : ''}">
+        <span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${c.custom ? '<span class="meta">Creada por vos</span>' : ''}</span>
+        ${orden === 'personalizado' ? `<button class="icon-btn mini" data-action="catMover" data-id="${esc(c.id)}" data-dir="-1" aria-label="Subir ${esc(c.label)}" ${i === 0 ? 'disabled' : ''}>↑</button><button class="icon-btn mini" data-action="catMover" data-id="${esc(c.id)}" data-dir="1" aria-label="Bajar ${esc(c.label)}" ${i === lista.length - 1 ? 'disabled' : ''}>↓</button>` : ''}
+        <button class="icon-btn mini" data-action="catOcultar" data-id="${esc(c.id)}" aria-label="${ocultas.has(c.id) ? 'Mostrar' : 'Ocultar'} ${esc(c.label)}" aria-pressed="${!ocultas.has(c.id)}">${ocultas.has(c.id) ? '🙈' : icon('eye', 18)}</button>
+        ${c.custom ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Borrar ${esc(c.label)}">${icon('close', 16)}</button>` : ''}
+      </div>`).join('')}</div>`;
 }
 
 function weekDetail(w) {
@@ -138,19 +154,49 @@ export const commonActions = {
       ? `Ingreso anotado: ${money(p.amount)}${when}`
       : `Anotado en ${catLabel(category)}: ${money(p.amount)}${p.installments > 1 ? ` en ${p.installments} cuotas` : ''}${cardId ? ' con tarjeta' : ''}${when}`);
   },
-  quickCategory(ctx, el) {
-    if (el.value !== '__new') return;
-    el.value = 'auto';
-    openModal('Categorías', `<div id="cats-body">${categoriesBody(ctx.state)}</div>`);
+  pickCat(ctx, el) {
+    const form = el.closest('form');
+    form.querySelector('[name=category]').value = el.dataset.id;
+    form.querySelectorAll('[data-action=pickCat]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  },
+  openCatManager(ctx) { openModal('Categorías', `<div id="cats-body">${categoriesBody(ctx.state)}</div>`); },
+  catOrden(ctx, el) {
+    ctx.update((s) => {
+      s.catPrefs = { ...(s.catPrefs || {}), orden: el.dataset.v };
+      if (el.dataset.v === 'personalizado' && !(s.catPrefs.lista || []).length) s.catPrefs.lista = categoriasOrdenadas({ ...s, catPrefs: { orden: 'frecuentes' } }, { conOcultas: true }).map((c) => c.id);
+    });
+    setModalBody('#cats-body', categoriesBody(ctx.state)); ctx.render();
+  },
+  catMover(ctx, el) {
+    ctx.update((s) => {
+      const ids = categoriasOrdenadas(s, { conOcultas: true }).map((c) => c.id);
+      const i = ids.indexOf(el.dataset.id); const j = i + Number(el.dataset.dir);
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      s.catPrefs = { ...(s.catPrefs || {}), orden: 'personalizado', lista: ids };
+    });
+    setModalBody('#cats-body', categoriesBody(ctx.state)); ctx.render();
+  },
+  catOcultar(ctx, el) {
+    ctx.update((s) => {
+      const set = new Set((s.catPrefs && s.catPrefs.ocultas) || []);
+      if (set.has(el.dataset.id)) set.delete(el.dataset.id); else set.add(el.dataset.id);
+      s.catPrefs = { ...(s.catPrefs || {}), ocultas: [...set] };
+    });
+    setModalBody('#cats-body', categoriesBody(ctx.state)); ctx.render();
   },
 
   // ---------- categorías propias ----------
   openCategories(ctx) { openModal('Categorías', `<div id="cats-body">${categoriesBody(ctx.state)}</div>`); },
+
   saveCategory(ctx, d) {
     const label = String(d.label || '').trim().slice(0, 30);
     if (!label) return;
     if (allCategories().some((c) => normalize(c.label) === normalize(label))) { toast('Esa categoría ya existe'); return; }
-    ctx.commit((s) => { s.customCategories.push({ id: 'c_' + uid(), label: label.charAt(0).toUpperCase() + label.slice(1) }); setCustomCategories(s.customCategories); });
+    const emoji = soloEmoji(d.emoji);
+    if (String(d.emoji || '').trim() && !emoji) toast('Ese campo es solo para un emoji: lo dejé sin emoji');
+    ctx.commit((s) => { s.customCategories.push({ id: 'c_' + uid(), label: label.charAt(0).toUpperCase() + label.slice(1), ...(emoji ? { emoji } : {}) }); setCustomCategories(s.customCategories); });
     setModalBody('#cats-body', categoriesBody(ctx.state));
     toast(`Categoría "${label}" creada`);
   },
@@ -209,7 +255,7 @@ export const commonActions = {
   // ---------- ¿Me lo compro? ----------
   openBuy() {
     openModal('¿Me lo compro?', `<form class="form" data-submit="buyCheck">
-      <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="numeric" placeholder="Ej: 90.000" required></div>
+      <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="decimal" placeholder="Ej: 90.000" required></div>
       <button class="btn primary block" type="submit">Ver impacto</button>
     </form><div id="buy-result"></div>`);
   },
@@ -252,7 +298,7 @@ export const commonActions = {
       ? `¿Cuánto tenés en total hoy entre cuentas, billeteras y efectivo? No incluyas ahorros ni inversiones. Según lo anotado deberías tener cerca de <b>${money(exp)}</b>. La diferencia la sumo como "gastos varios".`
       : 'Indicá cuánto tenés hoy entre cuentas, billeteras y efectivo (sin ahorros ni inversiones). Lo tomo como punto de partida: la próxima vez que ajustes, completo solo lo que no anotaste.'}</p>
       <form class="form" data-submit="closeSubmit">
-        <div class="field"><label for="c-bal">Saldo total hoy</label><input id="c-bal" name="balance" inputmode="numeric" placeholder="Ej: 250.000" required></div>
+        <div class="field"><label for="c-bal">Saldo total hoy</label><input id="c-bal" name="balance" inputmode="decimal" placeholder="Ej: 250.000" required></div>
         <button class="btn primary block" type="submit">Ajustar</button>
       </form>`, { push: !!(el && el.dataset && el.dataset.push) });
   },
@@ -312,7 +358,9 @@ export const commonActions = {
       setCustomWallets(s.customWallets);
     });
     setModalBody('#wallets-body', walletsBody(ctx.state));
-    toast(`${name} agregado`);
+    const key = (t) => normalize(t).replace(/\b(banco|tarjeta|de|del|la|el)\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+    const tiene = ((ctx.state.live && ctx.state.live.promos) || []).some((p) => p.walletName && key(p.walletName) === key(name));
+    toast(tiene ? `${name} agregado: ya tengo sus promos` : `${name} agregado. Todavía no hay promos suyas en las fuentes: te las muestro cuando aparezcan`);
   },
 
   // ---------- resumen semanal automático ----------

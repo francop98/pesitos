@@ -17,33 +17,46 @@
 <div class="app legal">
   <section class="screen">
     <div class="topbar"><div class="head-left"><a class="icon-btn back" href="../index.html" aria-label="Volver a Pesitos"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
-      <div><h1 class="title">Política de privacidad</h1><p class="subtitle">Versión 1.0 · última actualización: 28/10/2026</p></div></div></div>
+      <div><h1 class="title">Política de privacidad</h1><p class="subtitle">Versión 2.0 · última actualización: 28/10/2026</p></div></div></div>
     <div class="card legal-content">
+      <div class="legal-destacado">
+        <p><b>En pocas palabras:</b> tus datos son privados. Se cifran en tu dispositivo antes de guardarse y solo se pueden abrir con tu clave de Pesitos. Nadie más puede verlos: ni otras personas, ni quien administra Pesitos. No se venden, no se comparten y no hay publicidad.</p>
+      </div>
+
       <h2>1. Qué datos guarda Pesitos</h2>
       <ul>
-        <li><b>Datos de tu cuenta:</b> nombre, mail y el método con el que ingresás (mail y contraseña o Google). La contraseña la maneja Firebase Authentication y Pesitos nunca la ve.</li>
-        <li><b>Lo que cargás vos:</b> ingresos, gastos, gastos fijos, tarjetas y sus resúmenes, pagos y cobros programados, ahorros e inversiones, metas, reglas de ahorro, desafíos, medios de pago que usás, provincia y preferencias de la app.</li>
-        <li><b>En tu dispositivo:</b> una copia de tus datos para que la app abra rápido y funcione sin conexión, y tus preferencias de tema y tamaño de letra.</li>
+        <li><b>Para que puedas entrar:</b> tu mail y tu nombre de cuenta los maneja Firebase Authentication (Google). Tu contraseña nunca la ve nadie: ni Pesitos ni quien lo administra.</li>
+        <li><b>Lo que cargás vos</b> (ingresos, gastos, sueldo, gastos fijos, tarjetas, pagos, cobros, ahorros, metas, reglas, desafíos, medios de pago, provincia, ciudad y preferencias): se guarda <b>cifrado de extremo a extremo</b>.</li>
+        <li><b>En tu dispositivo:</b> una copia de tus datos para que la app abra rápido y funcione sin conexión, tu llave de cifrado (guardada de forma que no se puede exportar) y tus preferencias de tema y tamaño de letra. Al cerrar sesión se borran.</li>
       </ul>
-      <p>Pesitos no te pide DNI, domicilio, teléfono, número de tarjeta ni claves bancarias.</p>
+      <p>Pesitos no te pide DNI, domicilio, teléfono, número de tarjeta ni claves bancarias, y no se conecta a tu banco.</p>
 
-      <h2>2. Para qué se usan</h2>
-      <p>Solo para que la app funcione: calcular cuánto podés gastar, ordenar tus movimientos, avisarte de vencimientos, mostrarte promos de tus medios de pago y sincronizar tu información entre tus dispositivos.</p>
+      <h2>2. Cómo se protegen: cifrado de extremo a extremo</h2>
+      <ul>
+        <li>Tus datos se cifran <b>en tu dispositivo</b> con AES-GCM de 256 bits antes de salir hacia la nube. Lo que se guarda en el servidor es texto ilegible.</li>
+        <li>La llave que los abre se protege con tu <b>clave de Pesitos</b> (PBKDF2 con 600.000 repeticiones) y con tu <b>código de recuperación</b>. Ninguna de las dos se envía nunca al servidor.</li>
+        <li>Por eso ni Pesitos ni quien administra el proyecto puede leer tus datos, aunque tenga acceso a la base de datos.</li>
+        <li><b>Importante:</b> si perdés tu clave de Pesitos y tu código de recuperación, nadie puede recuperar tus datos. Guardá el código en un lugar seguro.</li>
+        <li>Además: conexión cifrada (HTTPS), reglas de base de datos que solo dejan entrar a tu cuenta con el mail verificado, y protecciones del navegador contra código de terceros (política de seguridad de contenido).</li>
+      </ul>
 
-      <h2>3. Dónde se guardan</h2>
-      <p>En Firebase (Google), en servidores de San Pablo, Brasil, y en tu propio dispositivo. La app se publica en Vercel. Para mostrarte las promos de tu zona, la app consulta el servidor de Pesitos indicando tu provincia y los nombres de los bancos o billeteras que agregaste a mano; esos datos no quedan asociados a tu cuenta.</p>
+      <h2>3. Para qué se usan</h2>
+      <p>Solo para que la app funcione: calcular cuánto podés gastar, ordenar tus movimientos, avisarte de vencimientos, mostrarte promos de tus medios de pago y sincronizar tu información entre tus dispositivos. Todo ese procesamiento ocurre en tu dispositivo.</p>
 
-      <h2>4. Con quién se comparten</h2>
-      <p>Con nadie. Pesitos no vende ni comparte tus datos, no tiene publicidad y no usa tu información para nada que no sea la app. Las reglas de la base de datos hacen que solo vos puedas leer y modificar tus datos.</p>
+      <h2>4. Dónde se guardan</h2>
+      <p>Los datos cifrados, en Firebase (Google), en servidores de San Pablo, Brasil. La app se publica en Vercel. Para mostrarte las promos de tu zona, la app le pide al servidor de Pesitos las promos de tu provincia y ciudad y de los bancos o billeteras que agregaste a mano; ese pedido no va asociado a tu cuenta y no se guarda.</p>
 
-      <h2>5. Tus derechos</h2>
-      <p>Podés ver y corregir tus datos en la app, descargar una copia desde <b>Menú → Copia de seguridad</b> y eliminar tu cuenta con todos tus datos desde <b>Menú → Mi cuenta → Eliminar mi cuenta y mis datos</b>. Al eliminarla se borra todo de la nube y de ese dispositivo. Estos derechos están reconocidos por la Ley 25.326 de Protección de los Datos Personales de Argentina.</p>
+      <h2>5. Datos públicos que consulta la app</h2>
+      <p>Cotizaciones (DolarApi.com y CoinGecko), inflación (INDEC, a través de datos.gob.ar), tasas, rendimientos y feriados (ArgentinaDatos) y promociones (fuente pública "descuentos-ar-datos"). Tu dispositivo los consulta sin enviar ningún dato tuyo.</p>
 
-      <h2>6. Seguridad</h2>
-      <p>La conexión es cifrada (HTTPS) y el acceso a los datos está protegido por tu cuenta. Aun así, ningún sistema es 100% infalible: cuidá tu contraseña y cerrá sesión en dispositivos que no sean tuyos.</p>
+      <h2>6. Con quién se comparten</h2>
+      <p>Con nadie. Pesitos no vende ni comparte tus datos, no tiene publicidad ni herramientas de seguimiento, y no usa tu información para nada que no sea la app.</p>
 
-      <h2>7. Contacto</h2>
-      <p>Por cualquier consulta sobre tus datos podés escribir a <b>pesitosapp@gmail.com</b>.</p>
+      <h2>7. Tus derechos</h2>
+      <p>Podés ver y corregir tus datos en la app, descargar una copia desde <b>Menú → Copia de seguridad</b> y eliminar tu cuenta con todos tus datos desde <b>Menú → Mi cuenta → Eliminar mi cuenta y mis datos</b>: se borra todo de la nube y de ese dispositivo. Estos derechos están reconocidos por la Ley 25.326 de Protección de los Datos Personales de Argentina.</p>
+
+      <h2>8. Contacto</h2>
+      <p>Por cualquier consulta sobre tus datos podés escribir a <b>pesitosapp@gmail.com</b>. Como tus datos están cifrados, nunca te vamos a pedir tu clave de Pesitos ni tu código de recuperación: si alguien te los pide, no los compartas.</p>
     </div>
   </section>
 </div>

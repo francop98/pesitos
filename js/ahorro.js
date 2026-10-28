@@ -9,6 +9,8 @@ import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizacio
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
+import { BILLETERAS_QUE_RINDEN, tnaDe, valorHoy, rinde, refreshRendimientos } from './rendimientos.js';
+import { parseAmount } from './interprete.js';
 
 const nf = (d) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: d, minimumFractionDigits: 0 });
 export function fmtAsset(amount, assetId) {
@@ -54,7 +56,7 @@ export function render(s) {
       <div style="display:flex;flex-direction:column;gap:2px">
         ${items.map((h) => `<button class="row" data-action="editHolding" data-id="${h.id}" style="color:#fff;border-color:rgba(255,255,255,.12);padding:8px 0">
           <span style="width:10px;height:10px;border-radius:3px;background:${holdingType(h.type).color};flex-shrink:0"></span>
-          <span class="grow"><span class="name" style="font-weight:600">${esc(h.name || holdingType(h.type).label)}</span>${h.currency !== 'ARS' ? `<span class="meta on-green-muted">${fmtAsset(h.amount, h.currency)}</span>` : ''}</span>
+          <span class="grow"><span class="name" style="font-weight:600">${esc(h.name || holdingType(h.type).label)}</span>${h.currency !== 'ARS' ? `<span class="meta on-green-muted">${fmtAsset(h.amount, h.currency)}</span>` : ''}${tnaDe(s, h) ? `<span class="meta on-green-muted">Rinde ${String(tnaDe(s, h)).replace('.', ',')}% anual${valorHoy(s, h) - h.amount >= 1 ? ` · +${money(valorHoy(s, h) - h.amount)} de intereses` : ''}</span>` : ''}</span>
           <span class="amount">${h.ars ? money(h.ars) : fmtAsset(h.amount, h.currency)}</span>
         </button>`).join('') || '<span class="small on-green-muted">Todavía no cargaste dónde tenés tus ahorros.</span>'}
       </div>
@@ -84,17 +86,40 @@ function goalForm(g = {}) {
     <input type="hidden" name="id" value="${esc(g.id || '')}">
     <div class="field"><label for="g-n">Meta</label><input id="g-n" name="name" value="${esc(g.name || '')}" placeholder="Ej: Viaje, fondo de emergencia, auto" required></div>
     <div class="field-row">
-      <div class="field"><label for="g-t">Cuánto necesitás</label><input id="g-t" name="target" inputmode="numeric" value="${g.target || ''}" placeholder="Ej: 1.500.000"></div>
-      <div class="field"><label for="g-s">Ya tenés</label><input id="g-s" name="saved" inputmode="numeric" value="${g.saved || 0}"></div>
+      <div class="field"><label for="g-t">Cuánto necesitás</label><input id="g-t" name="target" inputmode="decimal" value="${g.target || ''}" placeholder="Ej: 1.500.000"></div>
+      <div class="field"><label for="g-s">Ya tenés</label><input id="g-s" name="saved" inputmode="decimal" value="${g.saved || 0}"></div>
     </div>
-    <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="numeric" value="${g.monthly || ''}" placeholder="Ej: 100.000"><span class="hint">Con esto calculo cuándo llegás.</span></div>
+    <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="decimal" value="${g.monthly || ''}" placeholder="Ej: 100.000"><span class="hint">Con esto calculo cuándo llegás.</span></div>
     <label style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;min-height:44px"><input type="checkbox" name="main" ${g.main ? 'checked' : ''} style="width:20px;height:20px"> Es mi meta principal</label>
     <button class="btn primary block" type="submit">Guardar</button>
     ${g.id ? `<button class="btn ghost block" type="button" data-action="deleteGoal" data-id="${g.id}">Borrar meta</button>` : ''}
   </form>`;
 }
 
-function holdingForm(h = {}) {
+// ¿Rinde intereses? Billeteras con tasa automática u otra tasa que cargás vos
+function rindeFields(s, h, type) {
+  const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
+  const sel = h.rinde || (rinde(type) ? (type === 'plazo_fijo' ? 'manual' : '') : 'no');
+  const pf = Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).sort((a, b) => b[1] - a[1]);
+  const pfHint = pf.length ? `Hoy los bancos pagan entre ${String(pf[pf.length - 1][1]).replace('.', ',')}% y ${String(pf[0][1]).replace('.', ',')}% anual para clientes.` : '';
+  const since = h.since || todayISO();
+  return `<div class="rinde-box" ${rinde(type) ? '' : 'hidden'}>
+    <div class="field"><label for="h-r">¿Te da intereses?</label><select id="h-r" name="rinde" data-change="rindeChanged">
+      <option value="" ${!sel ? 'selected' : ''}>Elegí…</option>
+      ${BILLETERAS_QUE_RINDEN.map((b) => `<option value="${b.id}" ${sel === b.id ? 'selected' : ''}>${b.nombre}${tasas[b.id] ? ` · hoy ${String(tasas[b.id].tna).replace('.', ',')}% anual` : ''}</option>`).join('')}
+      <option value="manual" ${sel === 'manual' ? 'selected' : ''}>Otra: escribo la tasa (TNA)</option>
+      <option value="no" ${sel === 'no' ? 'selected' : ''}>No da intereses</option></select>
+      <span class="hint">Con las billeteras de la lista, la tasa se actualiza sola todos los días.</span></div>
+    <div class="field-row">
+      <div class="field" data-tna ${sel === 'manual' ? '' : 'hidden'}><label for="h-tna">Tasa anual (TNA %)</label><input id="h-tna" name="tna" inputmode="decimal" value="${h.tna ? String(h.tna).replace('.', ',') : ''}" placeholder="Ej: 32,5"></div>
+      <div class="field"><label for="h-since">Este monto lo tenés desde</label><input id="h-since" name="since" type="date" value="${esc(since)}" max="${todayISO()}"></div>
+    </div>
+    ${type === 'plazo_fijo' && pfHint ? `<span class="small muted">${pfHint}</span>` : ''}
+    <span class="small muted">Desde esa fecha te sumo los intereses de cada día. Cuando veas tu saldo real, actualizá el monto y listo.</span>
+  </div>`;
+}
+
+function holdingForm(h = {}, s = {}) {
   const type = h.type || 'remunerada';
   return `<form class="form" data-submit="saveHolding">
     <input type="hidden" name="id" value="${esc(h.id || '')}">
@@ -105,6 +130,7 @@ function holdingForm(h = {}) {
       <div class="field"><label for="h-c">Moneda o activo</label><select id="h-c" name="currency">${ASSETS.map((a) => `<option value="${a.id}" ${a.id === (h.currency || holdingType(type).asset) ? 'selected' : ''}>${a.label}</option>`).join('')}</select></div>
     </div>
     <span class="small muted">Cargá la cantidad en su moneda (por ejemplo, 0,005 bitcoin o 2 onzas de oro): la paso a pesos con la cotización del día.</span>
+    ${rindeFields(s, h, type)}
     <div class="field"><label for="h-m">Vence el (plazos fijos, opcional)</label><input id="h-m" name="maturity" type="date" value="${esc(h.maturity || '')}"><span class="hint">Te lo muestro en "Vas a cobrar" y te aviso para renovarlo o moverlo.</span></div>
     <button class="btn primary block" type="submit">Guardar</button>
     ${h.id ? `<button class="btn ghost block" type="button" data-action="deleteHolding" data-id="${h.id}">Borrar</button>` : ''}
@@ -145,8 +171,16 @@ export const actions = {
   },
   holdingTypeChanged(ctx, el) {
     const t = holdingType(el.value);
-    const cur = el.closest('form').querySelector('[name=currency]');
+    const f = el.closest('form');
+    const cur = f.querySelector('[name=currency]');
     if (cur) cur.value = t.asset;
+    const box = f.querySelector('.rinde-box');
+    if (box) box.hidden = !rinde(el.value);
+  },
+  rindeChanged(ctx, el) {
+    const f = el.closest('form');
+    const t = f.querySelector('[data-tna]');
+    if (t) t.hidden = el.value !== 'manual';
   },
   openGoalForm() { openModal('Nueva meta', goalForm()); },
   openGoal(ctx, el) {
@@ -155,7 +189,7 @@ export const actions = {
     openModal(g.name, `<div class="card"><strong>${g.target ? `${money(g.saved)} de ${money(g.target)}` : `${money(g.saved)} juntados`}</strong><span class="text muted">${esc(goalEta(g).text)}</span></div>
       <form class="form" data-submit="contribute">
         <input type="hidden" name="id" value="${g.id}">
-        <div class="field"><label for="c-a">Sumar a esta meta</label><input id="c-a" name="amount" inputmode="numeric" placeholder="Ej: 50.000" required></div>
+        <div class="field"><label for="c-a">Sumar a esta meta</label><input id="c-a" name="amount" inputmode="decimal" placeholder="Ej: 50.000" required></div>
         <button class="btn green block" type="submit">Aportar</button>
       </form>
       <button class="btn small block" data-action="editGoal" data-id="${g.id}">Editar meta</button>`);
@@ -188,15 +222,23 @@ export const actions = {
     closeModal(); toast('Meta guardada');
   },
   deleteGoal(ctx, el) { ctx.commit((s) => { s.goals = s.goals.filter((x) => x.id !== el.dataset.id); }); closeModal(); },
-  newHolding() { openModal('¿Dónde ahorrás?', holdingForm()); },
-  editHolding(ctx, el) { const h = ctx.state.holdings.find((x) => x.id === el.dataset.id); if (h) openModal('Editar', holdingForm(h)); },
+  newHolding(ctx) { refreshRendimientos(ctx); openModal('¿Dónde ahorrás?', holdingForm({}, ctx.state)); },
+  editHolding(ctx, el) {
+    const h = ctx.state.holdings.find((x) => x.id === el.dataset.id);
+    if (!h) return;
+    const hoy = valorHoy(ctx.state, h);
+    // el formulario muestra el valor de hoy (con intereses); si no lo cambiás, se mantiene la fecha
+    const vista = hoy !== h.amount ? { ...h, amount: Math.round(hoy * 100) / 100, since: todayISO(), _orig: h.amount } : h;
+    openModal('Editar', holdingForm(vista, ctx.state));
+  },
   saveHolding(ctx, d) {
-    const raw = String(d.amount || '').trim();
-    const thousands = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw);
-    const amount = parseFloat((thousands ? raw.replace(/\./g, '') : raw).replace(',', '.')) || 0;
+    const amount = num(d.amount) || parseAmount(d.amount);
     if (!amount) { toast('Ingresá una cantidad'); return; }
+    const tna = num(d.tna);
     ctx.commit((s) => {
-      const data = { type: d.type, name: d.name.trim() || holdingType(d.type).label.replace(/ \(.*\)$/, ''), amount, currency: d.currency, maturity: d.maturity || '' };
+      const conRinde = rinde(d.type) && d.rinde && d.rinde !== 'no';
+      const data = { type: d.type, name: d.name.trim() || holdingType(d.type).label.replace(/ \(.*\)$/, ''), amount, currency: d.currency, maturity: d.maturity || '',
+        rinde: rinde(d.type) ? (d.rinde || '') : 'no', tna: d.rinde === 'manual' ? tna : 0, since: conRinde ? (d.since || todayISO()) : '' };
       const h = s.holdings.find((x) => x.id === d.id);
       if (h) Object.assign(h, data); else s.holdings.push({ id: uid(), ...data });
     });

@@ -2,30 +2,54 @@ rules_version = '2';
 // =========================================================
 // Pesitos — reglas de seguridad de Firestore
 // Pegalas en Firebase → Firestore Database → Reglas → Publicar.
-//   usuarios/{uid}           perfil de la cuenta: solo lo ve y cambia su dueño
-//   usuarios/{uid}/estado/*  datos de la app: solo los ve y cambia su dueño
-//   publico/*                promos e inflación: los escribe solo el servidor
-//                            (Vercel, con su clave propia); la app los lee por /api/datos
-// Todo lo demás está cerrado.
+//
+//   usuarios/{uid}           solo fechas y la llave envuelta (cifrada con la clave
+//                            de Pesitos de su dueño). Sin nombre ni mail.
+//   usuarios/{uid}/estado/*  datos de la app, CIFRADOS en el dispositivo (AES-GCM):
+//                            solo { c, iv, actualizado }. Nadie puede leerlos sin la
+//                            clave de su dueño, ni siquiera quien administra el proyecto.
+//   publico/*                promos e inflación: los escribe solo el servidor (Vercel,
+//                            con su clave propia); la app los lee por /api/datos.
+// Todo lo demás está cerrado. Solo entra una cuenta con el mail verificado
+// (las de Google vienen verificadas).
 // =========================================================
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function esDueno(uid) {
-      return request.auth != null && request.auth.uid == uid;
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true;
+    }
+
+    function llaveValida(l) {
+      return l is map
+        && l.keys().hasOnly(['v', 'pass', 'rec'])
+        && l.pass is map && l.rec is map
+        && l.pass.keys().hasOnly(['salt', 'iv', 'ct', 'iter'])
+        && l.rec.keys().hasOnly(['salt', 'iv', 'ct', 'iter'])
+        && l.pass.ct is string && l.pass.ct.size() < 200
+        && l.rec.ct is string && l.rec.ct.size() < 200
+        && l.pass.iter is int && l.pass.iter >= 100000;
     }
 
     match /usuarios/{uid} {
       allow read, delete: if esDueno(uid);
-      allow create, update: if esDueno(uid) && request.resource.data.keys().hasOnly(['nombre', 'email', 'proveedor', 'creado', 'ultimoIngreso']);
+      allow create, update: if esDueno(uid)
+        && request.resource.data.keys().hasOnly(['creado', 'ultimoIngreso', 'llave'])
+        && (!('llave' in request.resource.data) || llaveValida(request.resource.data.llave))
+        // una llave guardada nunca se borra por accidente
+        && (resource == null || !('llave' in resource.data) || 'llave' in request.resource.data);
 
       match /estado/{docId} {
         allow read, delete: if esDueno(uid);
         allow create, update: if esDueno(uid)
-          && docId.matches('^(general|(expenses|incomes|transfers)-([0-9]{4}|sin-fecha))$')
-          && request.resource.data.keys().hasOnly(['json', 'actualizado'])
-          && request.resource.data.json is string
-          && request.resource.data.json.size() < 900000;
+          && docId.matches('^(general|(expenses|incomes|transfers)-([0-9]{4}|sin-fecha))(~[0-9]{1,2})?$')
+          && request.resource.data.keys().hasOnly(['c', 'iv', 'actualizado'])
+          && request.resource.data.c is string
+          && request.resource.data.c.size() < 1000000
+          && request.resource.data.iv is string
+          && request.resource.data.iv.size() < 40;
       }
     }
 

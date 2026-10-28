@@ -93,24 +93,30 @@ let datos = { nombre: '', email: '' };
 let charla = [];          // [{ q, a }] lo ya respondido
 let aviso = '';           // mensaje de error o novedad, dicho por Pesitos
 let ocupado = false;
+let aceptado = false;     // aceptó Términos y Privacidad en esta pantalla
+export const LEGAL_VERSION = '2.0';
+export const aceptoLegales = () => aceptado;
 
 const googleIcon = () => '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 const primerNombre = () => (datos.nombre || '').trim().split(' ')[0];
-const chip = (que, label, extra = '') => `<button type="button" class="chip big ${extra}" data-auth="${que}">${esc(label)}</button>`;
+const chip = (que, label, extra = '', attrs = '') => `<button type="button" class="chip big ${extra}" data-auth="${que}" ${attrs}>${esc(label)}</button>`;
 const send = () => `<button type="submit" class="icon-btn green" aria-label="Seguir">${icon('send', 20, 2.2)}</button>`;
 const entrada = (name, placeholder, type = 'text', extra = '') => `<form class="quick" data-auth-form="${name}" autocomplete="on" novalidate>
     <label for="a-${name}" class="sr-only">${esc(placeholder)}</label>
     <input id="a-${name}" name="value" type="${type}" placeholder="${esc(placeholder)}" ${extra} data-autofocus enterkeyhint="next" required>
     ${type === 'password' ? `<button type="button" class="pass-eye inline" data-auth="ver" aria-label="Mostrar contraseña">${icon('eye', 20)}</button>` : ''}
     ${send()}</form>`;
-const legal = () => `<p class="small muted auth-legal">Al ${flujo === 'crear' ? 'crear tu cuenta' : 'usar Pesitos'} aceptás los <a href="pages/terminos.html" target="_blank" rel="noopener">Términos y condiciones</a> y la <a href="pages/privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</p>`;
+const legal = () => `<p class="small muted auth-legal">Al ${flujo === 'crear' ? 'crear tu cuenta' : 'usar Pesitos'} aceptás los <button type="button" class="link" data-auth="terminos">Términos y condiciones</button> y la <button type="button" class="link" data-auth="privacidad">Política de privacidad</button>.</p>`;
 
 function actual_() {
   switch (paso) {
     case 'hola': return {
-      bubbles: ['¡Hola! Soy Pesitos, tu economista de bolsillo.', 'Antes de arrancar armemos tu cuenta: así tu plata queda guardada y la ves desde cualquier dispositivo. Es gratis.'],
-      controls: `<button type="button" class="btn block google" data-auth="google">${googleIcon()} Seguir con Google</button>
-        <div class="chips">${chip('nuevo', 'Crear cuenta con mail', 'primary')}${chip('tengo', 'Ya tengo cuenta')}</div>${legal()}`,
+      bubbles: ['¡Hola! Soy Pesitos, tu economista de bolsillo.', 'Antes de arrancar armemos tu cuenta: así tu plata queda guardada y la ves desde cualquier dispositivo. Es gratis.',
+        '🔒 Tus datos son tuyos: se cifran en tu celular antes de guardarse, así que nadie más puede verlos, ni siquiera quien administra Pesitos. No se venden, no se comparten y no hay publicidad.'],
+      controls: `<label class="check legal-check"><input type="checkbox" id="a-acepto" ${aceptado ? 'checked' : ''}> <span>Leí y acepto los <button type="button" class="link" data-auth="terminos">Términos y condiciones</button> y la <button type="button" class="link" data-auth="privacidad">Política de privacidad</button></span></label>
+        <button type="button" class="btn block google" data-auth="google" ${aceptado ? '' : 'disabled'}>${googleIcon()} Seguir con Google</button>
+        <div class="chips">${chip('nuevo', 'Crear cuenta con mail', 'primary', aceptado ? '' : 'disabled')}${chip('tengo', 'Ya tengo cuenta')}</div>
+        ${aceptado ? '' : '<p class="small muted auth-legal">Para crear tu cuenta, primero aceptá los términos. Si ya tenés cuenta, tocá "Ya tengo cuenta".</p>'}`,
     };
     case 'nombre': return { bubbles: ['¡Buenísimo! ¿Cómo te llamo?'], controls: entrada('nombre', 'Tu nombre', 'text', 'autocomplete="given-name" maxlength="40"') };
     case 'mail': return {
@@ -118,7 +124,7 @@ function actual_() {
       controls: entrada('mail', 'tunombre@gmail.com', 'email', `autocomplete="email" inputmode="email" value="${esc(datos.email)}"`),
     };
     case 'clave': return {
-      bubbles: [flujo === 'crear' ? 'Ahora elegí una contraseña. Tiene que tener al menos 6 caracteres.' : '¿Y tu contraseña?'],
+      bubbles: [flujo === 'crear' ? 'Ahora elegí una contraseña para entrar. Al menos 8 caracteres, con letras y números.' : '¿Y tu contraseña?'],
       controls: `${entrada('clave', 'Contraseña', 'password', `autocomplete="${flujo === 'crear' ? 'new-password' : 'current-password'}" minlength="6"`)}
         ${flujo === 'ingresar' ? `<div class="chips">${chip('olvide', 'Olvidé mi contraseña')}${chip('otromail', 'Usar otro mail')}</div>` : ''}${flujo === 'crear' ? legal() : ''}`,
     };
@@ -160,6 +166,19 @@ function ir(nuevo, respuesta) {
 }
 function reiniciar() { flujo = 'crear'; paso = 'hola'; datos = { nombre: '', email: '' }; charla = []; aviso = ''; ocupado = false; }
 
+/** Muestra los Términos o la Política de privacidad dentro de la app. */
+export async function verLegal(cual) {
+  const titulo = cual === 'terminos' ? 'Términos y condiciones' : 'Política de privacidad';
+  openModal(titulo, '<p class="text muted">Cargando…</p>');
+  try {
+    const html = await (await fetch(`pages/${cual}.html`)).text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const body = doc.querySelector('.legal-content');
+    const ver = doc.querySelector('.subtitle');
+    openModal(titulo, `${ver ? `<span class="small muted">${esc(ver.textContent)}</span>` : ''}<div class="legal-content">${body ? body.innerHTML : ''}</div><button class="btn primary block" data-action="closeModal">Entendido</button>`);
+  } catch { openModal(titulo, `<p class="text">No pude abrirlo sin conexión. Podés leerlo en <a href="pages/${cual}.html" target="_blank" rel="noopener">esta página</a>.</p>`); }
+}
+
 async function enviarCuenta() {
   ocupado = true; const anterior = paso; paso = 'enviando'; dibujar();
   try {
@@ -187,6 +206,8 @@ export function renderPantalla(cont, modoInicial) {
     const el = e.target.closest('[data-auth]');
     if (!el || ocupado) return;
     const que = el.dataset.auth;
+    if (que === 'terminos' || que === 'privacidad') { verLegal(que); return; }
+    if ((que === 'nuevo' || que === 'google') && !aceptado) return;
     if (que === 'nuevo') { flujo = 'crear'; ir('nombre', 'Crear cuenta con mail'); }
     if (que === 'tengo') { flujo = 'ingresar'; ir('mail', 'Ya tengo cuenta'); }
     if (que === 'otromail') { charla = charla.filter((t) => t.paso !== 'mail'); ir('mail'); }
@@ -198,6 +219,7 @@ export function renderPantalla(cont, modoInicial) {
       try { await conGoogle(); } catch (err) { ocupado = false; aviso = traducir(err); dibujar(); }
     }
   };
+  cont.onchange = (e) => { if (e.target.id === 'a-acepto') { aceptado = e.target.checked; try { sessionStorage.setItem('pesitos_legales', aceptado ? LEGAL_VERSION : ''); } catch { /* nada */ } dibujar(); } };
   cont.onsubmit = async (e) => {
     const f = e.target.closest('[data-auth-form]');
     if (!f) return;
@@ -210,7 +232,8 @@ export function renderPantalla(cont, modoInicial) {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { aviso = 'Ese mail no parece válido. Fijate que esté bien escrito.'; dibujar(); return; }
         datos.email = v.toLowerCase(); ir('clave', datos.email); break;
       case 'clave':
-        if (f.value.value.length < 6) { aviso = 'La contraseña tiene que tener al menos 6 caracteres.'; dibujar(); return; }
+        if (flujo === 'crear' && (f.value.value.length < 8 || !/[a-záéíóúñ]/i.test(f.value.value) || !/\d/.test(f.value.value))) { aviso = 'Usá al menos 8 caracteres, con letras y números.'; dibujar(); return; }
+        if (f.value.value.length < 6) { aviso = 'Revisá la contraseña: tiene al menos 6 caracteres.'; dibujar(); return; }
         datos.clave = f.value.value;
         charla.push({ paso: 'clave', q: actual_().bubbles.slice(-1)[0], a: '••••••' });
         await enviarCuenta(); break;
@@ -263,22 +286,23 @@ export function renderVerificar(cont, alVerificar) {
 }
 
 // ---------- Mi cuenta ----------
-export function abrirMiCuenta({ onNombre, onEliminar } = {}) {
+export function abrirMiCuenta({ onNombre, onEliminar, abrirClave } = {}) {
   const u = actual;
   if (!u) return;
   const mail = esPorMail(u);
   openModal('Mi cuenta', `
-    <div class="card"><span class="small muted">Ingresaste con ${mail ? 'mail y contraseña' : 'Google'}</span><strong>${esc(u.email || '')}</strong></div>
+    <div class="card"><span class="small muted">Ingresaste con ${mail ? 'mail y contraseña' : 'Google'}</span><strong style="overflow-wrap:anywhere">${esc(u.email || '')}</strong></div>
+    <button class="btn block" data-cuenta="clave">🔐 Clave de Pesitos y código de recuperación</button>
     <form class="form" id="f-nombre"><div class="field"><label for="c-nombre">Tu nombre</label><input id="c-nombre" name="nombre" value="${esc(u.displayName || '')}" maxlength="40"></div>
       <button class="btn small" type="submit">Guardar nombre</button></form>
     ${mail ? `<form class="form" id="f-clave"><strong>Cambiar contraseña</strong>
       <div class="field"><label for="c-actual">Contraseña actual</label><input id="c-actual" name="actual" type="password" autocomplete="current-password" required></div>
-      <div class="field"><label for="c-nueva">Contraseña nueva</label><input id="c-nueva" name="nueva" type="password" autocomplete="new-password" minlength="6" required></div>
+      <div class="field"><label for="c-nueva">Contraseña nueva</label><input id="c-nueva" name="nueva" type="password" autocomplete="new-password" minlength="8" required><span class="hint">Al menos 8 caracteres. Es la de ingreso; tu clave de Pesitos no cambia.</span></div>
       <p class="auth-error" role="alert" hidden></p>
       <button class="btn small" type="submit">Cambiar contraseña</button></form>` : ''}
     <button class="btn block" data-cuenta="salir">${icon('logout', 20)} Cerrar sesión</button>
     <button class="btn ghost small danger" data-cuenta="eliminar">Eliminar mi cuenta y mis datos</button>`);
-  cuentaHandlers = { onNombre, onEliminar };
+  cuentaHandlers = { onNombre, onEliminar, abrirClave };
 }
 
 // Los formularios de "Mi cuenta" se atienden desde el documento: así siguen
@@ -319,6 +343,7 @@ document.addEventListener('click', async (e) => {
   e.preventDefault();
   if (el.dataset.cuenta === 'salir') { closeModal(); await salir(); }
   if (el.dataset.cuenta === 'eliminar') abrirEliminar();
+  if (el.dataset.cuenta === 'clave' && cuentaHandlers.abrirClave) cuentaHandlers.abrirClave();
 });
 
 function abrirEliminar() {

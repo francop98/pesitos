@@ -59,7 +59,14 @@ export function normalize(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
+// Montos escritos como los escribe la gente: "48.000", "48000", "1.234,56", "1234,5", "48.5", "$ 2.500"
 export function num(v) {
-  const n = Number(String(v ?? '').replace(/\./g, '').replace(',', '.'));
+  let t = String(v ?? '').trim().replace(/[$\s]/g, '');
+  if (!t) return 0;
+  if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g, '').replace(',', '.');      // 1.234.567,89
+  else if (/^-?\d{1,3}(,\d{3}){2,}(\.\d+)?$/.test(t) || /^-?\d{1,3}(,\d{3})+\.\d+$/.test(t)) t = t.replace(/,/g, ''); // 1,234,567.89
+  else if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');                          // 1234,5
+  else if (!/^-?\d+\.\d{1,2}$/.test(t)) t = t.replace(/\./g, '');                              // 48.5 queda como decimal
+  const n = Number(t);
   return Number.isFinite(n) ? n : 0;
 }

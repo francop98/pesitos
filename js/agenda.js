@@ -9,6 +9,9 @@
 
 import { toISO, parseISO, addMonthKey, monthKey, startOfToday, daysBetween, money } from './formato.js';
 
+// meses entre dos 'AAAA-MM'
+const monthDiffKeys = (a, b) => { const [y1, m1] = a.split('-').map(Number); const [y2, m2] = b.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+
 export const REPEATS = [
   { id: 'once', label: 'Una sola vez', months: 0 },
   { id: 'monthly', label: 'Todos los meses', months: 1 },
@@ -94,9 +97,12 @@ export function agendaBetween(s, from, to) {
   for (const f of s.fixed) {
     let mk = monthKey(from) < curMk ? curMk : monthKey(from);
     for (let i = 0; i < 24 && mk <= monthKey(to); i++, mk = addMonthKey(mk, 1)) {
+      if (f.endMonth && mk > f.endMonth) break; // terminó (crédito o cuotas)
       const d = mkDate(mk, Number(f.dueDay) || 10);
       if (d < from || d > to) continue;
-      push({ key: `fixed:${f.id}:${mk}`, kind: 'fixed', refId: f.id, name: f.name, amount: f.amount, dueDate: d, icon: 'repeat', sub: f.autoDebit ? 'Gasto fijo · débito automático' : 'Gasto fijo', payWith: f.payWith || '', autoDebit: !!f.autoDebit });
+      const cuota = f.totalCuotas && f.endMonth ? f.totalCuotas - (monthDiffKeys(mk, f.endMonth)) : 0;
+      const sub = [f.autoDebit ? 'Gasto fijo · débito automático' : 'Gasto fijo', cuota > 0 ? `cuota ${cuota} de ${f.totalCuotas}` : '', f.variable ? 'monto aproximado' : ''].filter(Boolean).join(' · ');
+      push({ key: `fixed:${f.id}:${mk}`, kind: 'fixed', refId: f.id, name: f.name, amount: f.amount, dueDate: d, icon: 'repeat', sub, payWith: f.payWith || '', autoDebit: !!f.autoDebit, estimated: !!f.variable, variable: !!f.variable });
     }
   }
 
@@ -197,7 +203,9 @@ export function buildICS(s) {
   for (const f of s.fixed) {
     const day = Number(f.dueDay) || 10;
     const first = dateWithDay(today.getFullYear(), today.getMonth(), day);
-    event(`fixed-${f.id}`, `Vence ${f.name} (${money(f.amount)})`, first, `FREQ=MONTHLY;BYMONTHDAY=${day > 28 ? -1 : day}`, 'Gasto fijo cargado en Pesitos.');
+    if (f.endMonth && monthKey(first) > f.endMonth) continue;
+    const until = f.endMonth ? `;UNTIL=${f.endMonth.replace('-', '')}${day > 28 ? '28' : String(day).padStart(2, '0')}T235959Z` : '';
+    event(`fixed-${f.id}`, `Vence ${f.name} (${f.variable ? '≈ ' : ''}${money(f.amount)})`, first, `FREQ=MONTHLY;BYMONTHDAY=${day > 28 ? -1 : day}${until}`, 'Gasto fijo cargado en Pesitos.');
   }
   for (const c of s.cards || []) {
     const day = Number(c.dueDay) || 5;
@@ -251,7 +259,7 @@ export function history(s) {
   for (let i = recs.length - 1; i >= 0; i--) { if (recs[i].onTime) streak++; else break; }
   const onTime = recs.filter((r) => r.onTime).length;
   const increases = [];
-  for (const f of s.fixed) if (f.lastAmount && f.amount > f.lastAmount * 1.02) increases.push({ name: f.name, from: f.lastAmount, to: f.amount });
+  for (const f of s.fixed) if (!f.variable && f.lastAmount && f.amount > f.lastAmount * 1.02) increases.push({ name: f.name, from: f.lastAmount, to: f.amount });
   for (const b of s.bills || []) if (b.lastAmount && b.amount > b.lastAmount * 1.02) increases.push({ name: b.name, from: b.lastAmount, to: b.amount });
   return { total: recs.length, onTime, late: recs.length - onTime, streak, increases };
 }

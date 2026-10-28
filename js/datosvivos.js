@@ -13,9 +13,11 @@ const nameKey = (t) => norm(t).replace(/\b(banco|tarjeta|de|del|la|el)\b/g, ' ')
 
 // ¿La promo vale en la provincia del usuario? (misma lógica que api/_lib/zona.js)
 const ZONE_KEYS = { 'Buenos Aires': ['provincia de buenos aires', 'pba', 'amba', 'bonaerense'], CABA: ['caba', 'ciudad de buenos aires', 'ciudad autonoma', 'amba'] };
-export function inZone(zone, prov) {
+export function inZone(zone, prov, city = '') {
   const z = norm(zone || '');
   if (!z || z.includes('nacional') || z.includes('todo el pais')) return true;
+  const c = norm(city);
+  if (c && c.length >= 3 && z.includes(c)) return true; // promos de tu ciudad
   if (!prov) return false; // sin provincia elegida, solo las nacionales
   return (ZONE_KEYS[prov] || [norm(prov)]).some((k) => z.includes(k));
 }
@@ -61,16 +63,18 @@ export async function refreshLive(ctx, force = false) {
   const tasks = [];
   const patch = {};
 
-  const provChanged = s.live && (s.live.prov || '') !== ((s.profile && s.profile.province) || '');
+  const zonaActual = `${(s.profile && s.profile.province) || ''}|${(s.profile && s.profile.city) || ''}`;
+  const provChanged = s.live && (s.live.prov || '') !== zonaActual;
   if (force || provChanged || !s.live || now - (s.live.at || 0) > LIVE_TTL) {
     // medios de pago que el usuario agregó: el servicio también busca sus promos
     const extra = (s.customWallets || []).map((w) => w.name).slice(0, 5).join(',');
     const q = new URLSearchParams();
     if (s.profile && s.profile.province) q.set('prov', s.profile.province);
+    if (s.profile && s.profile.city) q.set('ciudad', s.profile.city);
     if (extra) q.set('extra', extra);
     const url = q.toString() ? `${LIVE_URL}?${q}` : LIVE_URL;
     tasks.push(getJSON(url).then((j) => {
-      if (j && (Array.isArray(j.promos) || j.ipc)) patch.live = { promos: j.promos || [], ipc: j.ipc || {}, updatedAt: j.updatedAt || null, sources: j.sources || [], prov: (s.profile && s.profile.province) || '', at: now };
+      if (j && (Array.isArray(j.promos) || j.ipc)) patch.live = { promos: j.promos || [], ipc: j.ipc || {}, updatedAt: j.updatedAt || null, sources: j.sources || [], prov: zonaActual, at: now };
     }).catch(() => { patch.liveFailedAt = now; }));
   }
   if (force || !s.ipcAuto || now - (s.ipcAuto.at || 0) > IPC_TTL) {
@@ -110,8 +114,9 @@ export function livePromos(s) {
   // promos de medios agregados por el usuario: llegan con su nombre y se asocian a su id
   const custom = Object.fromEntries((s.customWallets || []).map((w) => [nameKey(w.name), w.id]));
   const prov = (s.profile && s.profile.province) || '';
+  const city = (s.profile && s.profile.city) || '';
   const list = ((s.live && s.live.promos) || []).map((p) => (p.walletName && custom[nameKey(p.walletName)] ? { ...p, wallet: custom[nameKey(p.walletName)] } : p));
-  return list.filter((p) => (!p.validFrom || p.validFrom <= today) && (!p.validTo || p.validTo >= today) && inZone(p.zone, prov));
+  return list.filter((p) => (!p.validFrom || p.validFrom <= today) && (!p.validTo || p.validTo >= today) && inZone(p.zone, prov, city));
 }
 
 export function liveAge(s) {

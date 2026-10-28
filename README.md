@@ -79,7 +79,11 @@ pesitos/
 └── js/
     ├── firebaseconfig.js   Conexión con Firebase (Authentication + Firestore)
     ├── autenticacion.js    Ingreso, crear cuenta, Google, verificación, Mi cuenta
-    ├── sincronizacion.js   Tus datos en la nube (usuarios/{uid}) con cola de pendientes
+    ├── sincronizacion.js   Tus datos en la nube (usuarios/{uid}), cifrados, con cola de pendientes
+    ├── cifrado.js          Cifrado de extremo a extremo (AES-GCM + PBKDF2, llave en el dispositivo)
+    ├── clave.js            Clave de Pesitos y código de recuperación (charla)
+    ├── rendimientos.js     Cuánto rinden billeteras y plazos fijos (TNA automática, ArgentinaDatos)
+    ├── feriados.js         Días hábiles, feriados y día de cobro (1.er hábil, último hábil…)
     ├── almacenamiento.js   Copia local por cuenta y estructura de los datos
     ├── menu.js             Menú ☰: Mis datos, tema, letra, copia, Mi cuenta…
     ├── tema.js             Tema claro/oscuro y tamaño de letra
@@ -106,7 +110,8 @@ Para agregar una acción: poné `data-action="miAccion"` en un botón (o `data-s
 
 ## Cuentas y datos
 - La cuenta es obligatoria: mail y contraseña (con verificación de mail) o Google.
-- Tus datos se guardan en Firestore en `usuarios/{uid}` y solo vos podés verlos (`firestore.rules`). El dispositivo guarda una copia para abrir rápido y funcionar sin conexión; lo que cargás sin internet se envía solo cuando vuelve.
+- Tus datos se cifran en el dispositivo (AES-GCM) con una llave que solo abre tu **clave de Pesitos** o tu **código de recuperación**: en Firestore (`usuarios/{uid}`) solo hay texto ilegible y nadie más puede leerlo, ni quien administra el proyecto (`js/cifrado.js`, `firestore.rules`).
+- Encabezados de seguridad (CSP, HSTS, X-Frame-Options…) en `vercel.json`. Si cambiás el `<script>` de `index.html` o de `pages/`, hay que actualizar su hash en la CSP. El dispositivo guarda una copia para abrir rápido y funcionar sin conexión; lo que cargás sin internet se envía solo cuando vuelve.
 - Desde *Menú → Copia de seguridad* podés descargar o restaurar un archivo, y desde *Menú → Mi cuenta*, eliminar la cuenta con todos sus datos.
 - Las recomendaciones son educativas y generales, no asesoramiento financiero personalizado.
 

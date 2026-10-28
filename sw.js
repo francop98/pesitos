@@ -1,17 +1,17 @@
 // Service worker: deja la app disponible sin conexión.
 // Cuando cambies archivos, subí el número de versión para refrescar la caché.
 
-const CACHE = 'pesitos-v11';
+const CACHE = 'pesitos-v12';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './styles.css', './main.js',
   './js/acciones.js', './js/agenda.js', './js/ahorro.js', './js/almacenamiento.js', './js/aprender.js',
   './js/asesor.js', './js/autenticacion.js', './js/beneficios.js', './js/bienvenida.js', './js/calculos.js',
-  './js/categorias.js', './js/cotizaciones.js', './js/datosvivos.js', './js/economista.js', './js/ejemplo.js',
-  './js/firebaseconfig.js', './js/flujo.js', './js/formato.js', './js/guia.js', './js/herramientas.js',
-  './js/inicio.js', './js/interfaz.js', './js/interprete.js', './js/menu.js', './js/movimientos.js',
-  './js/pagos.js', './js/promosrespaldo.js', './js/sincronizacion.js', './js/sueldo.js', './js/tarjetas.js',
-  './js/tema.js', './pages/terminos.html', './pages/privacidad.html', './assets/icon.svg', './assets/icon-192.png',
-  './assets/icon-512.png',
+  './js/categorias.js', './js/cifrado.js', './js/clave.js', './js/cotizaciones.js', './js/datosvivos.js',
+  './js/economista.js', './js/ejemplo.js', './js/feriados.js', './js/firebaseconfig.js', './js/flujo.js',
+  './js/formato.js', './js/guia.js', './js/herramientas.js', './js/inicio.js', './js/interfaz.js',
+  './js/interprete.js', './js/menu.js', './js/movimientos.js', './js/pagos.js', './js/promosrespaldo.js',
+  './js/rendimientos.js', './js/sincronizacion.js', './js/sueldo.js', './js/tarjetas.js', './js/tema.js',
+  './pages/terminos.html', './pages/privacidad.html', './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {

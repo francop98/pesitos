@@ -2,25 +2,58 @@
 // medios de pago y desafíos.
 
 export const CATEGORIES = [
-  { id: 'super', label: 'Supermercado', icon: 'cart', words: ['super', 'supermercado', 'coto', 'carrefour', 'dia', 'jumbo', 'disco', 'vea', 'changomas', 'cooperativa', 'almacen', 'verduleria', 'carniceria', 'chino', 'mayorista', 'makro', 'vital', 'yaguar', 'toledo', 'anonima'] },
-  { id: 'comida', label: 'Comida afuera', icon: 'food', words: ['resto', 'restaurante', 'restaurant', 'bar', 'cafe', 'cafecito', 'almuerzo', 'cena', 'birra', 'cerveza', 'pizza', 'burger', 'hamburguesa', 'mcdonalds', 'mostaza', 'helado', 'panaderia', 'facturas', 'medialunas', 'kiosco'] },
-  { id: 'delivery', label: 'Delivery', icon: 'bike', words: ['delivery', 'pedidosya', 'rappi', 'pedido'] },
-  { id: 'transporte', label: 'Transporte', icon: 'fuel', words: ['nafta', 'ypf', 'shell', 'axion', 'puma', 'combustible', 'gasoil', 'sube', 'colectivo', 'bondi', 'uber', 'cabify', 'didi', 'taxi', 'remis', 'peaje', 'estacionamiento', 'cochera', 'mecanico', 'gomeria'] },
-  { id: 'hogar', label: 'Hogar', icon: 'home', words: ['ferreteria', 'limpieza', 'muebles', 'easy', 'sodimac', 'bazar', 'lavadero', 'heladera', 'lavarropas'] },
-  { id: 'salud', label: 'Salud', icon: 'heart', words: ['farmacia', 'farmacity', 'medico', 'remedio', 'remedios', 'dentista', 'odontologo', 'analisis', 'consulta', 'perfumeria'] },
-  { id: 'ropa', label: 'Ropa', icon: 'shirt', words: ['ropa', 'zapatillas', 'remera', 'jean', 'campera', 'buzo', 'zapatos'] },
-  { id: 'ocio', label: 'Salidas y ocio', icon: 'ticket', words: ['cine', 'recital', 'entrada', 'entradas', 'teatro', 'boliche', 'juego', 'steam', 'salida', 'previa'] },
-  { id: 'suscripciones', label: 'Suscripciones', icon: 'repeat', words: ['netflix', 'spotify', 'disney', 'hbo', 'max', 'prime', 'youtube', 'icloud', 'gym', 'gimnasio', 'chatgpt'] },
-  { id: 'regalos', label: 'Regalos', icon: 'gift', words: ['regalo', 'cumple', 'cumpleanos'] },
-  { id: 'educacion', label: 'Educación', icon: 'book', words: ['curso', 'libro', 'libros', 'facultad', 'colegio', 'utiles', 'libreria'] },
-  { id: 'varios', label: 'Gastos varios', icon: 'dots', words: [] },
-  { id: 'otros', label: 'Otros', icon: 'tag', words: [] },
+  { id: 'super', short: 'Súper', label: 'Supermercado', icon: 'cart', words: ['super', 'supermercado', 'coto', 'carrefour', 'dia', 'jumbo', 'disco', 'vea', 'changomas', 'cooperativa', 'almacen', 'verduleria', 'carniceria', 'chino', 'mayorista', 'makro', 'vital', 'yaguar', 'toledo', 'anonima'] },
+  { id: 'comida', short: 'Comida', label: 'Comida afuera', icon: 'food', words: ['resto', 'restaurante', 'restaurant', 'bar', 'cafe', 'cafecito', 'almuerzo', 'cena', 'birra', 'cerveza', 'pizza', 'burger', 'hamburguesa', 'mcdonalds', 'mostaza', 'helado', 'panaderia', 'facturas', 'medialunas', 'kiosco'] },
+  { id: 'delivery', short: 'Delivery', label: 'Delivery', icon: 'bike', words: ['delivery', 'pedidosya', 'rappi', 'pedido'] },
+  { id: 'transporte', short: 'Transporte', label: 'Transporte', icon: 'fuel', words: ['nafta', 'ypf', 'shell', 'axion', 'puma', 'combustible', 'gasoil', 'sube', 'colectivo', 'bondi', 'uber', 'cabify', 'didi', 'taxi', 'remis', 'peaje', 'estacionamiento', 'cochera', 'mecanico', 'gomeria'] },
+  { id: 'hogar', short: 'Hogar', label: 'Hogar', icon: 'home', words: ['ferreteria', 'limpieza', 'muebles', 'easy', 'sodimac', 'bazar', 'lavadero', 'heladera', 'lavarropas'] },
+  { id: 'salud', short: 'Salud', label: 'Salud', icon: 'heart', words: ['farmacia', 'farmacity', 'medico', 'remedio', 'remedios', 'dentista', 'odontologo', 'analisis', 'consulta', 'perfumeria'] },
+  { id: 'ropa', short: 'Ropa', label: 'Ropa', icon: 'shirt', words: ['ropa', 'zapatillas', 'remera', 'jean', 'campera', 'buzo', 'zapatos'] },
+  { id: 'ocio', short: 'Salidas', label: 'Salidas y ocio', icon: 'ticket', words: ['cine', 'recital', 'entrada', 'entradas', 'teatro', 'boliche', 'juego', 'steam', 'salida', 'previa'] },
+  { id: 'suscripciones', short: 'Suscripciones', label: 'Suscripciones', icon: 'repeat', words: ['netflix', 'spotify', 'disney', 'hbo', 'max', 'prime', 'youtube', 'icloud', 'gym', 'gimnasio', 'chatgpt'] },
+  { id: 'regalos', short: 'Regalos', label: 'Regalos', icon: 'gift', words: ['regalo', 'cumple', 'cumpleanos'] },
+  { id: 'educacion', short: 'Educación', label: 'Educación', icon: 'book', words: ['curso', 'libro', 'libros', 'facultad', 'colegio', 'utiles', 'libreria'] },
+  { id: 'varios', short: 'Varios', label: 'Gastos varios', icon: 'dots', words: [] },
+  { id: 'otros', short: 'Otros', label: 'Otros', icon: 'tag', words: [] },
 ];
 
 // Categorías propias del usuario (se registran al cargar el estado)
 let customCats = [];
 export function setCustomCategories(list) {
-  customCats = (list || []).map((c) => ({ id: c.id, label: c.label, icon: 'tag', words: [], custom: true }));
+  customCats = (list || []).map((c) => ({ id: c.id, label: c.label, icon: 'tag', emoji: c.emoji || '', words: [], custom: true }));
+}
+
+/** Un solo emoji (el primero que se escriba), o vacío si no es un emoji. */
+export function soloEmoji(texto) {
+  const t = String(texto || '').trim();
+  if (!t) return '';
+  let primero = t;
+  try { primero = [...new Intl.Segmenter('es', { granularity: 'grapheme' }).segment(t)][0].segment; } catch { primero = Array.from(t)[0]; }
+  return /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(primero) ? primero : '';
+}
+
+/**
+ * Categorías en el orden que eligió el usuario, sin las ocultas.
+ * s.catPrefs = { orden: 'personalizado' | 'frecuentes' | 'alfabetico', lista: [ids], ocultas: [ids] }
+ */
+export function categoriasOrdenadas(s, { conOcultas = false } = {}) {
+  const prefs = (s && s.catPrefs) || {};
+  const ocultas = new Set(prefs.ocultas || []);
+  let lista = allCategories().filter((c) => conOcultas || !ocultas.has(c.id));
+  const orden = prefs.orden || 'frecuentes';
+  if (orden === 'alfabetico') lista.sort((a, b) => a.label.localeCompare(b.label, 'es'));
+  else if (orden === 'personalizado' && (prefs.lista || []).length) {
+    const pos = new Map(prefs.lista.map((id, i) => [id, i]));
+    lista.sort((a, b) => (pos.has(a.id) ? pos.get(a.id) : 999) - (pos.has(b.id) ? pos.get(b.id) : 999));
+  } else if (orden === 'frecuentes') {
+    const desde = new Date(); desde.setDate(desde.getDate() - 90);
+    const lim = desde.toISOString().slice(0, 10);
+    const n = {};
+    for (const e of (s && s.expenses) || []) if (e.date >= lim) n[e.category] = (n[e.category] || 0) + 1;
+    const base = new Map(allCategories().map((c, i) => [c.id, i]));
+    lista.sort((a, b) => (n[b.id] || 0) - (n[a.id] || 0) || base.get(a.id) - base.get(b.id));
+  }
+  return lista;
 }
 export const allCategories = () => [
   ...CATEGORIES.filter((c) => c.id !== 'varios' && c.id !== 'otros'),

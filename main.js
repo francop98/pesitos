@@ -11,12 +11,16 @@ import { load, save, useAccount, loadLegacy, clearLegacy, hasLocal, emptyState, 
 import { firebaseListo } from './js/firebaseconfig.js';
 import * as cuenta from './js/autenticacion.js';
 import * as nube from './js/sincronizacion.js';
+import { cifradoDisponible, llaveDelDispositivo, guardarEnDispositivo, borrarDelDispositivo } from './js/cifrado.js';
+import { crearClave, pedirClave, abrirGestionClave, claveActions } from './js/clave.js';
 import { menuActions } from './js/menu.js';
 import { aplicarTema, aplicarLetra } from './js/tema.js';
 import { commonActions, addPendingFromText } from './js/acciones.js';
 import { guideActions } from './js/guia.js';
 import { refreshRates } from './js/cotizaciones.js';
 import { refreshLive } from './js/datosvivos.js';
+import { refreshRendimientos } from './js/rendimientos.js';
+import { refreshFeriados, usarFeriados } from './js/feriados.js';
 import { openModal, closeModal, toast, hydrateNavIcons } from './js/interfaz.js';
 import * as onboarding from './js/bienvenida.js';
 import * as inicio from './js/inicio.js';
@@ -67,6 +71,7 @@ function currentRoute() {
 
 function render() {
   if (!ready) return;
+  usarFeriados(state);
   setCustomCategories(state.customCategories);
   setCustomWallets(state.customWallets);
   document.body.classList.toggle('no-nav', !state.ready);
@@ -100,7 +105,7 @@ function render() {
   refreshAll();
 }
 
-const actions = Object.assign({}, commonActions, guideActions, menuActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, {
+const actions = Object.assign({ recargar: () => location.reload() }, commonActions, guideActions, menuActions, claveActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, {
   goBack() {
     trail.pop();
     const prev = trail.pop() || 'inicio';
@@ -159,6 +164,8 @@ function refreshAll(force = false) {
   if (!ready || !state.ready || document.visibilityState === 'hidden') return;
   refreshRates(ctx, force);
   refreshLive(ctx, force);
+  refreshRendimientos(ctx, force);
+  refreshFeriados(ctx);
   notifyDue(ctx);
 }
 // al volver a la app: cambios hechos desde otro dispositivo
@@ -173,14 +180,21 @@ window.addEventListener('online', () => refreshAll(true));
 setInterval(() => refreshAll(), 5 * 60 * 1000);
 
 // ---------- arranque con cuenta ----------
+let perfilActual = null; // { llave, creado } de la cuenta abierta
+let uidActual = null;
 const session = {
-  async onNombre(n) { ctx.commit((st) => { st.profile.name = n; }); await nube.guardarPerfil({ nombre: n }); },
+  async onNombre(n) { ctx.commit((st) => { st.profile.name = n; }); },
   async onEliminar() {
     const u = cuenta.usuarioActual();
     await nube.borrarNube();
     await nube.detener({ borrarLocal: true });
     clear(); clearLegacy();
-    if (u) try { localStorage.removeItem(`pesitos:v1:${u.uid}`); } catch { /* nada */ }
+    if (u) { try { localStorage.removeItem(`pesitos:v1:${u.uid}`); } catch { /* nada */ } await borrarDelDispositivo(u.uid); }
+  },
+  abrirClave() {
+    const u = cuenta.usuarioActual();
+    if (!u || !perfilActual || !perfilActual.llave) return;
+    abrirGestionClave(perfilActual.llave, { guardarLlave: async (llave) => { await nube.guardarLlave(u, llave, perfilActual.creado); perfilActual.llave = llave; } });
   },
 };
 ctx.session = session;
@@ -204,13 +218,45 @@ async function conSesion(u) {
   if (cuenta.necesitaVerificar(u)) { ready = false; nav.hidden = true; document.body.classList.add('sin-sesion', 'no-nav'); cuenta.renderVerificar(main, conSesion); return; }
   pantallaCarga();
   main.onclick = null; main.onsubmit = null;
+  if (!cifradoDisponible()) { main.innerHTML = '<div class="loading"><p class="text">Este navegador no permite cifrar tus datos. Abrí Pesitos con Chrome, Safari, Edge o Firefox actualizados.</p></div>'; return; }
+
+  // la llave que cifra tus datos: en este dispositivo, o se abre con tu clave de Pesitos
+  let perfil = { llave: null, creado: null };
+  let key = await llaveDelDispositivo(u.uid);
+  try { perfil = await nube.leerPerfil(u); } catch (e) { if (!key) { main.innerHTML = '<div class="loading"><p class="text">No hay conexión. Para abrir tus datos en este dispositivo por primera vez necesito internet.</p><button class="btn primary" data-action="recargar">Reintentar</button></div>'; return; } }
+  const salir = () => cuenta.salir();
+  if (!perfil.llave && !key) {
+    const r = await crearClave(main, { nombre: (u.displayName || '').split(' ')[0] });
+    await nube.guardarLlave(u, r.llave, perfil.creado);
+    perfil.llave = r.llave; key = r.key;
+    await guardarEnDispositivo(u.uid, key);
+  } else if (!key) {
+    const r = await pedirClave(main, perfil.llave, { email: u.email, onSalir: salir });
+    if (r.llave !== perfil.llave) { await nube.guardarLlave(u, r.llave, perfil.creado); perfil.llave = r.llave; }
+    key = r.key;
+    await guardarEnDispositivo(u.uid, key);
+  }
+  perfilActual = perfil;
+  uidActual = u.uid;
+  main.onclick = null; main.onsubmit = null; main.onchange = null;
+  pantallaCarga();
+
   useAccount(u.uid);
   const local = hasLocal() ? load() : null;
-  const { state: inicial, origen } = await nube.iniciar(u, { local, legacy: loadLegacy(), onStatus: (st) => { syncStatus = st; } });
+  let inicio;
+  try { inicio = await nube.iniciar(u, { local, legacy: loadLegacy(), onStatus: (st) => { syncStatus = st; }, key, perfil }); }
+  catch (e) {
+    // la llave de este dispositivo no abre los datos (por ejemplo, cambió en otro lado): se pide la clave de nuevo
+    console.warn(e); await borrarDelDispositivo(u.uid); await nube.detener();
+    return conSesion(u);
+  }
+  const { state: inicial, origen } = inicio;
   state = inicial;
   if (!state.profile.name && u.displayName) state.profile.name = u.displayName.split(' ')[0];
+  if (!state.legal || state.legal.version !== cuenta.LEGAL_VERSION) state.legal = { version: cuenta.LEGAL_VERSION, fecha: new Date().toISOString().slice(0, 10) };
   save(state);
-  if (origen === 'migrado') { clearLegacy(); setTimeout(() => toast('Listo: tus datos quedaron guardados en tu cuenta'), 600); }
+  if (origen === 'migrado') { clearLegacy(); setTimeout(() => toast('Listo: tus datos quedaron guardados y cifrados en tu cuenta'), 600); }
+  if (origen === 'cifrado') setTimeout(() => toast('Listo: tus datos ahora están cifrados'), 600);
   ready = true;
   document.title = 'Pesitos · Tu economista de bolsillo';
   trail.length = 0; trail.push(currentRoute());
@@ -231,6 +277,9 @@ async function arrancar() {
   const u = await cuenta.iniciar(async (nuevo) => {
     if (nuevo) { await conSesion(nuevo); return; }
     const anterior = state;
+    // la llave se borra de este dispositivo: para volver a entrar se pide la clave de Pesitos
+    if (uidActual) await borrarDelDispositivo(uidActual);
+    uidActual = null;
     const quedan = await nube.detener({ borrarLocal: true });
     // al cerrar sesión no queda la copia local en el dispositivo (salvo cambios que no llegaron a la nube)
     if (!quedan) { try { Object.keys(localStorage).filter((k) => k.startsWith('pesitos:v1:')).forEach((k) => localStorage.removeItem(k)); } catch { /* nada */ } }

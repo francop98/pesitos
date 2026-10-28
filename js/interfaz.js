@@ -1,7 +1,7 @@
 // Íconos, logo y componentes visuales compartidos.
 
 import { esc, toISO } from './formato.js';
-import { allCategories } from './categorias.js';
+import { allCategories, categoriasOrdenadas } from './categorias.js';
 
 const P = {
   home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -60,7 +60,7 @@ export function sprout(size = 24, color = '#C6F36B') {
 // Logotipo: "pesitos" con el brote en la i
 export function wordmark(size = 26, ink = 'var(--ink)', leaf = 'var(--logo-leaf)') {
   const w = Math.round(size * 0.34); const h = Math.round(size * 1.1);
-  return `<span class="wordmark" style="font-size:${size}px;color:${ink}" role="img" aria-label="Pesitos"><span aria-hidden="true">pe$</span><svg aria-hidden="true" width="${w}" height="${h}" viewBox="0 0 16 50"><rect x="4.5" y="22" width="7" height="25" rx="2" fill="currentColor"/><path d="M8 18C8 12 11 8 16 8 16 13 13 17 8 18Z" style="fill:${leaf}"/><path d="M8 19C8 14 5 11 0 11 0 16 3 18.5 8 19Z" style="fill:${leaf}"/></svg><span aria-hidden="true">tos</span></span>`;
+  return `<span class="wordmark" style="font-size:${size}px;color:${ink}" role="img" aria-label="Pesitos"><span aria-hidden="true">pe<span class="wm-dollar">$</span></span><svg aria-hidden="true" width="${w}" height="${h}" viewBox="0 0 16 50"><rect x="4.5" y="22" width="7" height="25" rx="2" fill="currentColor"/><path d="M8 18C8 12 11 8 16 8 16 13 13 17 8 18Z" style="fill:${leaf}"/><path d="M8 19C8 14 5 11 0 11 0 16 3 18.5 8 19Z" style="fill:${leaf}"/></svg><span aria-hidden="true">tos</span></span>`;
 }
 
 export function ring(p, size = 72, stroke = 8, label = '', color = 'var(--green)', track = 'var(--track)') {
@@ -134,7 +134,13 @@ export function screenHead(title, extra = '', subtitle = '') {
 }
 
 // Carga rápida con selector Gasto / Ingreso (Gasto por defecto)
-export function quickForm(id) {
+// Ícono de una categoría: el emoji que eligió el usuario o el dibujo de Pesitos
+export function catIcon(c, size = 18) {
+  return c && c.emoji ? `<span class="cat-emoji" style="font-size:${Math.round(size * 1.05)}px" aria-hidden="true">${c.emoji}</span>` : icon((c && c.icon) || 'tag', size);
+}
+
+export function quickForm(id, s = null) {
+  const cats = s ? categoriasOrdenadas(s) : allCategories();
   return `<form class="quick-card" data-submit="quickAdd" autocomplete="off">
     <div class="kind-toggle" role="group" aria-label="Tipo de movimiento">
       <button type="button" data-action="setKind" data-kind="expense" aria-pressed="true">${icon('down', 16, 2.4)} Gasto</button>
@@ -147,13 +153,14 @@ export function quickForm(id) {
       <button type="button" class="icon-btn" data-action="openPaste" aria-label="Cargar comprobante">${icon('receipt', 20)}</button>
       <button type="submit" class="icon-btn dark" aria-label="Anotar">${icon('plus', 20, 2.2)}</button>
     </div>
+    <input type="hidden" name="category" value="auto">
+    <div class="cat-row" role="radiogroup" aria-label="Categoría">
+      <button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="auto" aria-checked="true"><span class="cat-chip-ic">${icon('sprout', 18)}</span><span>Automática</span></button>
+      ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}
+      <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>
+    </div>
     <div class="quick-opts">
-      <label class="sr-only" for="${id}-cat">Categoría</label>
-      <select id="${id}-cat" name="category" class="mini-select cat-select" data-change="quickCategory">
-        <option value="auto">Categoría automática</option>
-        ${allCategories().map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}
-        <option value="__new">+ Crear categoría…</option>
-      </select>
+      <span class="small muted quick-date-label">Fecha</span>
       <label class="sr-only" for="${id}-date">Fecha</label>
       <input id="${id}-date" name="date" type="date" class="mini-select" value="${toISO(new Date())}" max="${toISO(new Date())}">
     </div>

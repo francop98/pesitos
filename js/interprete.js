@@ -11,7 +11,7 @@ const MULT = { luca: 1e3, lucas: 1e3, mil: 1e3, k: 1e3, palo: 1e6, palos: 1e6, m
 function toNumber(raw) {
   let s = raw.replace(/\$/g, '');
   if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
-  else if (/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(s)) s = s.replace(/,/g, '');
+  else if (/^\d{1,3}(,\d{3}){2,}(\.\d{1,2})?$/.test(s) || /^\d{1,3}(,\d{3})+\.\d{1,2}$/.test(s)) s = s.replace(/,/g, ''); // 1,234,567 (formato inglés)
   else s = s.replace(',', '.');
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;

@@ -9,6 +9,7 @@
 import { toISO, parseISO, startOfToday, daysBetween, addDays, money, monthName } from './formato.js';
 import { payCycle, lastSalary, expectedBalance } from './calculos.js';
 import { agendaBetween, billOccurrences, repeatLabel } from './agenda.js';
+import { fechaDeCobro } from './feriados.js';
 
 const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + f(x), 0);
 const share = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);
@@ -17,14 +18,12 @@ const share = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount)
 export function inflows(s, from, to) {
   const out = [];
   const last = lastSalary(s);
-  const pd = Number(s.profile.payday) || 1;
 
   // próximos sueldos (con el último monto cobrado)
   if (last) {
     for (let k = 0; k < 4; k++) {
       const base = new Date(from.getFullYear(), from.getMonth() + k, 1);
-      const dim = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
-      const d = new Date(base.getFullYear(), base.getMonth(), Math.min(pd, dim));
+      const d = fechaDeCobro(s.profile, base.getFullYear(), base.getMonth());
       if (d < from || d > to) continue;
       const mk = toISO(d).slice(0, 7);
       const already = s.incomes.some((i) => i.type === 'sueldo' && i.date.slice(0, 7) === mk);
