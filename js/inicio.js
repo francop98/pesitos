@@ -12,6 +12,7 @@ import { projection, coverage } from './flujo.js';
 import { reglaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
 import { medioOptions } from './acciones.js';
+import { instalada } from './menu.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
 
 const MODE_TEXT = {
@@ -147,6 +148,7 @@ export function render(s) {
     ${coverageAlert(s)}
     ${payAlerts(s)}
     ${closingTip(s)}
+    ${instalarCard()}
     ${salaryCard(s, b)}
     ${renderQuestion(s)}
     ${savingCard(s, b)}
@@ -194,7 +196,21 @@ export function render(s) {
   </section>`;
 }
 
+// Sugerencia de instalar (solo si se abre desde el navegador y no la descartó)
+const K_INSTALAR = 'pesitos_instalar_no';
+function instalarCard() {
+  let no = false;
+  try { no = localStorage.getItem(K_INSTALAR) === '1'; } catch { /* nada */ }
+  if (no || instalada()) return '';
+  return `<div class="card card-instalar">
+    <div class="tip-head"><span style="color:var(--green)">${icon('phone', 20)}</span><strong>Instalá Pesitos en tu celular</strong></div>
+    <span class="text">Queda en la pantalla de inicio como cualquier app: abre más rápido, funciona sin conexión, te puede avisar los vencimientos y podés compartirle tus comprobantes.</span>
+    <div class="btn-row"><button class="btn small ghost" data-action="instalarNo">No, gracias</button><button class="btn small primary" data-action="instalarApp">Instalar</button></div>
+  </div>`;
+}
+
 export const actions = {
+  instalarNo(ctx) { try { localStorage.setItem(K_INSTALAR, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → La app'); },
   promoUsed(ctx, el) {
     const cap = num(el.dataset.id);
     openModal('¿Cuánto te ahorraste?', `<form class="form" data-submit="promoSaved">

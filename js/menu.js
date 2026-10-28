@@ -50,8 +50,8 @@ export function reglaDesdeForm(d) {
 // Instalar como app (Chrome/Android avisa que se puede)
 let instalar = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); instalar = e; });
-window.addEventListener('appinstalled', () => { instalar = null; toast('¡Pesitos quedó instalada!'); });
-const instalada = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+window.addEventListener('appinstalled', () => { instalar = null; document.querySelectorAll('.card-instalar').forEach((c) => c.remove()); toast('¡Pesitos quedó instalada!'); });
+export const instalada = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
 const ESTADOS = {
   ok: ['cloud', 'Todo guardado en tu cuenta'],

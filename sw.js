@@ -1,7 +1,7 @@
 // Service worker: deja la app disponible sin conexión.
 // Cuando cambies archivos, subí el número de versión para refrescar la caché.
 
-const CACHE = 'pesitos-v13';
+const CACHE = 'pesitos-v14';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './styles.css', './main.js',
   './js/acciones.js', './js/agenda.js', './js/ahorro.js', './js/almacenamiento.js', './js/aprender.js',
