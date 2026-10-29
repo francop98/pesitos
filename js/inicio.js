@@ -13,6 +13,7 @@ import { reglaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
 import { medioOptions } from './acciones.js';
 import { instalada } from './menu.js';
+import { bioDisponible, bloqueoActivo, bloqueoActions } from './bloqueo.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
 
 const MODE_TEXT = {
@@ -115,85 +116,119 @@ function weekCard(s) {
   </div>`;
 }
 
+// Todo lo que pide tu atención, ordenado por importancia.
+// En Inicio se ve solo el primero; el resto queda en "Novedades".
+function avisos(s, b) {
+  const sugg = suggestions(s);
+  const pending = s.expenses.filter((e) => e.pending).length;
+  const lista = [
+    payAlerts(s),
+    coverageAlert(s),
+    savingCard(s, b),
+    salaryCard(s, b),
+    renderQuestion(s),
+    alertaPresupuestos(s),
+    pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé.</span>${icon('chevron', 16)}</button>` : '',
+    closingTip(s),
+    weekCard(s),
+    huellaCard(),
+    instalarCard(),
+    sugg[0] ? renderSuggestion(sugg[0]) + (sugg.length > 1 ? `<button class="btn small" data-action="openSuggestions">Ver las ${sugg.length} sugerencias</button>` : '') : '',
+    ...insights(s).slice(0, 2).map(tipCard),
+    lessonCard(s, 'inicio'),
+  ];
+  return lista.filter((x) => x && x.trim());
+}
+
+function novedadesHtml(s) {
+  const b = budget(s);
+  const resto = avisos(s, b).slice(1);
+  return `<div data-novedades>${resto.length ? resto.join('') : '<p class="empty">No hay nada más por ahora. ¡Todo en orden!</p>'}
+    <div class="card lime" style="flex-direction:row;align-items:center;justify-content:space-between;padding:12px 16px">
+      <span class="small" style="font-weight:700">Plata que te ahorró Pesitos en ${MONTHS_LONG[new Date().getMonth()]}</span>
+      <span style="font-size:17px;font-weight:800">${money(savedThisMonth(s))}</span>
+    </div></div>`;
+}
+
+const ATAJOS = [
+  ['openBuy', 'cart', '¿Me lo compro?'],
+  ['#/pagos', 'calendar', 'Por pagar'],
+  ['#/beneficios', 'ticket', 'Beneficios'],
+  ['#/estadisticas', 'pie', 'Estadísticas'],
+  ['#/cuentas', 'bank', 'Mis cuentas'],
+  ['#/presupuestos', 'target', 'Presupuestos'],
+  ['#/deudas', 'people', 'Deudas'],
+  ['#/tarjetas', 'card', 'Tarjetas'],
+  ['#/buscar', 'search', 'Buscar'],
+  ['openImportar', 'upload', 'Importar'],
+  ['#/herramientas', 'swap', 'Herramientas'],
+  ['openAyuda', 'help', 'Ayuda'],
+];
+const tile = ([a, ic, l]) => (a.startsWith('#')
+  ? `<a class="tile" href="${a}">${icon(ic, 22)}<span>${l}</span></a>`
+  : `<button class="tile" data-action="${a}">${icon(ic, 22)}<span>${l}</span></button>`);
+
 export function render(s) {
   const b = budget(s);
   const g = mainGoal(s);
-  const tips = insights(s);
-  const sugg = suggestions(s);
   const days = b.cycle.daysLeft;
   const payText = reglaDeCobro(s.profile).tipo === 'varia'
     ? (days === 1 ? 'último día del mes' : `quedan ${days} días del mes`)
     : (days === 1 ? 'cobrás mañana' : `cobrás en ${days} días`);
-  const pending = s.expenses.filter((e) => e.pending).length;
-  const cards = s.cards.map((c) => ({ c, sum: cardSummary(s, c) })).filter((x) => x.sum.next > 0);
+  const lista = avisos(s, b);
+  const mas = lista.length - 1;
+  // si "Novedades" está abierto, se actualiza solo
+  setTimeout(() => { const n = document.querySelector('#modal:not([hidden]) [data-novedades]'); if (n) n.outerHTML = novedadesHtml(s); }, 0);
 
   return `<section class="screen">
     <div class="topbar">
       <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${wordmark(26)}</div>
+      <button class="icon-btn" data-action="openAyuda" aria-label="Ayuda">${icon('help', 22)}</button>
     </div>
 
     ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
 
-    <div class="card green" style="padding:22px;gap:4px">
+    <div class="card green hero">
       <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}</span>
       <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
-      <span class="small on-green-muted">${b.noIncome ? 'Indicá tu sueldo para empezar' : `Sin tocar tus metas · ${payText}`}${b.estimated ? ' · estimado con tu último sueldo' : ''}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
-      <div class="split on-green-muted"><span>Ciclo usado: ${Math.round(b.usedPct * 100)}%</span><span>Libre hasta el cobro: ${money(Math.max(0, b.free))}</span></div>
+      <span class="small on-green-muted">${b.noIncome ? 'Contame cuánto cobrás para empezar' : `${payText} · te quedan ${money(Math.max(0, b.free))} libres`}${b.estimated ? ' · estimado' : ''}</span>
     </div>
 
     ${quickForm('q-home', s, medioOptions(s, '', { auto: true }))}
 
-    ${alertaPresupuestos(s)}
-    ${coverageAlert(s)}
-    ${payAlerts(s)}
-    ${closingTip(s)}
-    ${instalarCard()}
-    ${salaryCard(s, b)}
-    ${renderQuestion(s)}
-    ${savingCard(s, b)}
-    ${weekCard(s)}
+    ${lista[0] || ''}
+    ${mas > 0 ? `<button class="novedades-btn" data-action="openNovedades"><span class="nov-dot">${mas}</span><span class="grow">${mas === 1 ? 'Tenés 1 aviso más' : `Tenés ${mas} avisos más`}</span>${icon('chevron', 16)}</button>` : ''}
 
     <div class="tiles">
-      <button class="tile" data-action="openBuy">${icon('cart', 22)}<span>¿Me lo compro?</span></button>
-      <a class="tile" href="#/pagos">${icon('calendar', 22)}<span>Por pagar</span></a>
-      <a class="tile" href="#/beneficios">${icon('ticket', 22)}<span>Beneficios</span></a>
-      <a class="tile" href="#/herramientas">${icon('swap', 22)}<span>Herramientas</span></a>
-      <a class="tile" href="#/cuentas">${icon('bank', 22)}<span>Mis cuentas</span></a>
-      <a class="tile" href="#/presupuestos">${icon('target', 22)}<span>Presupuestos</span></a>
-      <a class="tile" href="#/estadisticas">${icon('pie', 22)}<span>Estadísticas</span></a>
-      <a class="tile" href="#/deudas">${icon('people', 22)}<span>Deudas</span></a>
+      ${ATAJOS.slice(0, 3).map(tile).join('')}
+      <button class="tile" data-action="openAtajos">${icon('grid', 22)}<span>Más</span></button>
     </div>
 
     ${g ? `<a class="card goal-row" href="#/ahorro" style="text-decoration:none;color:inherit;flex-direction:row">
-      ${ring(goalPct(g), 72, 8, `${g.name}: ${Math.round(goalPct(g) * 100)}%`)}
-      <div class="grow" style="display:flex;flex-direction:column;gap:3px">
-        <span class="small muted" style="font-weight:600">Meta principal</span>
-        <span style="font-size:17px;font-weight:800">${esc(g.name)}</span>
-        <span class="small muted">${g.target ? `${money(g.saved)} de ${money(g.target)} · ` : ''}${esc(goalEta(g).text.replace('A este ritmo llegás', 'llegás'))}</span>
+      ${ring(goalPct(g), 56, 7, `${g.name}: ${Math.round(goalPct(g) * 100)}%`)}
+      <div class="grow" style="display:flex;flex-direction:column;gap:2px">
+        <span class="small muted" style="font-weight:600">Tu meta</span>
+        <span style="font-size:16px;font-weight:800">${esc(g.name)}</span>
+        <span class="small muted">${esc(goalEta(g).text.replace('A este ritmo llegás', 'Llegás'))}</span>
       </div>
     </a>` : ''}
-
-    ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé.</span>${icon('chevron', 16)}</button>` : ''}
-
-    ${cards.map(({ c, sum }) => `<a class="card" href="#/tarjetas" style="text-decoration:none;color:inherit;flex-direction:row;align-items:center">
-      <span class="cat-icon green">${icon('card', 18)}</span>
-      <span class="grow" style="display:flex;flex-direction:column;gap:1px;flex:1"><span style="font-weight:800;font-size:14px">${esc(c.name)} · resumen de ${monthName(sum.current, true)}</span><span class="small muted">${sum.pending.length} compra${sum.pending.length === 1 ? '' : 's'} en cuotas · vence el ${c.dueDay}</span></span>
-      <span style="font-weight:800">${money(sum.next)}</span>
-    </a>`).join('')}
-
-    ${sugg[0] ? renderSuggestion(sugg[0]) : ''}
-    ${sugg.length > 1 ? `<button class="btn small" data-action="openSuggestions" style="margin-top:-6px">Ver las ${sugg.length} sugerencias</button>` : ''}
-
-    ${tips.slice(0, 2).map(tipCard).join('')}
-
-    ${lessonCard(s, 'inicio')}
-
-    <div class="card lime" style="flex-direction:row;align-items:center;justify-content:space-between;padding:12px 16px">
-      <span class="small" style="font-weight:700">Plata que te ahorró Pesitos en ${MONTHS_LONG[new Date().getMonth()]}</span>
-      <span style="font-size:17px;font-weight:800">${money(savedThisMonth(s))}</span>
-    </div>
   </section>`;
+}
+
+// Sugerencia de entrar con huella o cara (si el dispositivo lo permite y no hay bloqueo)
+const K_HUELLA = 'pesitos_huella_no';
+let hayBio = null;
+bioDisponible().then((v) => { hayBio = v; });
+function huellaCard() {
+  let no = false;
+  try { no = localStorage.getItem(K_HUELLA) === '1'; } catch { /* nada */ }
+  if (no || !hayBio || bloqueoActivo()) return '';
+  return `<div class="card card-huella">
+    <div class="tip-head"><span style="color:var(--green)">${icon('lock', 20)}</span><strong>Entrá con tu huella o tu cara</strong></div>
+    <span class="text">Cada vez que abras Pesitos te pide la huella (o la cara) del celular. Así nadie que lo agarre ve tu plata, y vos entrás al toque.</span>
+    <div class="btn-row"><button class="btn small ghost" data-action="huellaNo">Ahora no</button><button class="btn small primary" data-action="huellaSi">Activar</button></div>
+  </div>`;
 }
 
 // Sugerencia de instalar (solo si se abre desde el navegador y no la descartó)
@@ -210,6 +245,10 @@ function instalarCard() {
 }
 
 export const actions = {
+  openNovedades(ctx) { openModal('Novedades', novedadesHtml(ctx.state)); },
+  openAtajos() { openModal('Todo Pesitos', `<div class="tiles">${ATAJOS.map(tile).join('')}</div>`); },
+  async huellaSi(ctx) { await bloqueoActions.bloqueoBio(); ctx.render(); },
+  huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → Bloqueo con huella o PIN'); },
   instalarNo(ctx) { try { localStorage.setItem(K_INSTALAR, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → La app'); },
   promoUsed(ctx, el) {
     const cap = num(el.dataset.id);

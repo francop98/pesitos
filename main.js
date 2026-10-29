@@ -18,6 +18,8 @@ import { publicarAgenda } from './js/avisos.js';
 import { menuActions } from './js/menu.js';
 import { ticketActions } from './js/ticket.js';
 import { importarActions } from './js/importar.js';
+import { ciudadActions } from './js/ciudades.js';
+import { ayudaActions, tutorialPendiente } from './js/ayuda.js';
 import { aplicarTema, aplicarLetra } from './js/tema.js';
 import { commonActions, addPendingFromText } from './js/acciones.js';
 import { guideActions } from './js/guia.js';
@@ -113,9 +115,10 @@ function render() {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   refreshAll();
+  if (route === 'inicio') tutorialPendiente(ctx);
 }
 
-const actions = Object.assign({ recargar: () => location.reload() }, commonActions, ticketActions, importarActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, {
+const actions = Object.assign({ recargar: () => location.reload() }, commonActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, {
   goBack() {
     trail.pop();
     const prev = trail.pop() || 'inicio';
@@ -268,6 +271,8 @@ async function conSesion(u) {
   }
   perfilActual = perfil;
   uidActual = u.uid;
+  // que el navegador no borre tu sesión ni tu llave para liberar espacio
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch { /* nada */ }
   // bloqueo con huella o PIN (de este dispositivo)
   iniciarBloqueo(u.uid, { onOlvido: async () => { await borrarDelDispositivo(u.uid); cuenta.salir(); } });
   await mostrarBloqueo();

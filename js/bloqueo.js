@@ -68,7 +68,7 @@ function pantalla(nota = '') {
     <div class="pin-teclado">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button type="button" data-pin="${n}">${n}</button>`).join('')}
       ${c.bio ? `<button type="button" data-bloqueo="bio" aria-label="Usar huella o cara">${icon('eye', 24)}</button>` : '<span></span>'}<button type="button" data-pin="0">0</button><button type="button" data-bloqueo="borrar" aria-label="Borrar">⌫</button></div>`
     : `<p class="bloqueo-nota" role="alert">${esc(nota)}</p><button class="btn lime block" data-bloqueo="bio">${icon('eye', 20)} Desbloquear con huella o cara</button>`}
-    <button class="btn ghost small bloqueo-olvide" data-bloqueo="olvide">Olvidé mi PIN / no puedo entrar</button>
+    <button class="btn ghost small bloqueo-olvide" data-bloqueo="olvide">${c.pin ? 'Olvidé mi PIN / no puedo entrar' : 'No puedo entrar'}</button>
   </div>`;
 }
 

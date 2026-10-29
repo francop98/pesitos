@@ -9,14 +9,15 @@ import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
 
 let catFilter = 'all';
+let medioFilter = 'all';
 const expanded = new Set(); // días con "Ver más" abierto
 const PER_DAY = 8;
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
-const FILTERS = [['all', 'Todo'], ['super', 'Súper'], ['comida', 'Comida'], ['salud', 'Farmacia'], ['transporte', 'Combustible'], ['hogar', 'Hogar']];
+const FILTERS = [['all', 'Todos los rubros'], ['super', 'Súper'], ['comida', 'Comida'], ['salud', 'Farmacia'], ['transporte', 'Combustible'], ['hogar', 'Hogar'], ['ropa', 'Ropa'], ['ocio', 'Salidas'], ['delivery', 'Delivery']];
 
 function dayBlock(s, offset) {
   const day = (new Date().getDay() + offset) % 7;
-  const ps = promosForDay(s, day).filter((p) => catFilter === 'all' || p.category === catFilter);
+  const ps = promosForDay(s, day).filter((p) => (catFilter === 'all' || p.category === catFilter) && (medioFilter === 'all' || p.wallet === medioFilter || (medioFilter === 'todos' && p.wallet === 'todos')));
   if (!ps.length) return '';
   const label = offset === 0 ? 'Hoy' : offset === 1 ? 'Mañana' : cap(WEEKDAYS[day]);
   const open = expanded.has(day);
@@ -34,16 +35,18 @@ function dayBlock(s, offset) {
 
 export function render(s) {
   const has = (s.wallets || []).length;
+  if (!['all', 'todos', ...(s.wallets || [])].includes(medioFilter)) medioFilter = 'all';
   const week = has ? [0, 1, 2, 3, 4, 5, 6].map((o) => dayBlock(s, o)).join('') : '';
   return `<section class="screen">
     ${screenHead('Beneficios', '', 'Descuentos de tus medios de pago')}
 
-    <div class="card">
-      <div class="topbar"><strong style="font-size:14px">Tus medios de pago</strong><button class="chip" data-action="openWallets">${has ? 'Editar' : 'Elegir'}</button></div>
-      ${has ? `<div class="chips">${s.wallets.map((w) => `<span class="pill">${esc(walletName(w))}</span>`).join('')}</div>` : '<p class="text muted">Elegí tus bancos, billeteras y tarjetas y te muestro qué descuentos tenés cada día.</p>'}
-    </div>
-
-    ${has ? `<div class="chips">${FILTERS.map(([id, l]) => `<button class="chip toggle" data-action="promoFilter" data-id="${id}" aria-pressed="${catFilter === id}">${l}</button>`).join('')}</div>` : ''}
+    ${has ? `<div class="card filtros-promos">
+      <div class="field-row">
+        <div class="field"><label for="pf-medio">Medio de pago</label><select id="pf-medio" data-change="promoMedio"><option value="all">Todos los míos</option>${s.wallets.map((w) => `<option value="${esc(w)}" ${medioFilter === w ? 'selected' : ''}>${esc(walletName(w))}</option>`).join('')}<option value="todos" ${medioFilter === 'todos' ? 'selected' : ''}>Con cualquier medio</option></select></div>
+        <div class="field"><label for="pf-cat">Rubro</label><select id="pf-cat" data-change="promoCat">${FILTERS.map(([id, l]) => `<option value="${id}" ${catFilter === id ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      </div>
+      <button class="btn ghost small" data-action="openWallets" style="align-self:flex-start">${icon('wallet', 16)} Cambiar mis medios de pago</button>
+    </div>` : `<div class="card"><p class="text muted">Elegí tus bancos, billeteras y tarjetas y te muestro qué descuentos tenés cada día.</p><button class="btn primary" data-action="openWallets">Elegir mis medios de pago</button></div>`}
 
     ${week || (has ? '<div class="card"><p class="text muted">No encontré promos para tus medios de pago con este filtro.</p></div>' : '')}
 
@@ -62,6 +65,8 @@ export function render(s) {
 
 export const actions = {
   promoFilter(ctx, el) { catFilter = el.dataset.id; ctx.render(); },
+  promoCat(ctx, el) { catFilter = el.value; ctx.render(); },
+  promoMedio(ctx, el) { medioFilter = el.value; ctx.render(); },
   promoMore(ctx, el) { const d = Number(el.dataset.day); if (expanded.has(d)) expanded.delete(d); else expanded.add(d); ctx.render(); },
   newPromo() {
     openModal('Nueva promo', `<form class="form" data-submit="savePromo">

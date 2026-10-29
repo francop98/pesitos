@@ -102,6 +102,7 @@ const primerNombre = () => (datos.nombre || '').trim().split(' ')[0];
 const chip = (que, label, extra = '', attrs = '') => `<button type="button" class="chip big ${extra}" data-auth="${que}" ${attrs}>${esc(label)}</button>`;
 const send = () => `<button type="submit" class="icon-btn green" aria-label="Seguir">${icon('send', 20, 2.2)}</button>`;
 const entrada = (name, placeholder, type = 'text', extra = '') => `<form class="quick" data-auth-form="${name}" autocomplete="on" novalidate>
+    ${type === 'password' && datos.email ? `<input type="email" name="username" autocomplete="username" value="${esc(datos.email)}" hidden>` : ''}
     <label for="a-${name}" class="sr-only">${esc(placeholder)}</label>
     <input id="a-${name}" name="value" type="${type}" placeholder="${esc(placeholder)}" ${extra} data-autofocus enterkeyhint="next" required>
     ${type === 'password' ? `<button type="button" class="pass-eye inline" data-auth="ver" aria-label="Mostrar contraseña">${icon('eye', 20)}</button>` : ''}
@@ -179,11 +180,20 @@ export async function verLegal(cual) {
   } catch { openModal(titulo, `<p class="text">No pude abrirlo sin conexión. Podés leerlo en <a href="pages/${cual}.html" target="_blank" rel="noopener">esta página</a>.</p>`); }
 }
 
+// el último mail con el que entraste en este dispositivo (para no tener que escribirlo)
+const K_MAIL = 'pesitos_ultimo_mail';
+const ultimoMail = () => { try { return localStorage.getItem(K_MAIL) || ''; } catch { return ''; } };
+const recordarMail = (m) => { try { if (m) localStorage.setItem(K_MAIL, m); } catch { /* nada */ } };
+
 async function enviarCuenta() {
   ocupado = true; const anterior = paso; paso = 'enviando'; dibujar();
   try {
     if (flujo === 'crear') await crear(datos.nombre, datos.email, datos.clave);
     else await ingresar(datos.email, datos.clave);
+    recordarMail(datos.email);
+    // le ofrece al celular guardar la contraseña (Chrome / Android)
+    try { if (window.PasswordCredential) await navigator.credentials.store(new window.PasswordCredential({ id: datos.email, password: datos.clave, name: datos.nombre || datos.email })); } catch { /* nada */ }
+    datos.clave = '';
     // si salió bien, main.js recibe la sesión y sigue solo
   } catch (err) {
     ocupado = false;
@@ -209,7 +219,7 @@ export function renderPantalla(cont, modoInicial) {
     if (que === 'terminos' || que === 'privacidad') { verLegal(que); return; }
     if ((que === 'nuevo' || que === 'google') && !aceptado) return;
     if (que === 'nuevo') { flujo = 'crear'; ir('nombre', 'Crear cuenta con mail'); }
-    if (que === 'tengo') { flujo = 'ingresar'; ir('mail', 'Ya tengo cuenta'); }
+    if (que === 'tengo') { flujo = 'ingresar'; if (!datos.email) datos.email = ultimoMail(); ir('mail', 'Ya tengo cuenta'); }
     if (que === 'otromail') { charla = charla.filter((t) => t.paso !== 'mail'); ir('mail'); }
     if (que === 'olvide') ir('recuperar', 'Olvidé mi contraseña');
     if (que === 'ver') { const i = cont.querySelector('input[type=password], input[data-visible]'); if (i) { if (i.type === 'password') { i.type = 'text'; i.dataset.visible = '1'; } else i.type = 'password'; } }

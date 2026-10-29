@@ -21,7 +21,7 @@ Con Live Server corriendo, entrá desde el celular a `http://IP-DE-TU-COMPU:5500
 
 | Pantalla | Qué tiene |
 |---|---|
-| **Arranque** | Charla guiada de 4 preguntas, todas salteables. Lo demás lo pregunta la app de a poco ("Pesitos quiere saber", máximo 3 por día) |
+| **Arranque** | Charla guiada (sueldo, cobro, forma de ahorrar, provincia, ciudad de una lista y medios de pago), todas salteables, y un tutorial corto. Lo demás lo pregunta la app de a poco ("Pesitos quiere saber", máximo 3 por día) |
 | **Inicio** | "Hoy podés gastar", carga rápida con Gasto/Ingreso, "Págate primero" (Ya lo aparté / Todavía no), meta principal, ¿Me lo compro?, cierre semanal, resumen de tarjeta, sugerencias de mejora, promos del día y contador de plata ahorrada |
 | **Movimientos** | Ingresos y gastos por mes, gastos fijos con nombre libre (avisa si suben), comprobantes para confirmar, sugerencias de mejora |
 | **Tarjetas** | Próximo resumen, cuotas pendientes (cuota X de N), compromisos de los próximos 6 meses, uso del límite |
@@ -43,7 +43,7 @@ Además: gastos en otras monedas (con la cotización del día), dividir un gasto
 ### Cotizaciones
 - Dólar blue: [DolarApi.com](https://dolarapi.com), que toma los valores de DolarHoy.
 - Euro, real, peso uruguayo y chileno: DolarApi.com.
-- Bitcoin, Ethereum, USDT y oro (PAX Gold, 1 token = 1 onza): CoinGecko.
+- Bitcoin, Ethereum, USDT y oro (PAX Gold; se muestra por gramo): CoinGecko.
 - Se actualizan cada 30 minutos o con el botón "Actualizar". Sin conexión usa las últimas guardadas.
 
 ### Promos
@@ -111,6 +111,8 @@ pesitos/
     ├── cuentas.js · miscuentas.js     Saldos por cuenta, transferencias y patrimonio
     ├── presupuestos.js · deudas.js · buscar.js · estadisticas.js   (una pantalla por archivo)
     ├── exportar.js         Excel (CSV) y PDF
+    ├── ayuda.js            Tutorial de bienvenida y Ayuda (preguntas frecuentes)
+    ├── ciudades.js         Ciudades por provincia (Georef, datos.gob.ar)
     ├── ticket.js           Foto del ticket (OCR en el dispositivo)
     ├── importar.js         Importar resumen de tarjeta (PDF) o Excel/CSV del banco
     ├── bloqueo.js          Bloqueo con huella o PIN

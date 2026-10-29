@@ -16,6 +16,7 @@ import { usuarioActual, abrirMiCuenta, salir, verLegal } from './autenticacion.j
 import { reglaDeCobro, textoDeCobro, fechaDeCobro } from './feriados.js';
 import { abrirConfigBloqueo } from './bloqueo.js';
 import { avisosActivos, avisosSoportados, activarAvisos, desactivarAvisos } from './avisos.js';
+import { campoCiudad, activarCiudades } from './ciudades.js';
 
 // Cuándo cobrás: tipo + número (día del mes o número de día hábil)
 export function campoCobro(profile) {
@@ -83,6 +84,7 @@ function menuHtml(ctx) {
     </div>
 
     <div class="menu-grupo lima"><span class="menu-label">La app</span>
+      ${item('openAyuda', 'help', 'Ayuda y tutorial', 'Cómo usar Pesitos y preguntas frecuentes')}
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Automático'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
@@ -124,10 +126,11 @@ export const menuActions = {
     openModal('Mis datos', `<form class="form" data-submit="saveSettings">
       <div class="field"><label for="s-name">Tu nombre</label><input id="s-name" name="name" value="${esc(s.profile.name)}"></div>
       ${campoCobro(s.profile)}
-      <div class="field"><label for="s-city">Ciudad (algunas promos son solo de una ciudad)</label><input id="s-city" name="city" value="${esc(s.profile.city || '')}" maxlength="40" autocomplete="address-level2" placeholder="Ej: Bahía Blanca"></div>
-      <div class="field"><label for="s-prov">Provincia (para las promos de tu zona)</label><select id="s-prov" name="province"><option value="">Sin elegir: solo promos de todo el país</option>${PROVINCES.map((p) => `<option value="${esc(p)}" ${s.profile.province === p ? 'selected' : ''}>${esc(provinceLabel(p))}</option>`).join('')}</select></div>
+      <div class="field"><label for="s-prov">Provincia (para las promos de tu zona)</label><select id="s-prov" name="province" data-change="ciudadProvincia"><option value="">Sin elegir: solo promos de todo el país</option>${PROVINCES.map((p) => `<option value="${esc(p)}" ${s.profile.province === p ? 'selected' : ''}>${esc(provinceLabel(p))}</option>`).join('')}</select></div>
+      <div class="field"><label for="s-city">Ciudad (algunas promos son solo de una ciudad)</label>${campoCiudad({ id: 's-city', prov: s.profile.province, valor: s.profile.city || '' })}</div>
       <button class="btn primary block" type="submit">Guardar</button>
     </form>`, { push: true });
+    activarCiudades(document.getElementById('modal'));
   },
   payTipoChanged(ctx, el) {
     const i = el.closest('.field').querySelector('[name=payN]');

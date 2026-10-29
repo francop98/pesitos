@@ -1,7 +1,7 @@
 // Arranque como charla: pocas preguntas, una por vez, todas salteables.
 // Lo demás lo pregunta la app de a poco (ver js/guia.js).
 // Si la cuenta ya trae el nombre (por ejemplo, con Google), no lo pregunta.
-// Preguntas: nombre → sueldo → cuándo cobrás → provincia → ciudad → medios de pago.
+// Preguntas: nombre → sueldo → cuándo cobrás → cómo ahorrar → provincia → ciudad → medios de pago.
 
 import { uid } from './almacenamiento.js';
 import { todayISO, esc, money, normalize } from './formato.js';
@@ -9,12 +9,13 @@ import { parseAmount } from './interprete.js';
 import { wordmark, icon, sprout } from './interfaz.js';
 import { PROVINCES, provinceLabel, WALLETS } from './categorias.js';
 import { entenderCobro, textoDeCobro, fechaDeCobro } from './feriados.js';
+import { campoCiudad, activarCiudades } from './ciudades.js';
 
-const ALL_STEPS = ['nombre', 'sueldo', 'cobro', 'provincia', 'ciudad', 'medios'];
+const ALL_STEPS = ['nombre', 'sueldo', 'cobro', 'ahorro', 'provincia', 'ciudad', 'medios'];
 const mainSteps = () => (knownName ? ALL_STEPS.slice(1) : ALL_STEPS);
 const WALLET_GROUPS = ['Billeteras', 'Bancos', 'Tarjetas'];
 
-const fresh = () => ({ name: '', salary: 0, payRule: null, province: '', city: '', wallets: [], customWallets: [] });
+const fresh = () => ({ name: '', salary: 0, payRule: null, savingMode: '', savingPct: 0, savingAmount: 0, province: '', city: '', wallets: [], customWallets: [] });
 let step = 'hola';
 let trail = []; // [{ step, q, a }]
 let draft = fresh();
@@ -26,13 +27,16 @@ function nextStep(cur) {
     case 'hola': return knownName ? 'sueldo' : 'nombre';
     case 'nombre': return 'sueldo';
     case 'sueldo': return 'cobro';
-    case 'cobro': return 'provincia';
+    case 'cobro': return 'ahorro';
+    case 'ahorro': return draft.savingMode === 'fixed' ? 'ahorroMonto' : 'provincia';
+    case 'ahorroMonto': return 'provincia';
     case 'provincia': return draft.province ? 'ciudad' : 'medios';
     case 'ciudad': return 'medios';
     default: return 'listo';
   }
 }
 
+const opAhorro = (v, t, d) => `<button class="ahorro-op" data-action="guideNext" data-value="${v}"><b>${esc(t)}</b><span>${esc(d)}</span></button>`;
 const chip = (value, label, extra = '') => `<button class="chip big ${extra}" data-action="guideNext" data-value="${esc(value)}">${esc(label)}</button>`;
 const inputForm = (name, placeholder, mode = 'text', button = 'Seguir', extra = '') => `<form class="quick" data-submit="guideInput" autocomplete="off">
     <label for="g-${name}" class="sr-only">${esc(placeholder)}</label>
@@ -69,6 +73,21 @@ function current() {
       controls: `<div class="chips">${chip('dia:1', 'El 1')}${chip('dia:5', 'El 5')}${chip('dia:10', 'El 10')}${chip('habil:1', '1.er día hábil')}${chip('habil:5', '5.º día hábil')}${chip('ultimoHabil', 'Último día hábil')}${chip('ultimo', 'Último día del mes')}${chip('varia', 'Varía')}</div>
         ${inputForm('cobro', 'O escribilo: ej. 4.º día hábil, el 15')}`,
     };
+    case 'ahorro': return {
+      bubbles: ['¿Cómo te gustaría ahorrar? Elegí la que te resulte más cómoda. La podés cambiar cuando quieras.'],
+      controls: `<div class="ahorro-ops">
+          ${opAhorro('payFirst:10', 'Apartar el 10% apenas cobro', 'Lo que mejor funciona: primero ahorrás, después gastás.')}
+          ${opAhorro('payFirst:20', 'Apartar el 20% apenas cobro', 'Igual, pero más rápido.')}
+          ${opAhorro('fixed', 'Un monto fijo por mes', 'Vos elegís cuánto.')}
+          ${opAhorro('leftover', 'Lo que me sobre a fin de mes', 'Te aviso cuánto sobró para apartarlo.')}
+          ${opAhorro('roundup', 'Redondear cada gasto', 'Ahorro de a poquito, casi sin darte cuenta.')}
+        </div>
+        <div class="chips">${chip('none', 'Por ahora no quiero ahorrar')}</div>`,
+    };
+    case 'ahorroMonto': return {
+      bubbles: ['¿Cuánto querés apartar por mes?'],
+      controls: `${inputForm('ahorro', 'Ej: 100.000', 'decimal')}<div class="chips">${chip('', 'Lo decido después')}</div>`,
+    };
     case 'provincia': return {
       bubbles: ['¿En qué provincia vivís? Muchas promos valen solo en una provincia, así te muestro las tuyas.'],
       controls: `<form class="quick" data-submit="guideInput"><label for="g-prov" class="sr-only">Provincia</label><select id="g-prov" name="value"><option value="">Elegí tu provincia…</option>${PROVINCES.map((p) => `<option value="${esc(p)}">${esc(provinceLabel(p))}</option>`).join('')}</select><button type="submit" class="icon-btn green" aria-label="Seguir">${icon('send', 20, 2.2)}</button></form>
@@ -76,7 +95,7 @@ function current() {
     };
     case 'ciudad': return {
       bubbles: ['¿Y en qué ciudad? Algunas promos son solo para una ciudad.'],
-      controls: `${inputForm('city', 'Ej: Bahía Blanca', 'text', 'Seguir', 'autocomplete="address-level2" maxlength="40"')}<div class="chips">${chip('', 'Saltear')}</div>`,
+      controls: `<form class="form ciudad-form" data-submit="guideInput" autocomplete="off">${campoCiudad({ id: 'g-city', name: 'value', prov: draft.province, valor: draft.city, enviar: true })}<button type="submit" class="btn primary block">Seguir</button></form><div class="chips">${chip('', 'Saltear')}</div>`,
     };
     case 'medios': return {
       bubbles: ['Última: ¿qué bancos, billeteras y tarjetas usás? Tocá todos los que tengas y te aviso el día antes qué descuentos tenés.'],
@@ -111,6 +130,7 @@ export function render(s) {
   const idx = MAIN_STEPS.indexOf(step);
   const progress = step === 'hola' || step === 'listo' ? '' : `<div class="dots" aria-label="Pregunta ${Math.min(idx < 0 ? total : idx + 1, total)} de ${total}">${MAIN_STEPS.map((x, i) => `<span class="${i <= (idx < 0 ? total - 1 : idx) ? 'on' : ''}"></span>`).join('')}</div>`;
   const canBack = step !== 'hola' && step !== 'listo';
+  if (step === 'ciudad') setTimeout(() => activarCiudades(document.querySelector('.guide')), 0);
   return `<section class="guide">
     <header class="guide-top">
       ${canBack ? `<button class="icon-btn back on-green" data-action="guideBack" aria-label="Volver">${icon('back', 20, 2.2)}</button>` : '<span style="width:44px"></span>'}
@@ -162,6 +182,18 @@ function answer(ctx, raw, fromInput) {
       shown = draft.province ? provinceLabel(draft.province) : 'Prefiero no decirlo';
       break;
     case 'ciudad': draft.city = value.slice(0, 40); shown = value || 'Saltear'; break;
+    case 'ahorro': {
+      const [mode, pct] = value.split(':');
+      draft.savingMode = mode || 'none'; draft.savingPct = Number(pct) || 0;
+      shown = { payFirst: `Apartar el ${pct}% apenas cobro`, fixed: 'Un monto fijo por mes', leftover: 'Lo que me sobre a fin de mes', roundup: 'Redondear cada gasto', none: 'Por ahora no' }[draft.savingMode];
+      break;
+    }
+    case 'ahorroMonto': {
+      const n = value ? parseAmount(value) : 0;
+      if (fromInput && !n) { nota = 'No entendí el monto. Probá así: 100.000'; ctx.render(); return; }
+      draft.savingAmount = n; shown = n ? `${money(n)} por mes` : 'Lo decido después';
+      break;
+    }
     case 'medios': {
       if (fromInput) { // "Otro": se agrega y se queda en la misma pregunta
         const nombre = value.slice(0, 40);
@@ -203,6 +235,20 @@ export const actions = {
       const regla = d.payRule || { tipo: 'dia', dia: 1 };
       s.profile = { ...s.profile, name: d.name || s.profile.name, payRule: regla, paydayVaries: regla.tipo === 'varia', payday: regla.tipo === 'dia' ? regla.dia : regla.tipo === 'ultimo' ? 31 : 1, province: d.province, city: d.city };
       if (d.salary) s.incomes.push({ id: uid(), date: todayISO(), amount: d.salary, type: 'sueldo', note: 'Sueldo' });
+      // forma de ahorrar (si la eligió; si no, Pesitos la pregunta más adelante)
+      if (d.savingMode) {
+        s.asked = s.asked || {};
+        s.savingMode = d.savingMode;
+        s.rules.payFirst.on = d.savingMode === 'payFirst';
+        if (d.savingPct) s.rules.payFirst.pct = d.savingPct;
+        s.rules.roundup.on = d.savingMode === 'roundup';
+        s.asked.savingMode = { done: true };
+        if (d.savingMode === 'fixed' && d.savingAmount) {
+          s.rules.custom = (s.rules.custom || []).filter((c) => c.id !== 'r_fixed');
+          s.rules.custom.push({ id: 'r_fixed', name: 'Ahorro mensual fijo', type: 'fixedMonthly', value: d.savingAmount, on: true });
+          s.asked.savingAmount = { done: true };
+        }
+      }
       s.wallets = [...new Set([...(s.wallets || []), ...d.wallets])];
       s.customWallets = s.customWallets || [];
       for (const name of d.customWallets) {

@@ -29,6 +29,7 @@ export function defaultRules() {
 export function emptyState() {
   return {
     version: 3,
+    oroGramos: true, // el oro se guarda en gramos (antes, en onzas)
     ready: false,
     demo: false,
     profile: { name: '', payday: 1, paydayVaries: false, focus: '', focusText: '', province: '' },
@@ -85,6 +86,14 @@ export function migrate(data) {
   // Versiones anteriores tenían "Págate primero" activo por defecto, sin que el usuario lo eligiera:
   // se apaga para que primero elija su modo de ahorro.
   if (!s.savingMode && (data.version || 1) < 3) s.rules.payFirst.on = false;
+  // oro: de onzas a gramos (una sola vez)
+  if (!data.oroGramos) {
+    const G = 31.1035;
+    s.holdings = s.holdings.map((h) => (h.currency === 'XAU' ? { ...h, amount: Math.round(Number(h.amount || 0) * G * 100) / 100 } : h));
+    if (s.rates && s.rates.crypto && s.rates.crypto.XAU) s.rates = { ...s.rates, crypto: { ...s.rates.crypto, XAU: s.rates.crypto.XAU / G } };
+    if (s.settings.manualRates && s.settings.manualRates.XAU) s.settings.manualRates = { ...s.settings.manualRates, XAU: s.settings.manualRates.XAU / G };
+  }
+  s.oroGramos = true;
   s.version = base.version;
   return s;
 }

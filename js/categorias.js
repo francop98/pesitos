@@ -91,7 +91,7 @@ export const ASSETS = [
   { id: 'BTC', label: 'Bitcoin', sym: '₿', decimals: 6 },
   { id: 'ETH', label: 'Ethereum', sym: 'ETH', decimals: 4 },
   { id: 'USDT', label: 'USDT', sym: 'USDT', decimals: 2 },
-  { id: 'XAU', label: 'Oro (onza troy)', sym: 'oz', decimals: 3 },
+  { id: 'XAU', label: 'Oro (gramos)', sym: 'g', decimals: 2 },
 ];
 export const assetById = (id) => ASSETS.find((a) => a.id === id) || ASSETS[0];
 

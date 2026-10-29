@@ -27,6 +27,9 @@ const P = {
   down: '<path d="M12 5v14M19 12l-7 7-7-7"/>',
   back: '<path d="M15 18l-6-6 6-6"/>',
   card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8v.5"/><path d="M12 17h.01"/>',
+  grid: '<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',
+  play: '<path d="M8 5.5v13l11-6.5z"/>',
   swap: '<path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
   wallet: '<path d="M20 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h15v13H5a2 2 0 0 1-2-2V5"/><circle cx="16" cy="14" r="1.5"/>',
@@ -92,6 +95,43 @@ export function tipCard(t) {
 }
 
 // ---------- modal (hoja inferior con "volver") ----------
+// Se puede deslizar: hacia arriba y abajo para recorrerla, y hacia abajo desde
+// arriba de todo (o desde la manija) para cerrarla.
+function activarDeslizar(sheet) {
+  if (sheet.dataset.deslizar) return;
+  sheet.dataset.deslizar = '1';
+  let y0 = 0; let dy = 0; let t0 = 0; let arrastrando = false; let posible = false;
+  sheet.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    const enManija = e.target.closest('.modal-grab, .modal-head');
+    posible = enManija || sheet.scrollTop <= 0;
+    y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); arrastrando = false;
+  }, { passive: true });
+  sheet.addEventListener('touchmove', (e) => {
+    if (!posible) return;
+    dy = e.touches[0].clientY - y0;
+    if (!arrastrando && dy > 8 && (sheet.scrollTop <= 0 || e.target.closest('.modal-grab, .modal-head'))) { arrastrando = true; sheet.style.transition = 'none'; }
+    if (!arrastrando) { if (dy < 0) posible = false; return; }
+    if (e.cancelable) e.preventDefault();
+    sheet.style.transform = `translateY(${Math.max(0, dy)}px)`;
+  }, { passive: false });
+  const soltar = () => {
+    if (!arrastrando) return;
+    arrastrando = false;
+    const rapido = dy > 60 && Date.now() - t0 < 250;
+    sheet.style.transition = 'transform .18s ease-out';
+    if (dy > Math.min(140, sheet.offsetHeight * 0.3) || rapido) {
+      sheet.style.transform = 'translateY(100%)';
+      setTimeout(() => { sheet.style.transition = ''; sheet.style.transform = ''; closeModal(); }, 170);
+    } else {
+      sheet.style.transform = '';
+      setTimeout(() => { sheet.style.transition = ''; }, 200);
+    }
+  };
+  sheet.addEventListener('touchend', soltar);
+  sheet.addEventListener('touchcancel', soltar);
+}
+
 const modal = () => document.getElementById('modal');
 let lastFocus = null;
 const stack = []; // pantallas anteriores dentro del modal
@@ -99,7 +139,8 @@ const stack = []; // pantallas anteriores dentro del modal
 function paint(title, body, animate) {
   const m = modal();
   const sheet = m.querySelector('.modal-sheet');
-  sheet.innerHTML = `<div class="modal-head">
+  activarDeslizar(sheet);
+  sheet.innerHTML = `<div class="modal-grab" aria-hidden="true"></div><div class="modal-head">
       <button class="icon-btn back" data-action="modalBack" aria-label="${stack.length ? 'Volver' : 'Cerrar'}">${icon('back', 20, 2.2)}</button>
       <h2 id="modal-title">${esc(title)}</h2>
     </div><div class="modal-body ${animate || ''}">${body}</div>`;
@@ -169,11 +210,12 @@ export function quickForm(id, s = null, medioHtml = '') {
       ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}
       <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>
     </div>
+    <details class="quick-mas"><summary>Con qué pagaste y fecha</summary>
     <div class="quick-opts">
       ${medioHtml ? `<label class="sr-only" for="${id}-medio">Con qué pagaste</label><select id="${id}-medio" name="medio" class="mini-select medio-select">${medioHtml}</select>` : '<span class="small muted quick-date-label">Fecha</span>'}
       <label class="sr-only" for="${id}-date">Fecha</label>
       <input id="${id}-date" name="date" type="date" class="mini-select" value="${toISO(new Date())}" max="${toISO(new Date())}">
-    </div>
+    </div></details>
   </form>`;
 }
 export function setModalBody(selector, html) {

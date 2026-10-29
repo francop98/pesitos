@@ -1,9 +1,10 @@
 // Cotizaciones en vivo.
 // - Dólar blue: DolarApi.com, que toma los valores de DolarHoy.
 // - Euro, real, peso uruguayo y chileno: DolarApi.com.
-// - Bitcoin, Ethereum, USDT y oro (vía PAX Gold, 1 token = 1 onza troy): CoinGecko.
+// - Bitcoin, Ethereum, USDT y oro (vía PAX Gold, 1 token = 1 onza troy = 31,1035 g; se guarda por GRAMO): CoinGecko.
 // Si no hay conexión, se usan las últimas guardadas y se avisa que no están al día.
 
+export const GRAMOS_POR_ONZA = 31.1035; // el oro se maneja por gramo
 const TTL = 5 * 60 * 1000; // se refresca cada 5 minutos y al volver a la app
 let loading = false;
 
@@ -36,7 +37,7 @@ export async function refreshRates(ctx, force = false) {
   } catch { /* sin conexión */ }
   try {
     const cg = await getJSON('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,pax-gold&vs_currencies=usd');
-    out.crypto = { BTC: cg.bitcoin?.usd, ETH: cg.ethereum?.usd, USDT: cg.tether?.usd, XAU: cg['pax-gold']?.usd, updated: new Date().toISOString() };
+    out.crypto = { BTC: cg.bitcoin?.usd, ETH: cg.ethereum?.usd, USDT: cg.tether?.usd, XAU: cg['pax-gold']?.usd ? cg['pax-gold'].usd / GRAMOS_POR_ONZA : undefined, updated: new Date().toISOString() };
     ok = true;
   } catch { /* sin conexión */ }
   loading = false;

@@ -27,7 +27,7 @@ function quotes(s) {
     { label: 'Euro', main: r.EUR ? money(r.EUR.venta) : null, sub: 'venta' },
     { label: 'Real', main: r.BRL ? money(r.BRL.venta) : null, sub: 'venta' },
     { label: 'Bitcoin', main: c.BTC ? `US$ ${nf(0).format(c.BTC)}` : null, sub: c.BTC && arsPer(s, 'BTC') ? money(arsPer(s, 'BTC')) : '' },
-    { label: 'Oro (onza)', main: c.XAU ? `US$ ${nf(0).format(c.XAU)}` : null, sub: c.XAU && arsPer(s, 'XAU') ? money(arsPer(s, 'XAU')) : '' },
+    { label: 'Oro (gramo)', main: c.XAU ? `US$ ${nf(2).format(c.XAU)}` : null, sub: c.XAU && arsPer(s, 'XAU') ? money(arsPer(s, 'XAU')) : '' },
   ];
   const any = rows.some((x) => x.main);
   return `<div class="card">
@@ -129,7 +129,7 @@ function holdingForm(h = {}, s = {}) {
       <div class="field"><label for="h-a">Cantidad</label><input id="h-a" name="amount" inputmode="decimal" value="${h.amount ?? ''}" placeholder="Ej: 300.000" required></div>
       <div class="field"><label for="h-c">Moneda o activo</label><select id="h-c" name="currency">${ASSETS.map((a) => `<option value="${a.id}" ${a.id === (h.currency || holdingType(type).asset) ? 'selected' : ''}>${a.label}</option>`).join('')}</select></div>
     </div>
-    <span class="small muted">Cargá la cantidad en su moneda (por ejemplo, 0,005 bitcoin o 2 onzas de oro): la paso a pesos con la cotización del día.</span>
+    <span class="small muted">Cargá la cantidad en su moneda (por ejemplo, 0,005 bitcoin o 10 gramos de oro): la paso a pesos con la cotización del día.</span>
     ${rindeFields(s, h, type)}
     <div class="field"><label for="h-m">Vence el (plazos fijos, opcional)</label><input id="h-m" name="maturity" type="date" value="${esc(h.maturity || '')}"><span class="hint">Te lo muestro en "Vas a cobrar" y te aviso para renovarlo o moverlo.</span></div>
     <button class="btn primary block" type="submit">Guardar</button>
