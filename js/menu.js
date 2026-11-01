@@ -29,7 +29,7 @@ export function campoCobro(profile) {
     return f;
   })();
   return `<div class="field"><label for="s-pt">¿Cuándo cobrás?</label>
-    <div class="field-row"><select id="s-pt" name="payTipo" data-change="payTipoChanged">
+    <div class="field-row cobro-row"><select id="s-pt" name="payTipo" data-change="payTipoChanged">
       <option value="dia" ${r.tipo === 'dia' ? 'selected' : ''}>Un día fijo del mes</option>
       <option value="habil" ${r.tipo === 'habil' ? 'selected' : ''}>Un día hábil (1.º, 2.º, 5.º…)</option>
       <option value="ultimoHabil" ${r.tipo === 'ultimoHabil' ? 'selected' : ''}>El último día hábil</option>
@@ -80,15 +80,12 @@ function menuHtml(ctx) {
     <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
       ${item('openMisDatos', 'user', 'Mis datos', 'Nombre, cuándo cobrás, provincia y ciudad')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
-      ${item('openDatosVivos', 'refresh', 'Datos que se actualizan solos', 'Dólar, inflación y promos')}
     </div>
 
     <div class="menu-grupo lima"><span class="menu-label">La app</span>
-      ${item('openAyuda', 'help', 'Ayuda y tutorial', 'Cómo usar Pesitos y preguntas frecuentes')}
-      <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Automático'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
+      <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
-      ${item('openImportar', 'upload', 'Importar movimientos', 'Resumen de tarjeta (PDF) o Excel del banco')}
       ${item('openCopia', 'download', 'Copia de seguridad', 'Descargar o restaurar tus datos')}
     </div>
 
@@ -101,8 +98,95 @@ function menuHtml(ctx) {
     </div>`;
 }
 
+// ---------- menú lateral: se abre de izquierda a derecha ----------
+// Con el botón ☰ o deslizando el dedo desde el borde izquierdo; se cierra
+// deslizando hacia la izquierda, tocando afuera o eligiendo una opción.
+let ctxMenu = null;
+function drawer() {
+  let d = document.getElementById('drawer');
+  if (d) return d;
+  d = document.createElement('div');
+  d.id = 'drawer'; d.className = 'drawer'; d.hidden = true;
+  d.innerHTML = '<div class="drawer-fondo" data-drawer-cerrar></div><nav class="drawer-panel" aria-label="Menú" tabindex="-1"><div class="drawer-top"><strong>Menú</strong><button class="icon-btn" data-drawer-cerrar aria-label="Cerrar menú">' + icon('close', 20) + '</button></div><div class="drawer-body"></div></nav>';
+  document.body.appendChild(d);
+  d.addEventListener('click', (e) => {
+    if (e.target.closest('[data-drawer-cerrar]')) { cerrarMenu(); return; }
+    const a = e.target.closest('[data-action]');
+    if (a && !['setTema', 'setLetra'].includes(a.dataset.action)) cerrarMenu(true);
+  });
+  return d;
+}
+const panel = () => drawer().querySelector('.drawer-panel');
+function pintarMenu(ctx) { if (ctx) ctxMenu = ctx; drawer().querySelector('.drawer-body').innerHTML = menuHtml(ctxMenu); }
+const menuAbierto = () => { const d = document.getElementById('drawer'); return d && !d.hidden && d.classList.contains('abierto'); };
+
+export function usarCtxMenu(ctx) { ctxMenu = ctx; }
+window.addEventListener('hashchange', () => cerrarMenu(true));
+
+export function abrirMenu(ctx) {
+  closeModal();
+  pintarMenu(ctx);
+  const d = drawer();
+  d.hidden = false;
+  panel().style.transform = '';
+  requestAnimationFrame(() => { d.classList.add('abierto'); document.body.style.overflow = 'hidden'; });
+  setTimeout(() => panel().focus({ preventScroll: true }), 220);
+}
+export function cerrarMenu(rapido = false) {
+  const d = document.getElementById('drawer');
+  if (!d || d.hidden) return;
+  d.classList.remove('abierto');
+  panel().style.transform = '';
+  document.body.style.overflow = '';
+  setTimeout(() => { if (!d.classList.contains('abierto')) d.hidden = true; }, rapido ? 0 : 250);
+}
+
+// deslizar con el dedo
+(() => {
+  let x0 = 0; let y0 = 0; let modo = null; let dx = 0; let decidido = false;
+  const ancho = () => panel().offsetWidth || 320;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    x0 = t.clientX; y0 = t.clientY; dx = 0; decidido = false; modo = null;
+    if (menuAbierto()) modo = 'cerrar';
+    else if (x0 < 24 && ctxMenu && !document.body.classList.contains('no-nav') && !document.body.classList.contains('sin-sesion') && !document.body.classList.contains('bloqueado') && document.getElementById('modal').hidden && document.querySelector('[data-action=openMenu]')) modo = 'abrir';
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!modo) return;
+    const t = e.touches[0];
+    dx = t.clientX - x0;
+    if (!decidido) {
+      if (Math.abs(dx) < 8 && Math.abs(t.clientY - y0) < 8) return;
+      if (Math.abs(t.clientY - y0) > Math.abs(dx)) { modo = null; return; } // era scroll vertical
+      decidido = true;
+      const d = drawer();
+      if (modo === 'abrir') { pintarMenu(); d.hidden = false; d.classList.add('arrastrando'); }
+      else d.classList.add('arrastrando');
+    }
+    const w = ancho();
+    const pos = modo === 'abrir' ? Math.min(0, -w + dx) : Math.min(0, dx);
+    panel().style.transform = `translateX(${pos}px)`;
+    drawer().querySelector('.drawer-fondo').style.opacity = String(1 + pos / w);
+  }, { passive: true });
+  const soltar = () => {
+    if (!modo || !decidido) { modo = null; return; }
+    const d = drawer();
+    d.classList.remove('arrastrando');
+    d.querySelector('.drawer-fondo').style.opacity = '';
+    panel().style.transform = '';
+    const w = ancho();
+    if (modo === 'abrir') { if (dx > w * 0.3) { d.classList.add('abierto'); document.body.style.overflow = 'hidden'; } else { d.classList.remove('abierto'); setTimeout(() => { d.hidden = true; }, 250); } }
+    else if (dx < -w * 0.3) cerrarMenu();
+    modo = null;
+  };
+  document.addEventListener('touchend', soltar);
+  document.addEventListener('touchcancel', soltar);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarMenu(); });
+})();
+
 export const menuActions = {
-  openMenu(ctx) { openModal('Menú', menuHtml(ctx)); },
+  openMenu(ctx) { abrirMenu(ctx); },
 
   openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
   openAvisos(ctx) {
@@ -118,8 +202,8 @@ export const menuActions = {
 
   cerrarSesion() { closeModal(); salir(); },
 
-  setTema(ctx, el) { aplicarTema(el.dataset.v); openModal('Menú', menuHtml(ctx)); },
-  setLetra(ctx, el) { aplicarLetra(el.dataset.v); openModal('Menú', menuHtml(ctx)); },
+  setTema(ctx, el) { aplicarTema(el.dataset.v); pintarMenu(ctx); },
+  setLetra(ctx, el) { aplicarLetra(el.dataset.v); pintarMenu(ctx); },
 
   openMisDatos(ctx) {
     const s = ctx.state;

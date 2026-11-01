@@ -34,7 +34,7 @@ function installmentsForm(d = {}) {
   return `<form class="form" data-submit="calcInstallments">
     <div class="field"><label for="iq-p">Precio de contado (o de lista)</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 300.000" required></div>
     <div class="field-row">
-      <div class="field"><label for="iq-n">Cantidad de cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || 12}"></div>
+      <div class="field"><label for="iq-n">Cantidad de cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 12" required></div>
       <div class="field"><label for="iq-c">Valor de cada cuota</label><input id="iq-c" name="cuota" inputmode="decimal" value="${d.cuota || ''}" placeholder="Si es sin interés, dejalo vacío"></div>
     </div>
     <div class="field"><label for="iq-d">Descuento por pagar de contado (%)</label><input id="iq-d" name="disc" inputmode="decimal" value="${d.disc || ''}" placeholder="Ej: 10"></div>
@@ -102,7 +102,7 @@ export const actions = {
       <div class="field"><label for="y-a">Monto</label><input id="y-a" name="amount" inputmode="decimal" placeholder="Ej: 500.000" required></div>
       <div class="field-row">
         <div class="field"><label for="y-t">Tasa anual (TNA %)</label><input id="y-t" name="tna" inputmode="decimal" placeholder="La que te ofrece tu banco" required></div>
-        <div class="field"><label for="y-d">Plazo (días)</label><input id="y-d" name="days" inputmode="numeric" value="30"></div>
+        <div class="field"><label for="y-d">Plazo (días)</label><input id="y-d" name="days" inputmode="numeric" placeholder="Ej: 30" required></div>
       </div>
       <button class="btn primary block" type="submit">Calcular</button>
     </form><div id="y-result"></div>`);

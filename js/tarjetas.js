@@ -86,8 +86,8 @@ function cardForm(s, c = {}) {
     <input type="hidden" name="id" value="${esc(c.id || '')}">
     <div class="field"><label for="cd-n">Nombre</label><input id="cd-n" name="name" value="${esc(c.name || '')}" placeholder="Ej: Visa Galicia" required></div>
     <div class="field-row">
-      <div class="field"><label for="cd-c">Día de cierre</label><input id="cd-c" name="closeDay" inputmode="numeric" value="${c.closeDay || 25}"></div>
-      <div class="field"><label for="cd-v">Día de vencimiento</label><input id="cd-v" name="dueDay" inputmode="numeric" value="${c.dueDay || 5}"></div>
+      <div class="field"><label for="cd-c">Día de cierre</label><input id="cd-c" name="closeDay" inputmode="numeric" value="${c.closeDay || ''}" placeholder="Ej: 25" required></div>
+      <div class="field"><label for="cd-v">Día de vencimiento</label><input id="cd-v" name="dueDay" inputmode="numeric" value="${c.dueDay || ''}" placeholder="Ej: 5" required></div>
     </div>
     <div class="field-row">
       <div class="field"><label for="cd-l">Límite de compra</label><input id="cd-l" name="limit" inputmode="decimal" value="${c.limit || ''}" placeholder="Opcional"></div>

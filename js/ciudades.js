@@ -99,13 +99,7 @@ export function activarCiudades(root = document) {
 
 export const ciudadActions = {
   ciudadFiltrar(ctx, el) { const p = el.closest('.ciudad-picker'); if (p) pintarLista(p); },
-  ciudadElegir(ctx, el) {
-    const p = el.closest('.ciudad-picker');
-    const input = p.querySelector('[data-ciudad-input]');
-    input.value = el.dataset.v;
-    if (p.dataset.enviar) { const f = input.closest('form'); if (f) f.requestSubmit(); return; }
-    pintarLista(p);
-  },
+  ciudadElegir(ctx, el) { elegir(el); },
   // en "Mis datos": al cambiar la provincia, cambia la lista
   ciudadProvincia(ctx, el) {
     const p = el.closest('form').querySelector('.ciudad-picker');
@@ -114,3 +108,34 @@ export const ciudadActions = {
     pintarLista(p);
   },
 };
+
+// En el celular, al tocar una ciudad el teclado se cierra y la lista se mueve antes
+// de que llegue el toque. Evitamos que el campo pierda el foco al tocar la lista
+// y elegimos la ciudad apenas se levanta el dedo.
+document.addEventListener('mousedown', (e) => { if (e.target.closest('.ciudad-op')) e.preventDefault(); });
+document.addEventListener('pointerdown', (e) => {
+  const op = e.target.closest('.ciudad-op');
+  if (!op) return;
+  op.dataset.toque = String(e.clientY);
+}, true);
+document.addEventListener('pointerup', (e) => {
+  const op = e.target.closest('.ciudad-op');
+  if (!op || op.dataset.toque === undefined) return;
+  const movio = Math.abs(Number(op.dataset.toque) - e.clientY) > 10; // fue un deslizamiento por la lista
+  delete op.dataset.toque;
+  if (movio || e.pointerType === 'mouse') return; // con mouse, alcanza el clic
+  e.preventDefault();
+  elegir(op);
+}, true);
+
+let ultimo = 0;
+function elegir(op) {
+  if (Date.now() - ultimo < 400) return; // evita elegir dos veces (toque + clic)
+  ultimo = Date.now();
+  const p = op.closest('.ciudad-picker');
+  const input = p.querySelector('[data-ciudad-input]');
+  input.value = op.dataset.v;
+  input.blur();
+  if (p.dataset.enviar) { const f = input.closest('form'); if (f) f.requestSubmit(); return; }
+  pintarLista(p);
+}

@@ -44,7 +44,7 @@ function quotes(s) {
 export function render(s) {
   const total = holdingsTotal(s);
   const items = s.holdings.map((h) => ({ ...h, ars: holdingArs(s, h) }));
-  const tips = insights(s).filter((t) => t.id === 'idle');
+  const tips = insights(s).filter((t) => t.id === 'idle' && !((s.tipsNo || {}).idle >= todayISO()));
 
   return `<section class="screen">
     ${screenHead('Ahorro e inversiones')}
@@ -87,7 +87,7 @@ function goalForm(g = {}) {
     <div class="field"><label for="g-n">Meta</label><input id="g-n" name="name" value="${esc(g.name || '')}" placeholder="Ej: Viaje, fondo de emergencia, auto" required></div>
     <div class="field-row">
       <div class="field"><label for="g-t">Cuánto necesitás</label><input id="g-t" name="target" inputmode="decimal" value="${g.target || ''}" placeholder="Ej: 1.500.000"></div>
-      <div class="field"><label for="g-s">Ya tenés</label><input id="g-s" name="saved" inputmode="decimal" value="${g.saved || 0}"></div>
+      <div class="field"><label for="g-s">Ya tenés</label><input id="g-s" name="saved" inputmode="decimal" value="${g.saved || ''}" placeholder="Ej: 0"></div>
     </div>
     <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="decimal" value="${g.monthly || ''}" placeholder="Ej: 100.000"><span class="hint">Con esto calculo cuándo llegás.</span></div>
     <label style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;min-height:44px"><input type="checkbox" name="main" ${g.main ? 'checked' : ''} style="width:20px;height:20px"> Es mi meta principal</label>

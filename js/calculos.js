@@ -104,10 +104,16 @@ export function budget(s) {
   const variable = cycleVariable(s, cycle);
   const spentToday = sum(s.expenses.filter((e) => !e.pending && !e.fromSavings && e.date === todayStr), share);
   const free = income - fixed - saving - variable;
-  const dailyBase = (free + spentToday) / cycle.daysLeft;
+  // Lo de hoy: lo libre repartido entre los días que faltan, pero nunca más que
+  // tu ritmo normal del mes (si sobra, se sugiere ahorrarlo; no gastarlo de una).
+  const cycleDays = Math.max(1, daysBetween(cycle.start, cycle.next));
+  const normalDaily = Math.max(0, (income - fixed - saving) / cycleDays);
+  const evenSplit = (free + spentToday) / cycle.daysLeft;
+  const dailyBase = normalDaily > 0 ? Math.min(evenSplit, normalDaily) : evenSplit;
   const todayLeft = dailyBase - spentToday;
+  const sobrante = Math.max(0, Math.round((free + spentToday) - dailyBase * cycle.daysLeft));
   const usedPct = income > 0 ? Math.min(1, (fixed + saving + variable) / income) : 0;
-  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
+  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
 }
 
 // ---------- metas ----------

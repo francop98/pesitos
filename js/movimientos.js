@@ -58,7 +58,7 @@ export function render(s) {
   const top = Object.entries(exp.byCat).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
   return `<section class="screen">
-    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos">${icon('upload', 20)}</button><a class="btn small" href="#/tarjetas">${icon('card', 18)} Tarjetas</a></span>`)}
+    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos">${icon('upload', 20)}</button></span>`)}
 
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
@@ -123,7 +123,7 @@ function fixedForm(s, f = {}) {
     ${f.id ? '' : `<div class="chips">${ideas.map((i) => `<button type="button" class="chip" data-action="fillFixedName" data-name="${i}">${i}</button>`).join('')}</div>`}
     <div class="field-row">
       <div class="field"><label for="fx-a">Monto mensual</label><input id="fx-a" name="amount" inputmode="decimal" value="${f.amount ? String(f.amount).replace('.', ',') : ''}" placeholder="Ej: 230.000" required></div>
-      <div class="field"><label for="fx-d">Día de vencimiento</label><input id="fx-d" name="dueDay" inputmode="numeric" value="${f.dueDay || 10}"></div>
+      <div class="field"><label for="fx-d">Día de vencimiento</label><input id="fx-d" name="dueDay" inputmode="numeric" value="${f.dueDay || ''}" placeholder="Ej: 10" required></div>
     </div>
     <label class="check"><input type="checkbox" name="variable" ${f.variable ? 'checked' : ''}> <span>El monto cambia mes a mes<br><span class="small muted">Por reajustes, descuentos que reclamás o consumo. Uso el último que pagaste y, cuando marcás "Pagué", te pregunto cuánto fue.</span></span></label>
     <div class="field"><label for="fx-h">¿Hasta cuándo lo pagás?</label><select id="fx-h" name="hasta" data-change="fixedHastaChanged">

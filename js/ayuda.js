@@ -13,7 +13,7 @@ const PASOS = [
   { ic: 'calendar', color: 'amber', titulo: 'Nada se te pasa', texto: 'En Por pagar están tus vencimientos, los resúmenes de tus tarjetas y cuándo cobrás. Te aviso antes, aunque no abras la app.' },
   { ic: 'target', color: 'green', titulo: 'Ahorrá sin pensarlo', texto: 'Elegí cómo ahorrar y ponete una meta. Te digo cuánto apartar y cuándo llegás. En Ahorro ves cuánto tenés, en qué moneda y cuánto rinde.' },
   { ic: 'ticket', color: 'lime', titulo: 'Descuentos para vos', texto: 'En Beneficios ves las promos de tus bancos, billeteras y tarjetas, día por día. Se actualizan solas.' },
-  { ic: 'lock', color: 'green', titulo: 'Tus datos son tuyos', texto: 'Todo se guarda cifrado: nadie más puede verlo. Si tenés dudas, tocá el signo de pregunta arriba a la derecha o andá a Menú → Ayuda.' },
+  { ic: 'lock', color: 'green', titulo: 'Tus datos son tuyos', texto: 'Todo se guarda cifrado: nadie más puede verlo. Si tenés dudas, tocá el signo de pregunta arriba a la derecha.' },
 ];
 
 // ---------- tutorial ----------
@@ -78,7 +78,8 @@ const TEMAS = [
   { titulo: 'Primeros pasos', ic: 'sprout', preguntas: [
     ['¿Qué es "Hoy podés gastar"?', 'Es lo que podés gastar hoy para llegar bien al próximo cobro. Toma tu sueldo, le resta tus gastos fijos, lo que tenés que pagar de tarjetas y lo que elegiste ahorrar, y lo reparte entre los días que faltan. Si un día gastás menos, al día siguiente tenés un poco más.'],
     ['¿Qué tengo que cargar sí o sí?', 'Con tu sueldo ya funciona. Después, cuanto más cargues (gastos fijos, tarjetas, gastos del día), más preciso es. Lo demás te lo voy preguntando de a poco.'],
-    ['¿Qué son los avisos de Inicio?', 'En Inicio te muestro lo más importante del momento (por ejemplo, un pago que vence). El resto queda en "Tenés N avisos más".'],
+    ['¿Por qué "Hoy podés gastar" no es todo lo que me queda?', 'Porque te muestro lo que podés gastar por día para llegar bien al cobro, sin pasarte de tu ritmo normal del mes. Si te sobra, te lo marco para que lo ahorres en vez de gastarlo de una.'],
+    ['¿Qué son los avisos de Inicio?', 'En Inicio te muestro lo más importante del momento (por ejemplo, un pago que vence). El resto queda en la campanita de arriba: el número rojo te dice cuántos avisos nuevos hay. Las sugerencias que no te sirvan las podés ocultar.'],
     ['¿Puedo probar sin cargar mis datos?', 'Sí: desde Menú → Copia de seguridad podés cargar datos de ejemplo y después borrarlos.'],
   ] },
   { titulo: 'Cargar gastos e ingresos', ic: 'plus', preguntas: [
@@ -86,6 +87,7 @@ const TEMAS = [
     ['¿Y un ingreso?', 'Tocá "Ingreso" arriba del campo y escribí, por ejemplo, "venta 85.000".'],
     ['¿Cómo elijo la categoría, la cuenta o la fecha?', 'Tocá la categoría en la fila de abajo del campo. Para la cuenta o la tarjeta y la fecha, abrí "Con qué pagaste y fecha". Si no tocás nada, lo elijo yo.'],
     ['¿Puedo cargar un gasto en dólares?', 'Sí: "cena 30 usd". Lo paso a pesos con la cotización del día. Desde el gasto detallado podés cambiar la cotización.'],
+    ['¿Para qué sirve importar movimientos?', 'Para no cargar uno por uno: subís el resumen de la tarjeta (PDF) o el Excel que descargás de tu banco o billetera y traigo todos los gastos juntos. Está en Movimientos (flecha hacia arriba) y en cada tarjeta.'],
     ['¿Para qué sirven las etiquetas?', 'Agregá #algo al texto ("hotel 200.000 #vacaciones") y después buscás o ves estadísticas de todo lo que tenga esa etiqueta.'],
     ['¿Y si lo pagamos entre varios?', 'Abrí el gasto, marcá "Lo compartí" y elegí entre cuántos. Cuento solo tu parte y te anoto lo que te deben.'],
     ['¿Puedo cargar desde un ticket o un resumen?', 'Sí. Con el botón del comprobante al lado del campo podés sacarle foto al ticket, pegar el texto de un comprobante o importar el resumen de la tarjeta (PDF) o el Excel de tu banco.'],

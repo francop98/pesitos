@@ -90,7 +90,10 @@ export function tipCard(t) {
   return `<div class="card ${amber ? 'amber' : ''}">
     <div class="tip-head">${amber ? `<span style="color:var(--amber)">${icon('bulb', 22)}</span>` : `<span class="badge">${sprout(17)}</span>`}<strong>${esc(t.title)}</strong></div>
     <p class="text">${esc(t.text)}</p>
-    ${t.cta ? `<button class="btn small ${amber ? '' : 'green'}" data-action="${t.cta.action}" ${t.cta.id ? `data-id="${esc(t.cta.id)}"` : ''}>${esc(t.cta.label)}</button>` : ''}
+    ${t.cta || t.id ? `<div class="btn-row">
+      ${t.cta ? `<button class="btn small ${amber ? '' : 'green'}" data-action="${t.cta.action}" ${t.cta.id ? `data-id="${esc(t.cta.id)}"` : ''}>${esc(t.cta.label)}</button>` : ''}
+      ${t.id ? `<button class="btn small" data-action="tipNo" data-tip="${esc(t.id)}">${/^promo-/.test(t.id) ? 'No esta vez' : 'Ocultar'}</button>` : ''}
+    </div>` : ''}
   </div>`;
 }
 

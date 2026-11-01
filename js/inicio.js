@@ -134,16 +134,33 @@ function avisos(s, b) {
     huellaCard(),
     instalarCard(),
     sugg[0] ? renderSuggestion(sugg[0]) + (sugg.length > 1 ? `<button class="btn small" data-action="openSuggestions">Ver las ${sugg.length} sugerencias</button>` : '') : '',
-    ...insights(s).slice(0, 2).map(tipCard),
-    lessonCard(s, 'inicio'),
+    ...insights(s).filter((t) => !tipOculto(s, t.id)).slice(0, 2).map((t) => '<!--fijo-->' + tipCard(t)),
+    '<!--fijo-->' + lessonCard(s, 'inicio'),
   ];
-  return lista.filter((x) => x && x.trim());
+  return lista.filter((x) => x && x.replace('<!--fijo-->', '').trim());
+}
+
+const tipOculto = (s, id) => { const h = (s.tipsNo || {})[id]; return h && h >= todayISO(); };
+
+// Avisos ya vistos (en este dispositivo): la campanita solo cuenta los nuevos.
+// Las lecciones y los consejos generales no cuentan.
+const K_VISTOS = 'pesitos_avisos_vistos';
+const claveAviso = (html) => {
+  const m = html.match(/<(strong|b)>([\s\S]*?)<\/\1>/);
+  return (m ? m[2] : html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, 90);
+};
+const vistos = () => { try { return new Set(JSON.parse(localStorage.getItem(K_VISTOS) || '[]')); } catch { return new Set(); } };
+function nuevos(lista) { const v = vistos(); return lista.filter((h) => !h.startsWith('<!--fijo-->') && !v.has(claveAviso(h))).length; }
+function marcarVistos(lista) {
+  const v = vistos();
+  for (const h of lista) v.add(claveAviso(h));
+  try { localStorage.setItem(K_VISTOS, JSON.stringify([...v].slice(-150))); } catch { /* nada */ }
 }
 
 function novedadesHtml(s) {
   const b = budget(s);
   const resto = avisos(s, b).slice(1);
-  return `<div data-novedades>${resto.length ? resto.join('') : '<p class="empty">No hay nada más por ahora. ¡Todo en orden!</p>'}
+  return `<div data-novedades>${resto.length ? resto.join('').replace(/<!--fijo-->/g, '') : '<p class="empty">No hay nada más por ahora. ¡Todo en orden!</p>'}
     <div class="card lime" style="flex-direction:row;align-items:center;justify-content:space-between;padding:12px 16px">
       <span class="small" style="font-weight:700">Plata que te ahorró Pesitos en ${MONTHS_LONG[new Date().getMonth()]}</span>
       <span style="font-size:17px;font-weight:800">${money(savedThisMonth(s))}</span>
@@ -176,14 +193,14 @@ export function render(s) {
     ? (days === 1 ? 'último día del mes' : `quedan ${days} días del mes`)
     : (days === 1 ? 'cobrás mañana' : `cobrás en ${days} días`);
   const lista = avisos(s, b);
-  const mas = lista.length - 1;
+  const sinLeer = nuevos(lista.slice(1));
   // si "Novedades" está abierto, se actualiza solo
   setTimeout(() => { const n = document.querySelector('#modal:not([hidden]) [data-novedades]'); if (n) n.outerHTML = novedadesHtml(s); }, 0);
 
   return `<section class="screen">
     <div class="topbar">
       <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${wordmark(26)}</div>
-      <button class="icon-btn" data-action="openAyuda" aria-label="Ayuda">${icon('help', 22)}</button>
+      <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><button class="icon-btn" data-action="openAyuda" aria-label="Ayuda">${icon('help', 22)}</button></span>
     </div>
 
     ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
@@ -192,13 +209,14 @@ export function render(s) {
       <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}</span>
       <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
-      <span class="small on-green-muted">${b.noIncome ? 'Contame cuánto cobrás para empezar' : `${payText} · te quedan ${money(Math.max(0, b.free))} libres`}${b.estimated ? ' · estimado' : ''}</span>
+      <span class="small on-green-muted">${b.noIncome ? 'Contame cuánto cobrás para empezar' : b.sobrante > 0
+        ? `Por día, para llegar bien: ${payText}. Si seguís así, te sobran ${money(b.sobrante)} para ahorrar.`
+        : `Por día, para llegar bien: ${payText}.`}${b.estimated ? ' Estimado con tu último sueldo.' : ''}</span>
     </div>
 
     ${quickForm('q-home', s, medioOptions(s, '', { auto: true }))}
 
     ${lista[0] || ''}
-    ${mas > 0 ? `<button class="novedades-btn" data-action="openNovedades"><span class="nov-dot">${mas}</span><span class="grow">${mas === 1 ? 'Tenés 1 aviso más' : `Tenés ${mas} avisos más`}</span>${icon('chevron', 16)}</button>` : ''}
 
     <div class="tiles">
       ${ATAJOS.slice(0, 3).map(tile).join('')}
@@ -245,7 +263,18 @@ function instalarCard() {
 }
 
 export const actions = {
-  openNovedades(ctx) { openModal('Novedades', novedadesHtml(ctx.state)); },
+  openNovedades(ctx) {
+    const lista = avisos(ctx.state, budget(ctx.state)).slice(1);
+    openModal('Novedades', novedadesHtml(ctx.state));
+    marcarVistos(lista);
+    document.querySelectorAll('.campana .badge-num').forEach((b) => b.remove());
+  },
+  tipNo(ctx, el) {
+    const id = el.dataset.tip;
+    const hasta = new Date(); if (!/^promo-/.test(id)) hasta.setDate(hasta.getDate() + 13);
+    ctx.commit((s) => { s.tipsNo = { ...(s.tipsNo || {}), [id]: hasta.toISOString().slice(0, 10) }; });
+    toast(/^promo-/.test(id) ? 'Listo, no te la muestro más hoy' : 'Listo, lo oculto por un tiempo');
+  },
   openAtajos() { openModal('Todo Pesitos', `<div class="tiles">${ATAJOS.map(tile).join('')}</div>`); },
   async huellaSi(ctx) { await bloqueoActions.bloqueoBio(); ctx.render(); },
   huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → Bloqueo con huella o PIN'); },
@@ -253,14 +282,14 @@ export const actions = {
   promoUsed(ctx, el) {
     const cap = num(el.dataset.id);
     openModal('¿Cuánto te ahorraste?', `<form class="form" data-submit="promoSaved">
-      <div class="field"><label for="ps">Ahorro con la promo</label><input id="ps" name="amount" inputmode="decimal" value="${cap || ''}" placeholder="Ej: 8.000" required></div>
+      <div class="field"><label for="ps">Ahorro con la promo</label><input id="ps" name="amount" inputmode="decimal" placeholder="${cap ? `Tope: ${money(cap)}` : 'Ej: 8.000'}" required></div>
       <button class="btn primary block" type="submit">Sumar al contador</button>
     </form>`);
   },
   promoSaved(ctx, d) {
     const amount = num(d.amount);
     if (!amount) return;
-    ctx.commit((s) => { const mk = monthKey(); s.savedByApp[mk] = (s.savedByApp[mk] || 0) + amount; });
+    ctx.commit((s) => { const mk = monthKey(); s.savedByApp[mk] = (s.savedByApp[mk] || 0) + amount; s.tipsNo = { ...(s.tipsNo || {}), [`promo-${new Date().getDay()}`]: todayISO() }; });
     closeModal(); toast(`¡Bien! ${money(amount)} ahorrados`);
   },
 };

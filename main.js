@@ -15,7 +15,7 @@ import { cifradoDisponible, llaveDelDispositivo, guardarEnDispositivo, borrarDel
 import { crearClave, pedirClave, abrirGestionClave, claveActions } from './js/clave.js';
 import { iniciarBloqueo, terminarBloqueo, mostrarBloqueo, bloqueoActions } from './js/bloqueo.js';
 import { publicarAgenda } from './js/avisos.js';
-import { menuActions } from './js/menu.js';
+import { menuActions, usarCtxMenu } from './js/menu.js';
 import { ticketActions } from './js/ticket.js';
 import { importarActions } from './js/importar.js';
 import { ciudadActions } from './js/ciudades.js';
@@ -75,6 +75,8 @@ const ctx = {
   go(route) { if (location.hash !== '#/' + route) location.hash = '#/' + route; else render(); },
   openModal, closeModal, toast,
 };
+
+usarCtxMenu(ctx);
 
 function currentRoute() {
   const r = location.hash.replace(/^#\//, '');
