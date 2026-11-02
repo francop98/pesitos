@@ -37,7 +37,6 @@ function quotes(s) {
       : '<p class="text muted">Todavía no pude traer las cotizaciones (sin conexión). Se cargan solas apenas haya internet.</p>'}
     ${any && ratesStale(s) ? `<span class="pill warn" style="align-self:flex-start">Sin conexión: valores de ${ratesAge(s)}</span>` : ''}
     <span class="small muted">Se actualizan solas cada 5 minutos · dólar blue de DolarHoy y monedas vía DolarApi · cripto y oro vía CoinGecko · ${ratesAge(s)}</span>
-    <button class="btn small" data-action="openConverter">${icon('swap', 18)} Conversor de monedas</button>
   </div>`;
 }
 
@@ -77,7 +76,6 @@ export function render(s) {
     ${tips.map(tipCard).join('')}
 
     <button class="btn" data-action="showOptions">¿Dónde conviene poner mis ahorros?</button>
-    ${lessonCard(s, 'ahorro')}
   </section>`;
 }
 

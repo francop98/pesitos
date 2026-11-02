@@ -205,7 +205,6 @@ export function render(s) {
     ${(s.expectedIncomes || []).length ? `<div class="section-title"><span>Tus cobros programados</span></div>
     <div class="card tight">${s.expectedIncomes.map((c) => `<button class="row" data-action="editIncome" data-id="${c.id}"><span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${repeatLabel(c.repeat)} · desde el ${shortDate(c.date)}</span></span><span class="amount pos">+${money(c.amount)}</span></button>`).join('')}</div>` : ''}
 
-    ${lessonCard(s, 'pagos')}
   </section>`;
 }
 

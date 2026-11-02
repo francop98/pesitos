@@ -24,7 +24,6 @@ export function render(s) {
       <span style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-weight:800;font-size:15px">${t.title}</span><span class="small muted">${t.text}</span></span>
       ${icon('chevron', 18)}
     </button>`).join('')}
-    ${lessonCard(s, 'herramientas')}
   </section>`;
 }
 

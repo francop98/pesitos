@@ -9,6 +9,8 @@ import { budget } from './calculos.js';
 import { sprout, icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 
+let tab = 'ahorro'; // 'ahorro' | 'aprende' | 'consultas'
+
 const MODE_LABEL = (s) => ({
   payFirst: `Apartás el ${s.rules.payFirst.pct}% apenas cobrás.`,
   fixed: 'Apartás un monto fijo por mes.',
@@ -38,8 +40,13 @@ export function render(s) {
   const chat = s.chat.slice(-8);
   const b = budget(s);
   return `<section class="screen">
-    ${screenHead('Tu asesor', '', 'Ahorro, desafíos, aprendizaje y consultas')}
+    ${screenHead('Tu asesor', '', 'Ahorro, aprendizaje y consultas')}
 
+    <div class="tabs" role="tablist" aria-label="Sección">
+      ${[['ahorro', 'Ahorro'], ['aprende', 'Aprendé'], ['consultas', 'Consultas']].map(([v, l]) => `<button role="tab" data-action="asesorTab" data-v="${v}" aria-pressed="${tab === v}">${l}</button>`).join('')}
+    </div>
+
+    ${tab === 'ahorro' ? `
     <div class="card">
       <div class="topbar"><strong style="font-size:14px">Tu forma de ahorrar</strong><button class="chip" data-action="changeMode">Cambiar</button></div>
       <span class="text">${esc(MODE_LABEL(s))}</span>
@@ -73,16 +80,18 @@ export function render(s) {
     </div>` : `<div class="card"><span class="small muted">Elegí uno y te muestro cuánto ahorrás frente a tu ritmo de siempre.</span>
       <div class="chips">${allChallenges(s).map((c) => `<button class="chip" data-action="startChallenge" data-id="${c.id}">${esc(c.name)}</button>`).join('')}</div></div>`}
 
-    <div class="tiles two">
-      <a class="tile" href="#/beneficios">${icon('ticket', 22)}<span>Beneficios y promos</span></a>
-      <a class="tile" href="#/herramientas">${icon('swap', 22)}<span>Herramientas</span></a>
-    </div>
+    ` : ''}
 
-    <div class="section-title"><span>Aprendé en 1 minuto</span></div>
+    ${tab === 'aprende' ? `
+    <p class="small muted" style="margin:0">Lecciones cortas para manejar mejor tu plata. Leíste ${LESSONS.filter((l) => s.lessonsSeen[l.id]).length} de ${LESSONS.length}.</p>
+    <div class="bar" style="height:6px"><span style="width:${Math.round((LESSONS.filter((l) => s.lessonsSeen[l.id]).length / LESSONS.length) * 100)}%"></span></div>
     <div class="card tight">
       ${LESSONS.map((l) => `<button class="row" data-action="openLesson" data-id="${l.id}"><span class="grow"><span class="name" style="white-space:normal">${esc(l.title)}</span></span>${s.lessonsSeen[l.id] ? '<span class="pill ok">Leída</span>' : ''}${icon('chevron', 16)}</button>`).join('')}
     </div>
 
+    ` : ''}
+
+    ${tab === 'consultas' ? `
     <div class="section-title"><span>Consultale a Pesitos</span>${s.chat.length ? '<button data-action="clearChat">Limpiar</button>' : ''}</div>
     <div class="chat">
       ${chat.length ? chat.map((m) => `<div class="bubble ${m.from}">${esc(m.text)}</div>`).join('') : '<div class="bubble bot">Hola. Consultame si te conviene pagar en cuotas, si te podés comprar algo, qué promos tenés o si le ganaste a la inflación.</div>'}
@@ -96,6 +105,7 @@ export function render(s) {
       <button type="submit" class="icon-btn green" aria-label="Enviar">${icon('send', 20, 2.2)}</button>
     </form>
     <p class="small muted" style="margin:0">${DISCLAIMER}</p>
+    ` : ''}
   </section>`;
 }
 
@@ -136,6 +146,7 @@ function ask(ctx, q) {
 }
 
 export const actions = {
+  asesorTab(ctx, el) { tab = el.dataset.v; ctx.render(); },
   changeMode(ctx) {
     ctx.commit((s) => { s.savingMode = null; delete s.asked.savingMode; s.askLog = null; });
     ctx.go('inicio');

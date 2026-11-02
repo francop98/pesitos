@@ -135,7 +135,6 @@ function avisos(s, b) {
     instalarCard(),
     sugg[0] ? renderSuggestion(sugg[0]) + (sugg.length > 1 ? `<button class="btn small" data-action="openSuggestions">Ver las ${sugg.length} sugerencias</button>` : '') : '',
     ...insights(s).filter((t) => !tipOculto(s, t.id)).slice(0, 2).map((t) => '<!--fijo-->' + tipCard(t)),
-    '<!--fijo-->' + lessonCard(s, 'inicio'),
   ];
   return lista.filter((x) => x && x.replace('<!--fijo-->', '').trim());
 }
@@ -168,22 +167,43 @@ function novedadesHtml(s) {
 }
 
 const ATAJOS = [
-  ['openBuy', 'cart', '¿Me lo compro?'],
   ['#/pagos', 'calendar', 'Por pagar'],
   ['#/beneficios', 'ticket', 'Beneficios'],
+  ['#/herramientas', 'swap', 'Herramientas'],
   ['#/estadisticas', 'pie', 'Estadísticas'],
   ['#/cuentas', 'bank', 'Mis cuentas'],
   ['#/presupuestos', 'target', 'Presupuestos'],
   ['#/deudas', 'people', 'Deudas'],
   ['#/tarjetas', 'card', 'Tarjetas'],
-  ['#/buscar', 'search', 'Buscar'],
-  ['openImportar', 'upload', 'Importar'],
-  ['#/herramientas', 'swap', 'Herramientas'],
-  ['openAyuda', 'help', 'Ayuda'],
 ];
 const tile = ([a, ic, l]) => (a.startsWith('#')
   ? `<a class="tile" href="${a}">${icon(ic, 22)}<span>${l}</span></a>`
   : `<button class="tile" data-action="${a}">${icon(ic, 22)}<span>${l}</span></button>`);
+
+// Qué decir debajo de "Hoy podés gastar": cómo venís y qué hacer si te pasaste.
+const diasTxt = (n) => (n === 1 ? '1 día' : `${String(Math.round(n * 10) / 10).replace('.', ',')} días`);
+function heroMensaje(b, payText) {
+  const est = b.estimated ? ' Estimado con tu último sueldo.' : '';
+  const linea = (t, extra = '') => `<span class="small on-green-muted hero-msg ${extra}">${t}${est}</span>`;
+  const restantes = Math.max(1, b.cycle.daysLeft - 1);
+  // te pasaste de todo lo que tenías hasta el cobro
+  if (b.free < 0) {
+    return linea(`<b>Ya gastaste ${money(-b.free)} más de lo que tenías hasta el cobro.</b> Para no tocar tus ahorros, tratá de no gastar hasta que cobres (${payText}).`, 'alerta');
+  }
+  // hoy gastaste más de lo sugerido
+  if (b.todayLeft < 0 && b.dailyBase > 0) {
+    const dias = b.spentToday / b.dailyBase;
+    const nuevo = b.free / restantes;
+    const sinGastar = Math.ceil(-b.todayLeft / b.dailyBase);
+    return linea(`Hoy gastaste lo sugerido para <b>${diasTxt(dias)}</b>. Para cumplir tu plan: <b>${money(nuevo)} por día</b> hasta el cobro (en vez de ${money(b.dailyBase)}), o ${sinGastar === 1 ? '<b>1 día sin gastos</b>' : `<b>${sinGastar} días sin gastos</b>`}.`, 'alerta');
+  }
+  // venís gastando más rápido que tu ritmo normal
+  if (b.adelanto > b.normalDaily * 0.5 && b.normalDaily > 0) {
+    return linea(`Por día, para llegar bien: ${payText}. Ojo: este mes vas <b>${diasTxt(b.adelanto / b.normalDaily)} adelantado</b> respecto de tu ritmo normal.`);
+  }
+  if (b.sobrante > 0) return linea(`Por día, para llegar bien: ${payText}. Si seguís así, te sobran ${money(b.sobrante)} para ahorrar.`);
+  return linea(`Por día, para llegar bien: ${payText}.`);
+}
 
 export function render(s) {
   const b = budget(s);
@@ -209,9 +229,7 @@ export function render(s) {
       <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}</span>
       <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
-      <span class="small on-green-muted">${b.noIncome ? 'Contame cuánto cobrás para empezar' : b.sobrante > 0
-        ? `Por día, para llegar bien: ${payText}. Si seguís así, te sobran ${money(b.sobrante)} para ahorrar.`
-        : `Por día, para llegar bien: ${payText}.`}${b.estimated ? ' Estimado con tu último sueldo.' : ''}</span>
+      ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(b, payText)}
     </div>
 
     ${quickForm('q-home', s, medioOptions(s, '', { auto: true }))}
@@ -275,7 +293,7 @@ export const actions = {
     ctx.commit((s) => { s.tipsNo = { ...(s.tipsNo || {}), [id]: hasta.toISOString().slice(0, 10) }; });
     toast(/^promo-/.test(id) ? 'Listo, no te la muestro más hoy' : 'Listo, lo oculto por un tiempo');
   },
-  openAtajos() { openModal('Todo Pesitos', `<div class="tiles">${ATAJOS.map(tile).join('')}</div>`); },
+  openAtajos() { openModal('Más secciones', `<div class="tiles">${ATAJOS.slice(3).map(tile).join('')}</div>`); },
   async huellaSi(ctx) { await bloqueoActions.bloqueoBio(); ctx.render(); },
   huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → Bloqueo con huella o PIN'); },
   instalarNo(ctx) { try { localStorage.setItem(K_INSTALAR, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → La app'); },

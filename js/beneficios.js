@@ -59,7 +59,6 @@ export function render(s) {
         <button class="chip" data-action="deletePromo" data-id="${p.id}">Borrar</button>
       </div>`).join('') : '<p class="empty">¿Conocés una promo que no aparece? Cargala y te aviso el día antes.</p>'}
     </div>
-    ${lessonCard(s, 'beneficios')}
   </section>`;
 }
 

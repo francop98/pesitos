@@ -77,7 +77,6 @@ export function render(s) {
       <button class="btn green small" data-action="newCard">Agregar tarjeta</button>
     </div>`}
     ${s.cards.length ? '<p class="small muted" style="margin:0">Para que una compra entre acá, elegí la tarjeta en "Medio de pago" al anotarla, o escribí su nombre en la carga rápida (por ejemplo: "Zapatillas 180.000 en 6 cuotas visa").</p>' : ''}
-    ${lessonCard(s, 'tarjetas')}
   </section>`;
 }
 

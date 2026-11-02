@@ -17,6 +17,7 @@ import { payOptions } from './pagos.js';
 import { nombreCuenta } from './cuentas.js';
 
 let filter = 'todo';
+let vista = 'lista'; // 'lista' | 'fijos'
 let offset = 0; // meses hacia atrás
 
 const tagsHtml = (t) => ((t && t.length) ? `<span class="tags">${t.map((x) => `<span class="tag">#${esc(x)}</span>`).join('')}</span>` : '');
@@ -49,16 +50,19 @@ export function render(s) {
   const fixed = fixedTotal(s, mk);
   const pending = s.expenses.filter((e) => e.pending).length;
   const today = new Date().getDate();
-  const sugg = suggestions(s);
+  const gastos = exp.total + fixed;
 
   const exps = s.expenses.filter((e) => !e.pending && e.date.slice(0, 7) === mk).map((e) => ({ ...e, _k: 'e' }));
   const incs = s.incomes.filter((i) => i.date.slice(0, 7) === mk).map((i) => ({ ...i, _k: 'i' }));
   const list = filter === 'gastos' ? exps : filter === 'ingresos' ? incs : [...exps, ...incs];
   list.sort((a, b) => b.date.localeCompare(a.date));
-  const top = Object.entries(exp.byCat).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  // agrupados por día
+  const dias = [];
+  for (const x of list) { const d = dias[dias.length - 1]; if (d && d.date === x.date) d.items.push(x); else dias.push({ date: x.date, items: [x] }); }
+  const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
 
   return `<section class="screen">
-    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos">${icon('upload', 20)}</button></span>`)}
+    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
 
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
@@ -66,29 +70,30 @@ export function render(s) {
       <button class="icon-btn" data-action="monthNext" aria-label="Mes siguiente" ${offset === 0 ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
     </div>
 
-    <div class="stat-grid">
-      <div class="stat"><span class="k">Ingresos</span><span class="v pos">${money(inc)}</span><span class="small muted">${incs.length} movimiento${incs.length === 1 ? '' : 's'}</span></div>
-      <div class="stat"><span class="k">Gastos</span><span class="v">${money(exp.total + fixed)}</span><span class="small muted">Fijos ${money(fixed)} · Variables ${money(exp.total)}</span></div>
+    <a class="card mov-resumen" href="#/estadisticas">
+      <span><span class="k">Entró</span><b class="pos">${money(inc)}</b></span>
+      <span><span class="k">Salió</span><b>${money(gastos)}</b></span>
+      <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
+      <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
+    </a>
+
+    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
+      <button role="tab" data-action="movVista" data-v="fijos" aria-pressed="${vista === 'fijos'}">Gastos fijos${nFijos ? ` (${nFijos})` : ''}</button>
     </div>
 
-    ${quickForm('q-mov', s, medioOptions(s, '', { auto: true }))}
-
-    ${(() => { const it = agenda(s, 7).filter((i) => !i.paid && i.days <= 7); const t = it.reduce((a, i) => a + i.amount, 0);
-      return `<a class="card" href="#/pagos" style="text-decoration:none;color:inherit;flex-direction:row;align-items:center">
-        <span class="cat-icon green">${icon('calendar', 18)}</span>
-        <span style="display:flex;flex-direction:column;gap:1px;flex:1"><span style="font-weight:800;font-size:14px">Por pagar</span><span class="small muted">${it.length ? `${it.length} vencimiento${it.length > 1 ? 's' : ''} esta semana` : 'Nada vence esta semana'}</span></span>
-        <span style="font-weight:800">${it.length ? money(t) : ''}</span>${icon('chevron', 16)}</a>`; })()}
-
-    ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
-
-    ${sugg.map(renderSuggestion).join('')}
-
-    ${top.length ? `<div class="card"><div class="topbar"><strong style="font-size:14px">En qué se fue (variables)</strong><button class="chip" data-action="openCategories">Categorías</button></div>
-      ${top.map(([cat, v]) => `<div style="display:flex;flex-direction:column;gap:4px"><div class="split" style="font-size:13px"><span>${catLabel(cat)}</span><b>${money(v)}</b></div><div class="bar" style="height:6px"><span style="width:${Math.round((v / top[0][1]) * 100)}%"></span></div></div>`).join('')}
-    </div>` : ''}
-
-    <div class="section-title"><span>Gastos fijos · se descuentan solos</span><button data-action="newFixed">+ Agregar</button></div>
-    <div class="card tight">
+    ${vista === 'lista' ? `
+      ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
+      <div class="chips">${[['todo', 'Todo'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']].map(([f, l]) => `<button class="chip toggle" data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${l}</button>`).join('')}</div>
+      ${dias.length ? dias.map((d) => `<div class="dia-grupo"><span class="dia-t">${esc(relDay(d.date))}</span><div class="card tight">${d.items.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('')}</div></div>`).join('')
+        : `<div class="card"><p class="empty">${offset ? 'No hay movimientos en este mes.' : 'Todavía no anotaste nada este mes. Cargá tus gastos desde Inicio.'}</p></div>`}
+      <div class="btn-row">
+        <button class="btn small" data-action="newEntry" data-kind="expense">+ Gasto detallado</button>
+        <button class="btn small" data-action="newEntry" data-kind="income">+ Ingreso</button>
+      </div>`
+    : `
+      <p class="small muted" style="margin:0">Lo que pagás todos los meses. Se descuenta solo de lo que podés gastar${fixed ? `: ${money(fixed)} este mes` : ''}. Los vencimientos los ves en Por pagar.</p>
+      <div class="card tight">
       ${s.fixed.length ? s.fixed.filter((f) => fixedActive(f, mk) || (f.endMonth && f.endMonth >= addMonthKey(mk, -2))).map((f) => {
         if (!fixedActive(f, mk)) return `<button class="row" data-action="editFixed" data-id="${f.id}"><span class="grow"><span class="name">${esc(f.name)}</span><span class="meta">Terminó en ${monthLabel(f.endMonth)}</span></span><span class="pill ok">Terminado</span></button>`;
         const prog = fixedProgress(f, mk);
@@ -98,19 +103,8 @@ export function render(s) {
         const status = up ? `<span class="pill warn">Subió ${Math.round((f.amount / f.lastAmount - 1) * 100)}%</span>` : isPaid ? '<span class="pill ok">Pagado</span>' : (offset === 0 && Number(f.dueDay) < today ? '<span class="pill warn">¿Lo pagaste?</span>' : `<span class="pill">Vence el ${f.dueDay}</span>`);
         return `<button class="row" data-action="editFixed" data-id="${f.id}"><span class="grow"><span class="name">${esc(f.name)}</span>${extra ? `<span class="meta">${extra}</span>` : ''}</span><span class="amount">${f.variable ? '≈ ' : ''}${money(f.amount)}</span>${status}</button>`;
       }).join('') : `<div style="padding:14px 0;display:flex;flex-direction:column;gap:8px"><p class="text"><b>¿Qué es un gasto fijo?</b> Lo que pagás todos los meses por un monto parecido: alquiler, expensas, servicios, prepaga, cuotas, suscripciones.</p><p class="text muted">Cargalos una vez con el nombre que quieras y los descuento solos. Si algo no cuadra, te lo sugiero.</p></div>`}
-    </div>
-
-    <div class="tabs" role="group" aria-label="Filtro">
-      ${['todo', 'gastos', 'ingresos'].map((f) => `<button data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}
-    </div>
-    <div class="card tight">
-      ${list.length ? list.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('') : '<p class="empty">Todavía no hay movimientos.</p>'}
-    </div>
-    ${lessonCard(s, 'movimientos')}
-    <div class="btn-row">
-      <button class="btn small" data-action="newEntry" data-kind="expense">+ Gasto detallado</button>
-      <button class="btn small" data-action="newEntry" data-kind="income">+ Ingreso</button>
-    </div>
+      </div>
+      <button class="btn primary block" data-action="newFixed">+ Agregar gasto fijo</button>`}
   </section>`;
 }
 
@@ -146,6 +140,7 @@ function fixedForm(s, f = {}) {
 
 export const actions = {
   setFilter(ctx, el) { filter = el.dataset.f; ctx.render(); },
+  movVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
   monthPrev(ctx) { offset += 1; ctx.render(); },
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
   newFixed(ctx) { openModal('Nuevo gasto fijo', fixedForm(ctx.state)); },

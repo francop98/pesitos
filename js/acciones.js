@@ -395,7 +395,7 @@ export const commonActions = {
 
   // ---------- comprobantes ----------
   openPaste() {
-    openModal('Cargar comprobante', `<div class="chips" style="margin-bottom:12px"><button class="chip" data-action="openTicket" data-push="1">${icon('camera', 16)} Foto del ticket</button><button class="chip" data-action="openImportar" data-push="1">${icon('upload', 16)} Importar resumen o Excel</button></div>
+    openModal('Cargar comprobante', `<div class="chips" style="margin-bottom:12px"><button class="chip" data-action="openTicket" data-push="1">${icon('camera', 16)} Foto del ticket</button></div>
       <p class="text muted">Desde Mercado Pago o la app de tu banco tocá <b>Compartir</b> y elegí Pesitos (con la app instalada). También podés copiar el texto del comprobante y pegarlo acá.</p>
       <form class="form" data-submit="pasteSubmit">
         <div class="field"><label for="p-text">Texto del comprobante</label><textarea id="p-text" name="text" placeholder="Pagaste $ 12.500,00 a FARMACITY" required></textarea></div>

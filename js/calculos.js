@@ -112,8 +112,11 @@ export function budget(s) {
   const dailyBase = normalDaily > 0 ? Math.min(evenSplit, normalDaily) : evenSplit;
   const todayLeft = dailyBase - spentToday;
   const sobrante = Math.max(0, Math.round((free + spentToday) - dailyBase * cycle.daysLeft));
+  // cuánto vas por encima de tu ritmo normal en lo que va del ciclo (sin contar hoy)
+  const transcurridos = Math.max(0, cycleDays - cycle.daysLeft);
+  const adelanto = normalDaily > 0 ? Math.max(0, Math.round((variable - spentToday) - normalDaily * transcurridos)) : 0;
   const usedPct = income > 0 ? Math.min(1, (fixed + saving + variable) / income) : 0;
-  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
+  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, adelanto, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
 }
 
 // ---------- metas ----------

@@ -81,7 +81,6 @@ export function render(s) {
 
     ${history.length ? `<div class="section-title"><span>Últimos sueldos</span></div>
     <div class="card tight">${history.map((i) => `<button class="row" data-action="openEntry" data-id="${i.id}" data-kind="income"><span class="grow"><span class="name">${monthName(i.date.slice(0, 7), true).replace(/^./, (c) => c.toUpperCase())} ${i.date.slice(0, 4)}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
-    ${lessonCard(s, 'sueldo')}
   </section>`;
 }
 
