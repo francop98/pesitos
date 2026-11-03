@@ -14,7 +14,8 @@ import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
 import { payOptions } from './pagos.js';
-import { nombreCuenta } from './cuentas.js';
+import { nombreCuenta, saldoDeuda } from './cuentas.js';
+import { cuerpo as deudasCuerpo } from './deudas.js';
 
 let filter = 'todo';
 let vista = 'lista'; // 'lista' | 'fijos'
@@ -61,6 +62,7 @@ export function render(s) {
   for (const x of list) { const d = dias[dias.length - 1]; if (d && d.date === x.date) d.items.push(x); else dias.push({ date: x.date, items: [x] }); }
   const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
   const ahorroPesitos = (s.savedByApp || {})[mk] || 0;
+  const nDeudas = (s.deudas || []).filter((d) => saldoDeuda(d) > 0.5).length;
 
   return `<section class="screen">
     ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
@@ -79,12 +81,15 @@ export function render(s) {
     </a>
     ${ahorroPesitos || offset === 0 ? `<button class="card lime mov-ahorro" data-action="ahorroPesitosInfo"><span class="small"><b>Te ahorraste con Pesitos</b><br><span class="muted">${ahorroPesitos ? 'Promos y desafíos que aprovechaste' : 'Todavía nada este mes. Tocá para ver cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
 
-    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
-      <button role="tab" data-action="movVista" data-v="fijos" aria-pressed="${vista === 'fijos'}">Gastos fijos${nFijos ? ` (${nFijos})` : ''}</button>
+      <button role="tab" data-action="movVista" data-v="fijos" aria-pressed="${vista === 'fijos'}">Fijos${nFijos ? ` (${nFijos})` : ''}</button>
+      <button role="tab" data-action="movVista" data-v="deudas" aria-pressed="${vista === 'deudas'}">Deudas${nDeudas ? ` (${nDeudas})` : ''}</button>
     </div>
 
-    ${vista === 'lista' ? `
+    ${vista === 'deudas' ? `<p class="small muted" style="margin:0">Plata que prestaste o que te prestaron: lo que tiene que entrar o salir más adelante.</p>
+      ${deudasCuerpo(s)}
+      <button class="btn primary block" data-action="nuevaDeuda">+ Anotar una deuda o un préstamo</button>` : vista === 'lista' ? `
       ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
       <div class="chips">${[['todo', 'Todo'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']].map(([f, l]) => `<button class="chip toggle" data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${l}</button>`).join('')}</div>
       ${dias.length ? dias.map((d) => `<div class="dia-grupo"><span class="dia-t">${esc(relDay(d.date))}</span><div class="card tight">${d.items.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('')}</div></div>`).join('')
@@ -147,6 +152,7 @@ function fixedForm(s, f = {}) {
 export const actions = {
   setFilter(ctx, el) { filter = el.dataset.f; ctx.render(); },
   movVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
+  verDeudas(ctx) { vista = 'deudas'; ctx.go('movimientos'); },
   monthPrev(ctx) { offset += 1; ctx.render(); },
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
   ahorroPesitosInfo(ctx) {
@@ -158,7 +164,7 @@ export const actions = {
   movElegirMes(ctx) {
     const s = ctx.state; const hoy = monthKey();
     const desde = primerMes(s);
-    const min = `${Math.min(Number(desde.slice(0, 4)), Number(hoy.slice(0, 4)) - 5)}-01`;
+    const min = `${Math.min(Number(desde.slice(0, 4)), Number(hoy.slice(0, 4)) - 20)}-01`;
     abrirSelectorMes({ actual: addMonthKey(hoy, -offset), min, max: hoy, accion: 'movIrMes', marcados: new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7))) });
   },
   movIrMes(ctx, el) { offset = el.dataset.mk ? Math.max(0, monthDiff(el.dataset.mk, monthKey())) : 0; closeModal(); ctx.render(); },

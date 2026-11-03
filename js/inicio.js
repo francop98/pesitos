@@ -167,10 +167,7 @@ const ATAJOS = [
   ['#/pagos', 'calendar', 'Por pagar'],
   ['#/cuentas', 'wallet', 'Saldo'],
   ['#/beneficios', 'ticket', 'Beneficios'],
-  ['#/herramientas', 'swap', 'Herramientas'],
   ['#/estadisticas', 'pie', 'Estadísticas'],
-  ['#/presupuestos', 'target', 'Presupuestos'],
-  ['#/deudas', 'people', 'Deudas'],
   ['#/tarjetas', 'card', 'Tarjetas'],
 ];
 const tile = ([a, ic, l]) => (a.startsWith('#')
@@ -217,7 +214,7 @@ export function render(s) {
   return `<section class="screen">
     <div class="topbar">
       <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${wordmark(26)}</div>
-      <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><button class="icon-btn" data-action="openAyuda" aria-label="Ayuda">${icon('help', 22)}</button></span>
+      <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><a class="icon-btn" href="#/asesor" aria-label="Asesor: aprendé y consultá">${icon('chat', 22)}</a></span>
     </div>
 
     ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}

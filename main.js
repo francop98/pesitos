@@ -47,7 +47,7 @@ import { notifyDue } from './js/agenda.js';
 import { setCustomCategories, setCustomWallets } from './js/categorias.js';
 
 const views = { inicio, movimientos, sueldo, ahorro, asesor, tarjetas, beneficios, herramientas, pagos, buscar, presupuestos, cuentas, deudas, estadisticas };
-const NAV_ORDER = ['inicio', 'movimientos', 'sueldo', 'ahorro', 'asesor'];
+const NAV_ORDER = ['inicio', 'movimientos', 'herramientas', 'ahorro'];
 
 let state = emptyState();
 let ready = false;          // hay sesión y datos cargados
@@ -112,7 +112,7 @@ function render() {
   goingBack = false;
   lastRoute = route;
 
-  const navRoute = { tarjetas: 'movimientos', beneficios: 'inicio', herramientas: 'inicio', pagos: 'movimientos', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'inicio', deudas: 'inicio', estadisticas: 'inicio' }[route] || route;
+  const navRoute = { tarjetas: 'movimientos', beneficios: 'inicio', pagos: 'movimientos', buscar: 'movimientos', presupuestos: 'movimientos', cuentas: 'inicio', deudas: 'movimientos', estadisticas: 'movimientos', sueldo: 'inicio', asesor: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });

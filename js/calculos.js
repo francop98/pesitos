@@ -142,8 +142,13 @@ export function buyImpact(s, amount) {
     return { level: 'ok', title: 'Dale, entra en lo de hoy', text: `Te quedarían ${money(b.todayLeft - amount)} para hoy, sin tocar tus metas.` };
   }
   if (amount <= b.free) {
-    const newDaily = (b.free - amount) / b.cycle.daysLeft;
-    return { level: 'warn', title: 'Se puede, pero ajusta tu diario', text: `Hasta el próximo cobro pasarías de ${money(b.dailyBase)} a ${money(newDaily)} por día.` };
+    // la compra se come lo de hoy: lo que queda se reparte en los días que faltan después de hoy
+    const diasDespues = Math.max(1, b.cycle.daysLeft - 1);
+    const repartido = (b.free - amount) / diasDespues;
+    // nunca más que tu ritmo normal: si sobraba plata, la compra sale de ese sobrante
+    const newDaily = Math.min(b.dailyBase, repartido);
+    if (newDaily >= b.dailyBase - 1) return { level: 'ok', title: 'Se puede, sin cambiar tu diario', text: `Sale de lo que te iba a sobrar hasta el cobro${b.sobrante ? ` (${money(b.sobrante)})` : ''}. Seguís con ${money(b.dailyBase)} por día, pero ahorrás menos este mes.` };
+    return { level: 'warn', title: 'Se puede, pero ajusta tu diario', text: `Desde mañana y hasta el cobro pasarías de ${money(b.dailyBase)} a ${money(newDaily)} por día.` };
   }
   const over = amount - Math.max(0, b.free);
   const g = mainGoal(s);

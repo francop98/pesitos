@@ -25,6 +25,16 @@ export function render(s) {
   const saldadas = (s.deudas || []).filter((d) => saldoDeuda(d) <= 0.5).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
   return `<section class="screen">
     ${screenHead('Deudas y préstamos', `<button class="btn small" data-action="nuevaDeuda">+ Nueva</button>`, 'Lo que te deben y lo que debés')}
+    ${cuerpo(s)}
+  </section>`;
+}
+
+/** Contenido de Deudas (también se muestra en Movimientos → Deudas). */
+export function cuerpo(s) {
+  const meDeben = deudasAbiertas(s, 'meDeben');
+  const debo = deudasAbiertas(s, 'debo');
+  const saldadas = (s.deudas || []).filter((d) => saldoDeuda(d) <= 0.5).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  return `
     <div class="stat-grid">
       <div class="stat"><span class="k">Te deben</span><span class="v pos">${money(totalMeDeben(s))}</span><span class="small muted">${meDeben.length} persona${meDeben.length === 1 ? '' : 's'}</span></div>
       <div class="stat"><span class="k">Debés</span><span class="v">${money(totalDebo(s))}</span><span class="small muted">${debo.length} persona${debo.length === 1 ? '' : 's'}</span></div>
@@ -35,7 +45,7 @@ export function render(s) {
     <div class="card tight">${debo.length ? debo.map(fila).join('') : '<p class="empty">No le debés a nadie.</p>'}</div>
     ${saldadas.length ? `<div class="section-title"><span>Saldadas</span></div><div class="card tight">${saldadas.map(fila).join('')}</div>` : ''}
     <p class="small muted">Los créditos con cuotas (préstamos personales, planes) se cargan como gasto fijo con cuotas en Movimientos. Los gastos compartidos crean su deuda solos.</p>
-  </section>`;
+  `;
 }
 
 function formDeuda(s, d = {}) {

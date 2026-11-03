@@ -53,6 +53,16 @@ function mejorPlazoFijo(s) {
   return { entidad, tna };
 }
 
+const nombreBanco = (n) => n.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase()).replace(/\b(De|Del|La|Las|Los|Y)\b/g, (w) => w.toLowerCase()).replace(/\bS\.a\.(u\.)?/gi, (w) => w.toUpperCase());
+const sinTildes = (x) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function bancosHtml(s, q) {
+  const pf = Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).sort((a, b) => b[1] - a[1]);
+  const qq = sinTildes(String(q || '').trim());
+  const lista = pf.filter(([n]) => !qq || sinTildes(n).includes(qq) || sinTildes(nombreBanco(n)) === qq);
+  const todos = qq && lista.length === 1 && sinTildes(nombreBanco(lista[0][0])) === qq ? pf : lista; // ya elegido: mostrar todos
+  return todos.length ? todos.map(([n, v]) => `<button type="button" class="ciudad-op${sinTildes(nombreBanco(n)) === qq ? ' on' : ''}" data-action="pfElegirBanco" data-v="${v}" data-n="${esc(nombreBanco(n))}"><span>${esc(nombreBanco(n))}</span><b>${tasaTxt(v)}%</b></button>`).join('') : '<span class="small muted">No encuentro ese banco. Podés escribir la tasa a mano arriba.</span>';
+}
+
 function installmentsForm(s, d = {}) {
   const rc = resumenCuotas(s);
   return `<form class="form" data-submit="calcInstallments">
@@ -130,7 +140,8 @@ export const actions = {
         <div class="field"><label for="pd-d">Plazo (días)</label><input id="pd-d" name="days" inputmode="numeric" value="30"></div>
         <div class="field"><label for="pd-t">Tasa del plazo fijo (TNA %)</label><input id="pd-t" name="tna" inputmode="decimal" value="${def ? tasaTxt(def.tna) : ''}" placeholder="Ej: 32" required></div>
       </div>
-      ${pf.length ? `<div class="field"><label for="pd-b">O elegí el banco</label><select id="pd-b" data-change="pfBanco"><option value="">—</option>${pf.map(([n, v]) => `<option value="${v}" ${def && n === def.entidad ? 'selected' : ''}>${esc(n.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase()).replace(/\b(De|Del|La|Las|Los|Y)\b/g, (w) => w.toLowerCase()))} · ${tasaTxt(v)}%</option>`).join('')}</select><span class="hint">Tasas para clientes que publica el BCRA, se actualizan solas.</span></div>` : ''}
+      ${pf.length ? `<div class="field banco-picker"><label for="pd-b">O elegí el banco</label><input id="pd-b" placeholder="Escribí para buscar (ej: Galicia)" autocomplete="off" data-input="pfFiltrar" value="${def ? esc(nombreBanco(def.entidad)) : ''}">
+        <div class="ciudad-lista banco-lista" data-banco-lista>${bancosHtml(s, '')}</div><span class="hint">Tasas para clientes que publica el BCRA, se actualizan solas.</span></div>` : ''}
       <div class="field-row">
         <div class="field"><label for="pd-v">Dólar hoy (venta)</label><input id="pd-v" name="venta" inputmode="decimal" value="${r.venta ? Math.round(r.venta) : ''}" required></div>
         <div class="field"><label for="pd-c">Dólar hoy (compra)</label><input id="pd-c" name="compra" inputmode="decimal" value="${r.compra ? Math.round(r.compra) : ''}"></div>
@@ -139,7 +150,12 @@ export const actions = {
       <button class="btn primary block" type="submit">Comparar</button>
     </form><div id="pd-result"></div>`);
   },
-  pfBanco(ctx, el) { const i = document.getElementById('pd-t'); if (i && el.value) i.value = tasaTxt(el.value); },
+  pfFiltrar(ctx, el) { const l = document.querySelector('#modal [data-banco-lista]'); if (l) l.innerHTML = bancosHtml(ctx.state, el.value); },
+  pfElegirBanco(ctx, el) {
+    const i = document.getElementById('pd-t'); if (i) i.value = tasaTxt(el.dataset.v);
+    const b = document.getElementById('pd-b'); if (b) b.value = el.dataset.n;
+    const l = document.querySelector('#modal [data-banco-lista]'); if (l) l.innerHTML = bancosHtml(ctx.state, el.dataset.n);
+  },
   calcPfDolar(ctx, d) {
     const monto = amt(d.amount); const dias = Math.max(1, parseInt(d.days, 10) || 30);
     const tna = parseFloat(String(d.tna || '').replace(',', '.')) || 0;

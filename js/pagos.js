@@ -253,7 +253,7 @@ function findItem(s, key) { return agenda(s, 400).find((i) => i.key === key); }
 export const actions = {
   setPayView(ctx, el) { view = el.dataset.v; ctx.render(); },
   calMove(ctx, el) { calOffset += Number(el.dataset.d); ctx.render(); },
-  calElegirMes() { const hoy = monthKey(); abrirSelectorMes({ actual: addMonthKey(hoy, calOffset), min: addMonthKey(hoy, -36), max: addMonthKey(hoy, 36), accion: 'calIrMes' }); },
+  calElegirMes() { const hoy = monthKey(); abrirSelectorMes({ actual: addMonthKey(hoy, calOffset), min: addMonthKey(hoy, -240), max: addMonthKey(hoy, 60), accion: 'calIrMes' }); },
   calIrMes(ctx, el) { calOffset = monthDiff(monthKey(), el.dataset.mk); view = 'calendario'; closeModal(); ctx.render(); },
   openDay(ctx, el) {
     const iso = el.dataset.day; const d = parseISO(iso);

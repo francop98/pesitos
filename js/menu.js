@@ -79,6 +79,7 @@ function menuHtml(ctx) {
       <span class="meta sync">${icon(ic, 14)} ${s.demo ? 'Datos de ejemplo: no se guardan en tu cuenta' : esc(estado)}</span></span><span class="menu-cuenta-cta">Mi cuenta ${icon('chevron', 16)}</span></button>
 
     <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
+      ${item('irSueldo', 'trend', 'Tu sueldo', 'Si le ganás a la inflación, mes a mes')}
       ${item('openMisDatos', 'calendar', 'Mis datos', 'Cuándo cobrás, provincia y ciudad')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
     </div>
@@ -87,6 +88,7 @@ function menuHtml(ctx) {
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
       ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
+      ${item('openAyuda', 'help', 'Ayuda y tutorial', 'Preguntas frecuentes y cómo se usa')}
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
     </div>
 
@@ -125,7 +127,7 @@ window.addEventListener('hashchange', () => cerrarMenu(true));
 
 export function abrirMenu(ctx) {
   closeModal();
-  pintarMenu(ctx);
+  pintarMenu(ctx || ctxMenu);
   const d = drawer();
   d.hidden = false;
   panel().style.transform = '';
@@ -143,9 +145,9 @@ export function cerrarMenu(rapido = false) {
 
 // deslizar con el dedo
 // zonas donde deslizar de costado ya hace otra cosa (filas que se desplazan, campos, gráficos)
-const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, select, .cat-row, .medio-row, .chips, .tabs, .meses-grid, .dist, svg, #modal, .drawer'));
+const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, select, .cat-row, .medio-row, .chips, #modal, .drawer, .banco-lista, .ciudad-lista'));
 (() => {
-  let x0 = 0; let y0 = 0; let modo = null; let dx = 0; let decidido = false;
+  let x0 = 0; let y0 = 0; let modo = null; let dx = 0; let decidido = false; let borde = false; let atrasDelSistema = 0;
   const ancho = () => panel().offsetWidth || 320;
   document.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
@@ -154,7 +156,9 @@ const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, 
     if (menuAbierto()) modo = 'cerrar';
     // se abre deslizando hacia la derecha desde la mitad izquierda de la pantalla.
     // No hace falta empezar en el borde: el borde del celular es el gesto de "atrás" del sistema.
-    else if (x0 < window.innerWidth * 0.5 && !arrastrable(e.target) && ctxMenu && !document.body.classList.contains('no-nav') && !document.body.classList.contains('sin-sesion') && !document.body.classList.contains('bloqueado') && document.getElementById('modal').hidden && document.querySelector('[data-action=openMenu]')) modo = 'abrir';
+    else if (x0 < window.innerWidth * 0.5 && !arrastrable(e.target) && ctxMenu && !document.body.classList.contains('no-nav') && !document.body.classList.contains('sin-sesion') && !document.body.classList.contains('bloqueado') && document.getElementById('modal').hidden) modo = 'abrir';
+    // empezó pegado al borde: si el celular lo toma como "atrás", lo detectamos (ver más abajo)
+    borde = modo === 'abrir' && x0 < 36 && !(e.target.closest && e.target.closest('button, a'));
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
     if (!modo) return;
@@ -185,13 +189,25 @@ const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, 
     else if (dx < -w * 0.3) cerrarMenu();
     modo = null;
   };
-  document.addEventListener('touchend', soltar);
-  document.addEventListener('touchcancel', soltar);
+  document.addEventListener('touchend', () => { borde = false; soltar(); });
+  // El gesto de "atrás" del celular (deslizar desde el borde izquierdo) cancela el toque y
+  // vuelve a la pantalla anterior. Si pasa eso, volvemos adonde estabas y abrimos el menú.
+  document.addEventListener('touchcancel', () => { if (borde) atrasDelSistema = Date.now(); borde = false; soltar(); });
+  let volviendo = false;
+  window.addEventListener('popstate', () => {
+    if (volviendo) { volviendo = false; setTimeout(() => abrirMenu(), 60); return; } // ya volvimos: abrir
+    if (Date.now() - atrasDelSistema > 1500) return;
+    atrasDelSistema = 0;
+    volviendo = true;
+    history.forward();
+    setTimeout(() => { if (volviendo) { volviendo = false; abrirMenu(); } }, 700); // por las dudas
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarMenu(); });
 })();
 
 export const menuActions = {
   openMenu(ctx) { abrirMenu(ctx); },
+  irSueldo(ctx) { ctx.go('sueldo'); },
 
   openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
   openAvisos(ctx) {

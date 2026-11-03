@@ -322,7 +322,7 @@ button.row { cursor: pointer; }
 .card.ask .quick { background: var(--bg); }
 
 /* ---------- navegación inferior ---------- */
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--card); border-top: 1px solid var(--line); padding: 6px max(4px, calc((100vw - 480px) / 2)) calc(10px + env(safe-area-inset-bottom)); }
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--card); border-top: 1px solid var(--line); padding: 6px max(4px, calc((100vw - 480px) / 2)) calc(10px + env(safe-area-inset-bottom)); }
 .nav[hidden] { display: none; }
 .nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0; min-height: 52px; color: var(--muted); text-decoration: none; font-size: 10.5px; font-weight: 600; }
 .nav a[aria-current="page"] { color: var(--green-text); font-weight: 800; }
@@ -712,3 +712,7 @@ button.mov-ahorro { border: none; width: 100%; text-align: left; font: inherit; 
 .anio-nav .mes-btn { background: var(--card); }
 .cuentas-cuotas { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-top: 1px solid rgba(0,0,0,.08); border-bottom: 1px solid rgba(0,0,0,.08); }
 .amount.muted { color: var(--muted); font-weight: 700; }
+.banco-lista .ciudad-op { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.banco-lista .ciudad-op b { flex-shrink: 0; }
+.anios-grid { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
+.nav a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

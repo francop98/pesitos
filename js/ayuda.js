@@ -1,7 +1,7 @@
 // =========================================================
 // Pesitos — tutorial y ayuda
 // Tutorial: unas pocas pantallas que se deslizan, la primera vez que entrás
-// (y cuando quieras desde Ayuda). Ayuda: preguntas frecuentes por tema.
+// (y cuando quieras desde Menú → Ayuda y tutorial). Ayuda: preguntas frecuentes por tema.
 // =========================================================
 
 import { openModal, closeModal, icon, wordmark } from './interfaz.js';
@@ -13,7 +13,7 @@ const PASOS = [
   { ic: 'calendar', color: 'amber', titulo: 'Nada se te pasa', texto: 'En Por pagar están tus vencimientos, los resúmenes de tus tarjetas y cuándo cobrás. Te aviso antes, aunque no abras la app.' },
   { ic: 'target', color: 'green', titulo: 'Ahorrá sin pensarlo', texto: 'Elegí cómo ahorrar y ponete una meta. Te digo cuánto apartar y cuándo llegás. En Ahorro ves cuánto tenés, en qué moneda y cuánto rinde.' },
   { ic: 'ticket', color: 'lime', titulo: 'Descuentos para vos', texto: 'En Beneficios ves las promos de tus bancos, billeteras y tarjetas, día por día. Se actualizan solas.' },
-  { ic: 'lock', color: 'green', titulo: 'Tus datos son tuyos', texto: 'Todo se guarda cifrado: nadie más puede verlo. Si tenés dudas, tocá el signo de pregunta arriba a la derecha.' },
+  { ic: 'lock', color: 'green', titulo: 'Tus datos son tuyos', texto: 'Todo se guarda cifrado: nadie más puede verlo. Si tenés dudas, en el menú ☰ está la Ayuda, y arriba a la derecha está tu asesor para consultarle.' },
 ];
 
 // ---------- tutorial ----------
@@ -97,7 +97,7 @@ const TEMAS = [
     ['¿Cómo cargo mi tarjeta de crédito?', 'Andá a Tarjetas → + Tarjeta y poné el día de cierre y de vencimiento. Las compras con esa tarjeta van solas al resumen que corresponde, con sus cuotas.'],
     ['¿Qué es Por pagar?', 'Todos tus vencimientos juntos: gastos fijos, resúmenes de tarjetas y pagos programados. Tocá "Pagué" cuando lo pagues.'],
     ['¿Cómo veo cuánta plata tengo en cada cuenta?', 'En Inicio → Saldo cargá cuánto tenés hoy en cada cuenta. Después se actualiza solo con cada gasto, ingreso, pago y transferencia. Si la cuenta rinde (Mercado Pago, Ualá), también le sumo los intereses de cada día.'],
-    ['¿Para qué son los presupuestos?', 'Ponele un tope por mes a una categoría (por ejemplo, Delivery). Te aviso cuando llegás al 80% y al 100%.'],
+    ['¿Cómo pongo un tope a una categoría?', 'En Estadísticas, tocá la categoría (por ejemplo, Delivery) y poné cuánto querés gastar como máximo por mes. Te aviso cuando llegás al 80% y al 100%.'],
   ] },
   { titulo: 'Ahorro y metas', ic: 'target', preguntas: [
     ['¿Cómo abro el menú?', 'Tocá ☰ arriba a la izquierda, o deslizá el dedo hacia la derecha desde la mitad izquierda de la pantalla. No empieces justo en el borde: ahí el celular usa el gesto de "atrás".'],

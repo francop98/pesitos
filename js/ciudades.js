@@ -114,12 +114,12 @@ export const ciudadActions = {
 // y elegimos la ciudad apenas se levanta el dedo.
 document.addEventListener('mousedown', (e) => { if (e.target.closest('.ciudad-op')) e.preventDefault(); });
 document.addEventListener('pointerdown', (e) => {
-  const op = e.target.closest('.ciudad-op');
+  const op = e.target.closest('.ciudad-picker .ciudad-op');
   if (!op) return;
   op.dataset.toque = String(e.clientY);
 }, true);
 document.addEventListener('pointerup', (e) => {
-  const op = e.target.closest('.ciudad-op');
+  const op = e.target.closest('.ciudad-picker .ciudad-op');
   if (!op || op.dataset.toque === undefined) return;
   const movio = Math.abs(Number(op.dataset.toque) - e.clientY) > 10; // fue un deslizamiento por la lista
   delete op.dataset.toque;

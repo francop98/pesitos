@@ -39,8 +39,8 @@ export function barra(p) {
 export function alertaPresupuestos(s) {
   const ojo = todosLosPresupuestos(s).filter((p) => p.pct >= 0.8);
   if (!ojo.length) return '';
-  return `<a class="card amber" href="#/presupuestos" style="text-decoration:none;color:inherit">
-    <div class="tip-head"><span style="color:var(--amber)">${icon('bulb', 18)}</span><strong>Presupuestos</strong></div>
+  return `<a class="card amber" href="#/estadisticas" style="text-decoration:none;color:inherit">
+    <div class="tip-head"><span style="color:var(--amber)">${icon('bulb', 18)}</span><strong>Topes por categoría</strong></div>
     ${ojo.slice(0, 3).map((p) => `<div style="display:flex;flex-direction:column;gap:4px"><div class="split" style="font-size:13px"><span>${esc(catById(p.cat).label)}</span><b>${p.pct >= 1 ? `Te pasaste ${money(-p.queda)}` : `Quedan ${money(p.queda)}`}</b></div>${barra(p)}</div>`).join('')}
   </a>`;
 }
@@ -75,7 +75,9 @@ export const actions = {
     const s = ctx.state; const cat = el.dataset.cat; const c = catById(cat);
     const actual = (s.presupuestos || {})[cat] || 0;
     const sug = promedioCategoria(s, cat);
-    openModal(`Presupuesto: ${c.label}`, `<form class="form" data-submit="savePresupuesto">
+    const gastado = (avancePresupuesto(s, cat) || {}).gastado ?? (monthExpenses(s, monthKey()).byCat[cat] || 0);
+    openModal(`Tope por mes: ${c.label}`, `<form class="form" data-submit="savePresupuesto">
+      <p class="small muted" style="margin:0">Un tope es lo máximo que querés gastar por mes en ${esc(c.label.toLowerCase())}. Te aviso al llegar al 80% y si te pasás. Este mes llevás ${money(gastado)}.</p>
       <input type="hidden" name="cat" value="${esc(cat)}">
       <div class="field"><label for="pr-m">Tope por mes</label><input id="pr-m" name="monto" inputmode="decimal" value="${actual ? String(actual) : ''}" placeholder="Ej: 150.000" required></div>
       ${sug ? `<button type="button" class="chip" data-action="usarSugerido" data-v="${sug}">Usar ${money(sug)} (tu promedio de los últimos 3 meses)</button>` : ''}

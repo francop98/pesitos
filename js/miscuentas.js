@@ -29,7 +29,7 @@ export function render(s) {
       <span class="amount ${sal != null && sal < 0 ? 'neg' : ''}">${sal == null ? 'Cargar' : money(sal)}</span></button>`; }).join('')}</div>
     <p class="small muted">¿Falta una cuenta? Agregala en menú ☰ → Mis medios de pago. Las tarjetas de crédito están en <a href="#/tarjetas">Tarjetas</a>.</p>
 
-    <div class="section-title"><span>Tu patrimonio</span><a href="#/deudas">Deudas y préstamos</a></div>
+    <div class="section-title"><span>Tu patrimonio</span><button data-action="verDeudas">Deudas y préstamos</button></div>
     <div class="card">
       <div class="split"><span>Cuentas</span><b>${money(pat.cuentas)}</b></div>
       <div class="split"><span>Ahorros e inversiones</span><b>${money(pat.ahorros)}</b></div>

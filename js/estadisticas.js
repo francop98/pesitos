@@ -8,6 +8,7 @@ import { money, esc, monthKey, addMonthKey, monthName, todayISO, pct , MONTHS_LO
 import { monthExpenses, monthIncome, fixedTotal } from './calculos.js';
 import { catById } from './categorias.js';
 import { merchantKey } from './interprete.js';
+import { avancePresupuesto, barra as barraTope } from './presupuestos.js';
 import { screenHead, icon, catIcon , abrirSelectorMes, closeModal } from './interfaz.js';
 import { nombreCuenta, patrimonio } from './cuentas.js';
 import { descargarCSV, imprimirResumen, tablaMovimientos } from './exportar.js';
@@ -26,6 +27,14 @@ function meses(p = periodo) {
   return [mk];
 }
 const anteriores = (ms) => ms.map((m) => addMonthKey(m, -ms.length));
+
+// topes (presupuestos) de categorías que todavía no tienen gastos este mes
+function topesSinGasto(s, cats, p) {
+  if (p !== 'mes') return '';
+  const con = new Set(cats.map((x) => x.c));
+  const otros = Object.keys(s.presupuestos || {}).filter((c) => !con.has(c));
+  return otros.length ? `<span class="small muted" style="margin-top:-6px">También tenés tope en ${otros.map((c) => esc(catById(c).label)).join(', ')}: todavía sin gastos este mes.</span>` : '';
+}
 
 export function resumen(s, ms) {
   const byCat = {}; let variables = 0; let fijos = 0; let ingresos = 0;
@@ -95,7 +104,9 @@ export function render(s) {
       <div class="split small"><span>Gastos fijos</span><b>${money(r.fijos)}</b></div>
       <div class="split small"><span>Gasto variable por día (promedio)</span><b>${money(r.porDia)}</b></div>
     </div>
-    ${cats.length ? `<div class="card tight">${cats.map((x) => { const a = prev.byCat[x.c] || 0; const c = catById(x.c); return `<div class="row"><span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span><span class="meta">Antes: ${money(a)}</span></span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(x.v)}</span>${cambio(comp(x.v, a))}</span></div>`; }).join('')}</div>` : ''}
+    ${cats.length ? `<div class="section-title"><span>Por categoría</span><span class="small muted">Tocá una para ponerle un tope</span></div>
+    <div class="card tight">${cats.map((x) => { const a = prev.byCat[x.c] || 0; const c = catById(x.c); const tope = periodo === 'mes' ? avancePresupuesto(s, x.c) : null; return `<button class="row" data-action="editPresupuesto" data-cat="${esc(x.c)}"><span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${tope ? `${barraTope(tope)}<span class="meta">Tope ${money(tope.limite)} · ${tope.pct >= 1 ? `te pasaste ${money(-tope.queda)}` : `quedan ${money(tope.queda)}`}</span>` : `<span class="meta">Antes: ${money(a)}</span>`}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(x.v)}</span>${cambio(comp(x.v, a))}</span></button>`; }).join('')}</div>
+    ${topesSinGasto(s, cats, periodo)}` : ''}
     <div class="card"><strong>Ingresos y gastos, mes a mes</strong>${barrasMensuales(s)}</div>
     ${r.comercios.length ? `<div class="card"><strong>Dónde más gastaste</strong>${r.comercios.slice(0, 6).map((c) => `<div class="split small"><span>${esc(c.nombre)} <span class="muted">· ${c.veces} vez${c.veces === 1 ? '' : 'es'}</span></span><b>${money(c.total)}</b></div>`).join('')}</div>` : ''}
     ${Object.keys(r.medios).length > 1 ? `<div class="card"><strong>Con qué pagaste</strong>${Object.entries(r.medios).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}
@@ -109,7 +120,7 @@ export const actions = {
   statsElegirMes(ctx) {
     const s = ctx.state; const hoy = monthKey();
     let min = hoy; for (const x of [...s.expenses, ...s.incomes]) if (x.date && x.date.slice(0, 7) < min) min = x.date.slice(0, 7);
-    abrirSelectorMes({ actual: periodo.startsWith('mk:') ? periodo.slice(3) : hoy, min: `${Math.min(Number(min.slice(0, 4)), Number(hoy.slice(0, 4)) - 5)}-01`, max: hoy, accion: 'statsIrMes', marcados: new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7))) });
+    abrirSelectorMes({ actual: periodo.startsWith('mk:') ? periodo.slice(3) : hoy, min: `${Math.min(Number(min.slice(0, 4)), Number(hoy.slice(0, 4)) - 20)}-01`, max: hoy, accion: 'statsIrMes', marcados: new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7))) });
   },
   statsIrMes(ctx, el) { periodo = `mk:${el.dataset.mk}`; closeModal(); ctx.render(); },
   statsCSV(ctx) {
