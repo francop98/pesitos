@@ -6,7 +6,7 @@
 import { money, esc, todayISO, relDay, num } from './formato.js';
 import { screenHead, openModal, closeModal, toast, icon, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
-import { listaCuentas, cuentaPrincipal, saldoCuenta, cuentasConSaldo, movimientosDeCuenta, totalCuentas, nombreCuenta, patrimonio } from './cuentas.js';
+import { listaCuentas, cuentaPrincipal, saldoCuenta, cuentasConSaldo, movimientosDeCuenta, totalCuentas, nombreCuenta, patrimonio, detalleSaldo, cuentaPuedeRendir, tnaCuenta } from './cuentas.js';
 
 const signo = (v) => `${v >= 0 ? '+' : '−'}${money(Math.abs(v))}`;
 const opcionesCuenta = (s, sel) => listaCuentas(s).map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -17,15 +17,15 @@ export function render(s) {
   const ppal = cuentaPrincipal(s);
   const pat = patrimonio(s);
   return `<section class="screen">
-    ${screenHead('Mis cuentas', `<button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir</button>`, 'Cuánto tenés en cada lado')}
+    ${screenHead('Saldo', `<button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir</button>`, 'Cuánto tenés en cada cuenta')}
     <div class="card green" style="gap:6px">
       <span class="hero-label">${con.length ? 'Tenés en tus cuentas' : 'Cargá el saldo de tus cuentas'}</span>
       <span class="hero-number" style="font-size:34px">${con.length ? money(totalCuentas(s)) : '—'}</span>
-      <span class="small on-green-muted">${con.length ? 'Se actualiza solo con lo que anotás. Si no coincide con tu banco, tocá la cuenta y ajustalo.' : 'Tocá una cuenta y poné cuánto tiene hoy: después se actualiza sola con cada gasto e ingreso.'}</span>
+      <span class="small on-green-muted">${con.length ? `Se actualiza solo con lo que anotás${con.some((c) => tnaCuenta(s, c.id)) ? ' y con los intereses de las cuentas que rinden' : ''}. Si no coincide con tu banco, tocá la cuenta y ajustalo.` : 'Tocá una cuenta y poné cuánto tiene hoy: después se actualiza sola con cada gasto e ingreso.'}</span>
     </div>
     <div class="card tight">${todas.map((c) => { const sal = saldoCuenta(s, c.id); return `<button class="row" data-action="abrirCuenta" data-id="${esc(c.id)}">
       <span class="cat-icon ${c.id === ppal ? 'green' : ''}">${icon(c.id === 'efectivo' ? 'wallet' : 'card', 18)}</span>
-      <span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${c.id === ppal ? 'Cuenta principal · ' : ''}${sal == null ? 'Sin saldo cargado' : `Desde el ${s.cuentas[c.id].desde.split('-').reverse().slice(0, 2).join('/')}`}</span></span>
+      <span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${c.id === ppal ? 'Cuenta principal · ' : ''}${sal == null ? 'Sin saldo cargado' : `Desde el ${s.cuentas[c.id].desde.split('-').reverse().slice(0, 2).join('/')}`}${sal != null && tnaCuenta(s, c.id) ? ` · rinde ${String(tnaCuenta(s, c.id)).replace('.', ',')}% anual` : ''}</span></span>
       <span class="amount ${sal != null && sal < 0 ? 'neg' : ''}">${sal == null ? 'Cargar' : money(sal)}</span></button>`; }).join('')}</div>
     <p class="small muted">¿Falta una cuenta? Agregala en menú ☰ → Mis medios de pago. Las tarjetas de crédito están en <a href="#/tarjetas">Tarjetas</a>.</p>
 
@@ -67,8 +67,14 @@ export const actions = {
     const c = s.cuentas && s.cuentas[id];
     const sal = saldoCuenta(s, id);
     const movs = c ? movimientosDeCuenta(s, id, c.desde).slice(0, 15) : [];
+    const det = detalleSaldo(s, id);
+    const noRinde = (s.cuentasRinden || {})[id] === false;
+    const tasaHoy = ((s.rendimientos && s.rendimientos.tasas && s.rendimientos.tasas[id]) || {}).tna;
     openModal(nombreCuenta(s, id), `
-      ${sal != null ? `<div class="card"><span class="small muted">Saldo de hoy</span><span style="font-size:28px;font-weight:800">${money(sal)}</span></div>` : ''}
+      ${sal != null ? `<div class="card"><span class="small muted">Saldo de hoy</span><span style="font-size:28px;font-weight:800">${money(sal)}</span>${det && det.intereses >= 1 ? `<span class="small pos">Incluye +${money(det.intereses)} de intereses desde el ${c.desde.split('-').reverse().slice(0, 2).join('/')}</span>` : ''}</div>` : ''}
+      ${cuentaPuedeRendir(id) ? `<div class="card"><div class="cuenta-rinde"><span class="grow"><strong>¿Te da intereses?</strong><br><span class="small muted">${tasaHoy ? `Hoy rinde ${String(tasaHoy).replace('.', ',')}% anual. La tasa se actualiza sola todos los días.` : 'Busco la tasa del día apenas haya conexión.'}</span></span>
+        <div class="tabs" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:0 0 120px"><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="1" aria-pressed="${!noRinde}">Sí</button><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="0" aria-pressed="${noRinde}">No</button></div></div>
+        <span class="small muted">Si es sí, sumo los intereses al saldo cada día, sobre lo que quedó en la cuenta a la noche.</span></div>` : ''}
       <form class="form" data-submit="ajustarSaldo"><input type="hidden" name="id" value="${esc(id)}">
         <div class="field"><label for="sa-v">${sal == null ? '¿Cuánto tenés hoy en esta cuenta?' : '¿No coincide? Poné el saldo real de hoy'}</label><input id="sa-v" name="saldo" inputmode="decimal" placeholder="Ej: 250.000" required></div>
         <button class="btn primary block" type="submit">${sal == null ? 'Guardar saldo' : 'Ajustar saldo'}</button></form>
@@ -81,6 +87,11 @@ export const actions = {
     if (!String(d.saldo || '').trim()) return;
     ctx.commit((s) => { s.cuentas = { ...(s.cuentas || {}), [d.id]: { saldo: v, desde: todayISO() } }; if (!s.cuentaPrincipal) s.cuentaPrincipal = d.id; });
     closeModal(); toast('Saldo guardado: desde ahora se actualiza solo');
+  },
+  cuentaRinde(ctx, el) {
+    const id = el.dataset.id; const si = el.dataset.v === '1';
+    ctx.commit((s) => { s.cuentasRinden = { ...(s.cuentasRinden || {}), [id]: si }; });
+    closeModal(); toast(si ? 'Listo: sumo los intereses todos los días' : 'Listo: no le sumo intereses');
   },
   quitarSaldo(ctx, el) { ctx.commit((s) => { const c = { ...(s.cuentas || {}) }; delete c[el.dataset.id]; s.cuentas = c; }); closeModal(); },
   hacerPrincipal(ctx, el) { ctx.commit((s) => { s.cuentaPrincipal = el.dataset.id; }); closeModal(); toast('Listo, es tu cuenta principal'); },

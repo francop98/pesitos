@@ -60,13 +60,14 @@ export function render(s) {
   const dias = [];
   for (const x of list) { const d = dias[dias.length - 1]; if (d && d.date === x.date) d.items.push(x); else dias.push({ date: x.date, items: [x] }); }
   const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
+  const ahorroPesitos = (s.savedByApp || {})[mk] || 0;
 
   return `<section class="screen">
     ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
 
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
-      <span>${monthName(mk, true).replace(/^./, (c) => c.toUpperCase())} ${mk.slice(0, 4)}</span>
+      <button class="mes-btn" data-action="movElegirMes" aria-label="Elegir mes">${monthLabel(mk).replace(/^./, (c) => c.toUpperCase())} ${icon('chevron', 14, 2.4)}</button>
       <button class="icon-btn" data-action="monthNext" aria-label="Mes siguiente" ${offset === 0 ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
     </div>
 
@@ -76,6 +77,7 @@ export function render(s) {
       <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
     </a>
+    ${ahorroPesitos ? `<div class="card lime mov-ahorro"><span class="small"><b>Te ahorraste con Pesitos</b><br><span class="muted">Promos y consejos que aprovechaste</span></span><b class="v">${money(ahorroPesitos)}</b></div>` : ''}
 
     <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
@@ -87,10 +89,7 @@ export function render(s) {
       <div class="chips">${[['todo', 'Todo'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']].map(([f, l]) => `<button class="chip toggle" data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${l}</button>`).join('')}</div>
       ${dias.length ? dias.map((d) => `<div class="dia-grupo"><span class="dia-t">${esc(relDay(d.date))}</span><div class="card tight">${d.items.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('')}</div></div>`).join('')
         : `<div class="card"><p class="empty">${offset ? 'No hay movimientos en este mes.' : 'Todavía no anotaste nada este mes. Cargá tus gastos desde Inicio.'}</p></div>`}
-      <div class="btn-row">
-        <button class="btn small" data-action="newEntry" data-kind="expense">+ Gasto detallado</button>
-        <button class="btn small" data-action="newEntry" data-kind="income">+ Ingreso</button>
-      </div>`
+`
     : `
       <p class="small muted" style="margin:0">Lo que pagás todos los meses. Se descuenta solo de lo que podés gastar${fixed ? `: ${money(fixed)} este mes` : ''}. Los vencimientos los ves en Por pagar.</p>
       <div class="card tight">
@@ -106,6 +105,28 @@ export function render(s) {
       </div>
       <button class="btn primary block" data-action="newFixed">+ Agregar gasto fijo</button>`}
   </section>`;
+}
+
+// ---------- elegir mes y año de una ----------
+function primerMes(s) {
+  let min = monthKey();
+  for (const x of [...s.expenses, ...s.incomes]) if (x.date && x.date.slice(0, 7) < min) min = x.date.slice(0, 7);
+  return min;
+}
+function mesesHtml(s, anio) {
+  const hoy = monthKey();
+  const desde = primerMes(s);
+  const actual = addMonthKey(hoy, -offset);
+  const anios = []; for (let y = Number(desde.slice(0, 4)); y <= Number(hoy.slice(0, 4)); y++) anios.push(y);
+  const conDatos = new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7)));
+  return `<div data-meses>${anios.length > 1 ? `<div class="chips anios">${anios.map((y) => `<button class="chip toggle" data-action="movAnio" data-y="${y}" aria-pressed="${y === anio}">${y}</button>`).join('')}</div>` : ''}
+    <div class="meses-grid">${MONTHS_LONG.map((n, i) => {
+      const k = `${anio}-${String(i + 1).padStart(2, '0')}`;
+      const futuro = k > hoy;
+      return `<button class="mes-op${k === actual ? ' on' : ''}${conDatos.has(k) ? ' datos' : ''}" data-action="movIrMes" data-mk="${k}" ${futuro ? 'disabled' : ''} aria-pressed="${k === actual}">${n.slice(0, 3).replace(/^./, (c) => c.toUpperCase())}</button>`;
+    }).join('')}</div>
+    <span class="small muted">El puntito marca los meses en los que anotaste algo.</span>
+    ${offset ? '<button class="btn small block" data-action="movIrMes" data-mk="">Volver a este mes</button>' : ''}</div>`;
 }
 
 function fixedForm(s, f = {}) {
@@ -143,6 +164,9 @@ export const actions = {
   movVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
   monthPrev(ctx) { offset += 1; ctx.render(); },
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
+  movElegirMes(ctx) { openModal('Elegí el mes', mesesHtml(ctx.state, Number(addMonthKey(monthKey(), -offset).slice(0, 4)))); },
+  movAnio(ctx, el) { const m = document.querySelector('#modal [data-meses]'); if (m) m.outerHTML = mesesHtml(ctx.state, Number(el.dataset.y)); },
+  movIrMes(ctx, el) { offset = el.dataset.mk ? Math.max(0, monthDiff(el.dataset.mk, monthKey())) : 0; closeModal(); ctx.render(); },
   newFixed(ctx) { openModal('Nuevo gasto fijo', fixedForm(ctx.state)); },
   fillFixedName(ctx, el) { const i = document.getElementById('fx-n'); if (i) { i.value = el.dataset.name; document.getElementById('fx-a')?.focus(); } },
   editFixed(ctx, el) { const f = ctx.state.fixed.find((x) => x.id === el.dataset.id); if (f) openModal('Gasto fijo', fixedForm(ctx.state, f)); },

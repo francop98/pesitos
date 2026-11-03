@@ -12,7 +12,7 @@ import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
 import { buyImpact, expectedBalance, mainGoal, lastSalary } from './calculos.js';
 import { demoState } from './ejemplo.js';
-import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer } from './interfaz.js';
+import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus } from './economista.js';
 import { ratesAge, arsPer } from './cotizaciones.js';
 import { listaCuentas, cuentaPrincipal, nombreCuenta } from './cuentas.js';
@@ -30,6 +30,15 @@ export function medioOptions(s, sel, { conTarjetas = true, auto = false } = {}) 
   return `${auto ? `<option value="">Automático (${esc(nombreCuenta(s, ppal))})</option>` : ''}
     <optgroup label="Cuentas">${listaCuentas(s).map((c) => `<option value="acc:${esc(c.id)}" ${sel === 'acc:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>
     ${conTarjetas && s.cards.length ? `<optgroup label="Tarjetas de crédito">${s.cards.map((c) => `<option value="card:${esc(c.id)}" ${sel === 'card:' + c.id ? 'selected' : ''}>Tarjeta ${esc(c.name)}</option>`).join('')}</optgroup>` : ''}`;
+}
+/** Medios para elegir con un toque en la carga rápida (el primero es la cuenta principal). */
+export function mediosRapidos(s) {
+  const ppal = cuentaPrincipal(s);
+  return [
+    { v: '', label: nombreCuenta(s, ppal), principal: true },
+    ...listaCuentas(s).filter((c) => c.id !== ppal).map((c) => ({ v: `acc:${c.id}`, label: c.name })),
+    ...(s.cards || []).map((c) => ({ v: `card:${c.id}`, label: `Tarjeta ${c.name}`, tarjeta: true })),
+  ];
 }
 export const medioDe = (e) => (e.cardId ? `card:${e.cardId}` : e.accountId ? `acc:${e.accountId}` : '');
 
@@ -168,6 +177,9 @@ export const commonActions = {
     const input = form.querySelector('input[name=q]');
     input.placeholder = input.dataset[kind === 'income' ? 'phIncome' : 'phExpense'];
     form.classList.toggle('income', kind === 'income');
+    const lbl = form.querySelector('[data-medio-label]'); if (lbl) lbl.textContent = kind === 'income' ? 'Entra en' : 'Pagás con';
+    const medio = form.querySelector('[name=medio]');
+    if (kind === 'income' && medio && medio.value.startsWith('card:')) { const b = form.querySelector('[data-action=pickMedio][data-v=""]'); if (b) b.click(); }
     input.focus();
   },
   quickAdd(ctx, data) {
@@ -210,6 +222,25 @@ export const commonActions = {
       else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
     }
     toast(msg);
+  },
+  alternarMontos(ctx, el) { const o = alternarMontos(el.dataset.clave); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles'); },
+  pickMedio(ctx, el) {
+    const form = el.closest('form');
+    form.querySelector('[name=medio]').value = el.dataset.v;
+    form.querySelectorAll('[data-action=pickMedio]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  },
+  // del formulario rápido al completo, con lo que ya escribiste
+  cargaDetallada(ctx, el) {
+    const form = el.closest('form');
+    const kind = form.querySelector('[name=kind]').value === 'income' ? 'income' : 'expense';
+    const texto = form.querySelector('[name=q]').value;
+    const p = texto ? parseEntry(extraerEtiquetas(texto).texto, ctx.state.learned) : {};
+    const [tipo, id] = String(form.querySelector('[name=medio]')?.value || '').split(':');
+    const cat = form.querySelector('[name=category]').value;
+    const e = { note: p.note || '', amount: p.amount || 0, date: form.querySelector('[name=date]')?.value || todayISO(),
+      category: cat && cat !== 'auto' ? cat : p.category, ...(tipo === 'card' ? { cardId: id } : tipo === 'acc' ? { accountId: id } : {}) };
+    openModal(kind === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto', entryForm(ctx.state, e, kind));
   },
   pickCat(ctx, el) {
     const form = el.closest('form');

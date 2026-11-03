@@ -96,7 +96,7 @@ const TEMAS = [
   { titulo: 'Tarjetas, pagos y cuentas', ic: 'calendar', preguntas: [
     ['¿Cómo cargo mi tarjeta de crédito?', 'Andá a Tarjetas → + Tarjeta y poné el día de cierre y de vencimiento. Las compras con esa tarjeta van solas al resumen que corresponde, con sus cuotas.'],
     ['¿Qué es Por pagar?', 'Todos tus vencimientos juntos: gastos fijos, resúmenes de tarjetas y pagos programados. Tocá "Pagué" cuando lo pagues.'],
-    ['¿Cómo veo cuánta plata tengo en cada cuenta?', 'En Mis cuentas cargá cuánto tenés hoy en cada una. Después se actualiza sola con cada gasto, ingreso, pago y transferencia.'],
+    ['¿Cómo veo cuánta plata tengo en cada cuenta?', 'En Inicio → Saldo cargá cuánto tenés hoy en cada cuenta. Después se actualiza solo con cada gasto, ingreso, pago y transferencia. Si la cuenta rinde (Mercado Pago, Ualá), también le sumo los intereses de cada día.'],
     ['¿Para qué son los presupuestos?', 'Ponele un tope por mes a una categoría (por ejemplo, Delivery). Te aviso cuando llegás al 80% y al 100%.'],
   ] },
   { titulo: 'Ahorro y metas', ic: 'target', preguntas: [
@@ -112,11 +112,11 @@ const TEMAS = [
   { titulo: 'Cuenta, seguridad y privacidad', ic: 'lock', preguntas: [
     ['¿Quién puede ver mis datos?', 'Solo vos. Se cifran en tu dispositivo antes de guardarse: ni Pesitos ni quien lo administra puede leerlos.'],
     ['¿Qué es la clave de Pesitos?', 'Es la que abre tus datos cifrados. Te la pido solo cuando entrás desde un dispositivo nuevo. Puede ser la que quieras.'],
-    ['Me olvidé la clave de Pesitos', 'Entrá con tu código de recuperación (el de 24 letras y números). Si perdiste el código pero tenés la app abierta en algún dispositivo, generá uno nuevo desde Menú → Mi cuenta → Clave de Pesitos.'],
+    ['Me olvidé la clave de Pesitos', 'Entrá con tu código de recuperación (el de 24 letras y números). Si perdiste el código pero tenés la app abierta en algún dispositivo, generá uno nuevo desde Menú → tocá tu nombre (arriba) → Clave de Pesitos.'],
     ['¿Puedo entrar con la huella?', 'Sí: Menú → Bloqueo con huella o PIN. Al abrir Pesitos te pide la huella o la cara del celular.'],
     ['¿Cómo instalo la app?', 'Menú → Instalar Pesitos como app. En iPhone: en Safari tocá Compartir → Agregar a inicio.'],
     ['¿Cómo activo los avisos?', 'Menú → Avisos en el celular → Activar. En iPhone, primero instalá la app.'],
-    ['¿Cómo descargo o borro mis datos?', 'Descargar: Menú → Copia de seguridad. Borrar todo: Menú → Mi cuenta → Eliminar mi cuenta.'],
+    ['¿Cómo descargo o borro mis datos?', 'Descargar: Menú → Copia de seguridad. Borrar todo: Menú → tocá tu nombre (arriba) → Eliminar mi cuenta.'],
   ] },
 ];
 

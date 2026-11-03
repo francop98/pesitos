@@ -1,8 +1,9 @@
 // =========================================================
 // Pesitos — menú (☰)
 // Tu plata: Mis datos, Mis medios de pago, Datos que se actualizan solos
-// La app:  Tema, Tamaño de letra, Instalar, Copia de seguridad
-// Tu cuenta: Mi cuenta, Seguridad y privacidad, Cerrar sesión
+// La app:  Tema, Tamaño de letra, Avisos en el celular, Instalar
+// Seguridad: Bloqueo, Copia de seguridad, Privacidad, Cerrar sesión
+// Arriba de todo, tu nombre y mail: abre "Mi cuenta" (todo lo de la cuenta)
 // =========================================================
 
 import { esc, todayISO } from './formato.js';
@@ -78,22 +79,21 @@ function menuHtml(ctx) {
       <span class="meta sync">${icon(ic, 14)} ${s.demo ? 'Datos de ejemplo: no se guardan en tu cuenta' : esc(estado)}</span></span><span class="menu-cuenta-cta">Mi cuenta ${icon('chevron', 16)}</span></button>
 
     <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
-      ${item('openMisDatos', 'user', 'Mis datos', 'Nombre, cuándo cobrás, provincia y ciudad')}
+      ${item('openMisDatos', 'calendar', 'Mis datos', 'Cuándo cobrás, provincia y ciudad')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
     </div>
 
     <div class="menu-grupo lima"><span class="menu-label">La app</span>
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
+      ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
-      ${item('openCopia', 'download', 'Copia de seguridad', 'Descargar o restaurar tus datos')}
     </div>
 
-    <div class="menu-grupo ambar"><span class="menu-label">Tu cuenta y seguridad</span>
-      ${item('openMiCuenta', 'user', 'Mi cuenta', 'Nombre, contraseña, clave de Pesitos y eliminar cuenta')}
+    <div class="menu-grupo ambar"><span class="menu-label">Seguridad</span>
       ${item('openBloqueo', 'lock', 'Bloqueo con huella o PIN', 'Que nadie abra Pesitos sin vos')}
-      ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
-      ${item('openSeguridad', 'shield', 'Seguridad y privacidad', 'Cómo se cuidan tus datos')}
+      ${item('openCopia', 'download', 'Copia de seguridad', 'Descargar o restaurar tus datos')}
+      ${item('openSeguridad', 'shield', 'Privacidad', 'Cómo se cuidan tus datos')}
       <button class="menu-item salir" data-action="cerrarSesion"><span class="menu-ic">${icon('logout', 20)}</span><span class="grow"><span class="name">Cerrar sesión</span></span></button>
     </div>`;
 }
@@ -208,7 +208,6 @@ export const menuActions = {
   openMisDatos(ctx) {
     const s = ctx.state;
     openModal('Mis datos', `<form class="form" data-submit="saveSettings">
-      <div class="field"><label for="s-name">Tu nombre</label><input id="s-name" name="name" value="${esc(s.profile.name)}"></div>
       ${campoCobro(s.profile)}
       <div class="field"><label for="s-prov">Provincia (para las promos de tu zona)</label><select id="s-prov" name="province" data-change="ciudadProvincia"><option value="">Sin elegir: solo promos de todo el país</option>${PROVINCES.map((p) => `<option value="${esc(p)}" ${s.profile.province === p ? 'selected' : ''}>${esc(provinceLabel(p))}</option>`).join('')}</select></div>
       <div class="field"><label for="s-city">Ciudad (algunas promos son solo de una ciudad)</label>${campoCiudad({ id: 's-city', prov: s.profile.province, valor: s.profile.city || '' })}</div>
@@ -224,7 +223,6 @@ export const menuActions = {
   },
   saveSettings(ctx, d) {
     ctx.commit((s) => {
-      s.profile.name = d.name.trim();
       const regla = reglaDesdeForm(d);
       if (regla) { s.profile.payRule = regla; s.profile.paydayVaries = regla.tipo === 'varia'; s.profile.payday = regla.tipo === 'dia' ? regla.dia : regla.tipo === 'ultimo' ? 31 : 1; }
       s.profile.province = PROVINCES.includes(d.province) ? d.province : '';
@@ -262,12 +260,12 @@ export const menuActions = {
   },
 
   openSeguridad() {
-    openModal('Seguridad y privacidad', `<div class="card">
+    openModal('Privacidad', `<div class="card">
       <span class="small">🔐 <b>Cifrado de extremo a extremo:</b> tus datos se cifran en este dispositivo antes de guardarse. En la nube solo hay texto ilegible.</span>
       <span class="small">👀 <b>Nadie más puede verlos:</b> ni otras personas, ni quien administra Pesitos. Solo se abren con tu clave de Pesitos o tu código de recuperación.</span>
       <span class="small">🚫 No se venden, no se comparten y no hay publicidad ni seguimiento.</span>
       <span class="small">📵 Pesitos no se conecta a tu banco ni te pide claves bancarias.</span>
-      <span class="small">🗑 Podés descargar una copia o eliminar tu cuenta y todos tus datos cuando quieras, desde Mi cuenta.</span></div>
+      <span class="small">🗑 Podés descargar una copia (Menú → Copia de seguridad) o eliminar tu cuenta y todos tus datos (tocando tu nombre arriba del menú) cuando quieras.</span></div>
       <button class="btn block" data-action="openMiCuenta">🔐 Clave de Pesitos y código de recuperación</button>
       <div class="btn-row"><button class="btn small" data-action="verLegalMenu" data-cual="privacidad">Política de privacidad</button><button class="btn small" data-action="verLegalMenu" data-cual="terminos">Términos y condiciones</button></div>`, { push: true });
   },

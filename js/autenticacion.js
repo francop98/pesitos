@@ -4,7 +4,8 @@
 // - Ingresar o crear cuenta con mail y contraseña (con verificación de mail).
 // - Ingresar con Google.
 // - Recuperar la contraseña.
-// - Mi cuenta: nombre, cambiar contraseña, cerrar sesión y eliminar la cuenta.
+// - Mi cuenta (se abre tocando tu nombre arriba del menú): datos de la cuenta,
+//   nombre, clave de Pesitos, contraseña, cerrar sesión y eliminar la cuenta.
 // =========================================================
 
 import { firebase } from './firebaseconfig.js';
@@ -296,12 +297,22 @@ export function renderVerificar(cont, alVerificar) {
 }
 
 // ---------- Mi cuenta ----------
+function fechaCuenta(u) {
+  const f = (x) => { const d = x ? new Date(x) : null; return d && !isNaN(d) ? d.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''; };
+  const alta = f(u.metadata && u.metadata.creationTime);
+  return alta ? `<span class="small muted">Cuenta creada el ${alta}</span>` : '';
+}
 export function abrirMiCuenta({ onNombre, onEliminar, abrirClave } = {}) {
   const u = actual;
   if (!u) return;
   const mail = esPorMail(u);
   openModal('Mi cuenta', `
-    <div class="card"><span class="small muted">Ingresaste con ${mail ? 'mail y contraseña' : 'Google'}</span><strong style="overflow-wrap:anywhere">${esc(u.email || '')}</strong></div>
+    <div class="card">
+      <strong style="overflow-wrap:anywhere">${esc(u.email || '')}</strong>
+      <span class="small muted">Ingresás con ${mail ? 'mail y contraseña' : 'Google'}${mail ? (u.emailVerified ? ' · mail confirmado' : ' · mail sin confirmar') : ''}</span>
+      ${fechaCuenta(u)}
+      <span class="small muted">Este dispositivo recuerda tu sesión: no tenés que volver a ingresar.</span>
+    </div>
     <button class="btn block" data-cuenta="clave">🔐 Clave de Pesitos y código de recuperación</button>
     <form class="form" id="f-nombre"><div class="field"><label for="c-nombre">Tu nombre</label><input id="c-nombre" name="nombre" value="${esc(u.displayName || '')}" maxlength="40"></div>
       <button class="btn small" type="submit">Guardar nombre</button></form>

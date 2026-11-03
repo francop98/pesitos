@@ -39,6 +39,7 @@ const P = {
   bulb: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
   send: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.5 4.5-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   logout: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
   chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -177,6 +178,23 @@ export function closeModal() {
 }
 
 // Barra superior de una pantalla con flecha para volver
+// ---------- ocultar montos (Ahorro y Sueldo) ----------
+// Se recuerda en este dispositivo. Tapa los importes con puntitos; los porcentajes quedan.
+const K_OCULTAR = 'pesitos_ocultar';
+export function montosOcultos(clave) { try { return JSON.parse(localStorage.getItem(K_OCULTAR) || '{}')[clave] === true; } catch { return false; } }
+export function alternarMontos(clave) {
+  let o = {}; try { o = JSON.parse(localStorage.getItem(K_OCULTAR) || '{}'); } catch { /* nada */ }
+  o[clave] = !o[clave];
+  try { localStorage.setItem(K_OCULTAR, JSON.stringify(o)); } catch { /* nada */ }
+  return o[clave];
+}
+export const ojoMontos = (clave) => { const o = montosOcultos(clave); return `<button class="icon-btn" data-action="alternarMontos" data-clave="${clave}" aria-pressed="${o}" aria-label="${o ? 'Mostrar los montos' : 'Ocultar los montos'}">${icon(o ? 'eyeOff' : 'eye', 20)}</button>`; };
+/** Tapa los montos ($ 12.345, −$500, US$ 1.234) de un pedazo de pantalla si están ocultos. */
+export function taparMontos(html, clave) {
+  if (!montosOcultos(clave)) return html;
+  return html.replace(/[−-]?(US\$ ?|CLP\$ ?|R\$ ?|\$U ?|\$ ?|€ ?|₿ ?|ETH ?|USDT ?|g )\d[\d.]*(,\d+)?/g, (m, pre) => `${pre.trim()} ••••••`);
+}
+
 export function screenHead(title, extra = '', subtitle = '') {
   return `<div class="topbar">
     <div class="head-left">
@@ -213,12 +231,15 @@ export function quickForm(id, s = null, medioHtml = '') {
       ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}
       <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>
     </div>
-    <details class="quick-mas"><summary>Con qué pagaste y fecha</summary>
+    ${Array.isArray(medioHtml) && medioHtml.length > 1 ? `<input type="hidden" name="medio" value="">
+    <div class="medio-fila"><span class="medio-label" data-medio-label>Pagás con</span>
+      <div class="medio-row" role="radiogroup" aria-label="Con qué pagás">${medioHtml.map((m) => `<button type="button" class="medio-chip${m.tarjeta ? ' tarjeta' : ''}" role="radio" data-action="pickMedio" data-v="${esc(m.v)}" aria-checked="${m.v === ''}">${esc(m.label)}</button>`).join('')}</div></div>` : ''}
+    <details class="quick-mas"><summary>Otra fecha o más detalle</summary>
     <div class="quick-opts">
-      ${medioHtml ? `<label class="sr-only" for="${id}-medio">Con qué pagaste</label><select id="${id}-medio" name="medio" class="mini-select medio-select">${medioHtml}</select>` : '<span class="small muted quick-date-label">Fecha</span>'}
-      <label class="sr-only" for="${id}-date">Fecha</label>
+      ${typeof medioHtml === 'string' && medioHtml ? `<label class="sr-only" for="${id}-medio">Con qué pagaste</label><select id="${id}-medio" name="medio" class="mini-select medio-select">${medioHtml}</select>` : '<label class="small muted quick-date-label" for="' + id + '-date">Fecha</label>'}
       <input id="${id}-date" name="date" type="date" class="mini-select" value="${toISO(new Date())}" max="${toISO(new Date())}">
-    </div></details>
+    </div>
+    <button type="button" class="btn small ghost block" data-action="cargaDetallada">Cargar con más detalle: cuotas, otra moneda, dividir o compartido</button></details>
   </form>`;
 }
 export function setModalBody(selector, html) {

@@ -6,7 +6,7 @@ import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
 import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizaciones.js';
-import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer } from './interfaz.js';
+import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { BILLETERAS_QUE_RINDEN, tnaDe, valorHoy, rinde, refreshRendimientos } from './rendimientos.js';
@@ -46,9 +46,9 @@ export function render(s) {
   const tips = insights(s).filter((t) => t.id === 'idle' && !((s.tipsNo || {}).idle >= todayISO()));
 
   return `<section class="screen">
-    ${screenHead('Ahorro e inversiones')}
+    ${screenHead('Ahorro e inversiones', ojoMontos('ahorro'))}
 
-    <div class="card green" style="gap:12px;padding:20px">
+    ${taparMontos(`<div class="card green" style="gap:12px;padding:20px">
       <span class="hero-label">Tenés ahorrado (en pesos)</span>
       <span style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">${money(total)}</span>
       ${total > 0 ? `<div class="dist" role="img" aria-label="Distribución de tus ahorros">${items.filter((h) => h.ars > 0).map((h) => `<span style="width:${(h.ars / total) * 100}%;background:${holdingType(h.type).color}"></span>`).join('')}</div>` : ''}
@@ -60,18 +60,18 @@ export function render(s) {
         </button>`).join('') || '<span class="small on-green-muted">Todavía no cargaste dónde tenés tus ahorros.</span>'}
       </div>
       <button class="btn small lime" data-action="newHolding">+ Agregar dónde ahorrás</button>
-    </div>
+    </div>`, 'ahorro')}
 
     ${quotes(s)}
 
     <div class="section-title"><span>Metas</span><button data-action="openGoalForm">+ Nueva meta</button></div>
-    <div class="card tight">
+    ${taparMontos(`<div class="card tight">
       ${s.goals.length ? s.goals.map((g) => `<button class="row" data-action="openGoal" data-id="${g.id}">
         ${ring(goalPct(g), 40, 5, `${g.name}`)}
         <span class="grow"><span class="name">${esc(g.name)}${g.main ? ' <span class="pill lime" style="margin-left:4px">Principal</span>' : ''}</span><span class="meta">${g.target ? `${money(g.saved)} de ${money(g.target)} · ` : ''}${esc(goalEta(g).text)}</span></span>
         <span class="amount">${Math.round(goalPct(g) * 100)}%</span>
-      </button>`).join('') : '<p class="empty">Creá una meta y te digo cuánto apartar y cuándo llegás.</p>'}
-    </div>
+      </button>`).join('') : '<p class="empty">¿Para qué estás ahorrando? Creá una meta (un viaje, un fondo de emergencia) y te muestro cuánto llevás y cuándo llegás.</p>'}
+    </div>`, 'ahorro')}
 
     ${tips.map(tipCard).join('')}
 
@@ -82,13 +82,15 @@ export function render(s) {
 function goalForm(g = {}) {
   return `<form class="form" data-submit="saveGoal">
     <input type="hidden" name="id" value="${esc(g.id || '')}">
+    ${g.id ? '' : '<p class="small muted" style="margin:0">Una meta es para qué ahorrás. Te muestro cuánto llevás y en qué mes llegás. Cada vez que apartes plata, tocá la meta y sumala con <b>Aportar</b>.</p>'}
     <div class="field"><label for="g-n">Meta</label><input id="g-n" name="name" value="${esc(g.name || '')}" placeholder="Ej: Viaje, fondo de emergencia, auto" required></div>
     <div class="field-row">
       <div class="field"><label for="g-t">Cuánto necesitás</label><input id="g-t" name="target" inputmode="decimal" value="${g.target || ''}" placeholder="Ej: 1.500.000"></div>
       <div class="field"><label for="g-s">Ya tenés</label><input id="g-s" name="saved" inputmode="decimal" value="${g.saved || ''}" placeholder="Ej: 0"></div>
     </div>
     <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="decimal" value="${g.monthly || ''}" placeholder="Ej: 100.000"><span class="hint">Con esto calculo cuándo llegás.</span></div>
-    <label style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;min-height:44px"><input type="checkbox" name="main" ${g.main ? 'checked' : ''} style="width:20px;height:20px"> Es mi meta principal</label>
+    <label class="check"><input type="checkbox" name="main" ${g.main ? 'checked' : ''}> <span>Es mi meta principal<br><span class="small muted">Aparece en Inicio con su avance. Podés tener una sola; si marcás otra, esta deja de serlo.</span></span></label>
+    <span class="small muted">La meta no cambia lo que podés gastar por día. Lo que apartás cada mes lo define tu forma de ahorrar (Asesor → Ahorro).</span>
     <button class="btn primary block" type="submit">Guardar</button>
     ${g.id ? `<button class="btn ghost block" type="button" data-action="deleteGoal" data-id="${g.id}">Borrar meta</button>` : ''}
   </form>`;

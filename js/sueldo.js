@@ -3,7 +3,7 @@
 import { money, pct, esc, monthName, monthKey, addMonthKey, num, todayISO, toISO, MONTHS_LONG } from './formato.js';
 import { salaryStats, lastSalary } from './calculos.js';
 import { lastIpc } from './datosvivos.js';
-import { sprout, icon, screenHead, openModal, closeModal, toast } from './interfaz.js';
+import { sprout, icon, screenHead, openModal, closeModal, toast, ojoMontos, taparMontos } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { fechaDeCobro } from './feriados.js';
 import { lessonCard } from './aprender.js';
@@ -46,8 +46,8 @@ export function render(s) {
     reading = parts.join(' ');
   }
 
-  return `<section class="screen">
-    ${screenHead('Tu sueldo')}
+  return taparMontos(`<section class="screen">
+    ${screenHead('Tu sueldo', ojoMontos('sueldo'))}
     ${st ? `
     <div class="card" style="gap:12px">
       <div class="topbar" style="align-items:flex-start;flex-wrap:wrap">
@@ -81,7 +81,7 @@ export function render(s) {
 
     ${history.length ? `<div class="section-title"><span>Últimos sueldos</span></div>
     <div class="card tight">${history.map((i) => `<button class="row" data-action="openEntry" data-id="${i.id}" data-kind="income"><span class="grow"><span class="name">${monthName(i.date.slice(0, 7), true).replace(/^./, (c) => c.toUpperCase())} ${i.date.slice(0, 4)}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
-  </section>`;
+  </section>`, 'sueldo');
 }
 
 export const actions = {

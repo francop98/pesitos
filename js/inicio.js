@@ -11,7 +11,7 @@ import { alerts, dueLabel, closings } from './agenda.js';
 import { projection, coverage } from './flujo.js';
 import { reglaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
-import { medioOptions } from './acciones.js';
+import { mediosRapidos } from './acciones.js';
 import { instalada } from './menu.js';
 import { bioDisponible, bloqueoActivo, bloqueoActions } from './bloqueo.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
@@ -160,18 +160,15 @@ function novedadesHtml(s) {
   const b = budget(s);
   const resto = avisos(s, b).slice(1);
   return `<div data-novedades>${resto.length ? resto.join('').replace(/<!--fijo-->/g, '') : '<p class="empty">No hay nada más por ahora. ¡Todo en orden!</p>'}
-    <div class="card lime" style="flex-direction:row;align-items:center;justify-content:space-between;padding:12px 16px">
-      <span class="small" style="font-weight:700">Plata que te ahorró Pesitos en ${MONTHS_LONG[new Date().getMonth()]}</span>
-      <span style="font-size:17px;font-weight:800">${money(savedThisMonth(s))}</span>
-    </div></div>`;
+</div>`;
 }
 
 const ATAJOS = [
   ['#/pagos', 'calendar', 'Por pagar'],
+  ['#/cuentas', 'wallet', 'Saldo'],
   ['#/beneficios', 'ticket', 'Beneficios'],
   ['#/herramientas', 'swap', 'Herramientas'],
   ['#/estadisticas', 'pie', 'Estadísticas'],
-  ['#/cuentas', 'bank', 'Mis cuentas'],
   ['#/presupuestos', 'target', 'Presupuestos'],
   ['#/deudas', 'people', 'Deudas'],
   ['#/tarjetas', 'card', 'Tarjetas'],
@@ -232,7 +229,7 @@ export function render(s) {
       ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(b, payText)}
     </div>
 
-    ${quickForm('q-home', s, medioOptions(s, '', { auto: true }))}
+    ${quickForm('q-home', s, mediosRapidos(s))}
 
     ${lista[0] || ''}
 
@@ -308,6 +305,6 @@ export const actions = {
     const amount = num(d.amount);
     if (!amount) return;
     ctx.commit((s) => { const mk = monthKey(); s.savedByApp[mk] = (s.savedByApp[mk] || 0) + amount; s.tipsNo = { ...(s.tipsNo || {}), [`promo-${new Date().getDay()}`]: todayISO() }; });
-    closeModal(); toast(`¡Bien! ${money(amount)} ahorrados`);
+    closeModal(); toast(`¡Bien! Sumé ${money(amount)} a lo que te ahorraste (lo ves en Movimientos)`);
   },
 };

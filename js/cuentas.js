@@ -12,7 +12,8 @@
 // =========================================================
 
 import { allWallets } from './categorias.js';
-import { todayISO, monthKey, monthDiff } from './formato.js';
+import { todayISO, monthKey, monthDiff, toISO, parseISO } from './formato.js';
+import { BILLETERAS_QUE_RINDEN } from './rendimientos.js';
 import { holdingsTotal, cardSummary, fixedActive } from './calculos.js';
 
 const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + f(x), 0);
@@ -63,9 +64,42 @@ export function movimientosDeCuenta(s, id, desde = '0000-00-00', hasta = todayIS
 
 /** Saldo de hoy: el que cargaste en su fecha, más todo lo que pasó después. */
 export function saldoCuenta(s, id) {
+  const d = detalleSaldo(s, id);
+  return d ? d.saldo : null;
+}
+
+// ---------- intereses de las cuentas que rinden (Mercado Pago, Ualá…) ----------
+// La plata que dejás en una billetera remunerada suma intereses todos los días.
+// Uso la tasa del día que publica ArgentinaDatos (ver js/rendimientos.js) y la
+// aplico al saldo de cada noche, con interés compuesto diario.
+export const cuentaPuedeRendir = (id) => BILLETERAS_QUE_RINDEN.some((b) => b.id === id);
+export function tnaCuenta(s, id) {
+  if (!cuentaPuedeRendir(id) || (s.cuentasRinden || {})[id] === false) return 0;
+  const t = s.rendimientos && s.rendimientos.tasas && s.rendimientos.tasas[id];
+  return t ? Number(t.tna) || 0 : 0;
+}
+/** { saldo, intereses, tna } de una cuenta con saldo cargado (o null). */
+export function detalleSaldo(s, id) {
   const c = s.cuentas && s.cuentas[id];
   if (!c) return null;
-  return Number(c.saldo || 0) + sum(movimientosDeCuenta(s, id, c.desde), (m) => m.monto);
+  const movs = movimientosDeCuenta(s, id, c.desde);
+  const base = Number(c.saldo || 0) + sum(movs, (m) => m.monto);
+  const tna = tnaCuenta(s, id);
+  if (!tna || !c.desde) return { saldo: base, intereses: 0, tna: 0 };
+  const porDia = {};
+  for (const m of movs) porDia[m.date] = (porDia[m.date] || 0) + m.monto;
+  const r = tna / 100 / 365;
+  const hoy = todayISO();
+  let bal = Number(c.saldo || 0);
+  const d = parseISO(c.desde);
+  for (let i = 0; i < 4000; i++) {
+    d.setDate(d.getDate() + 1);
+    const iso = toISO(d);
+    if (iso > hoy) break;
+    if (bal > 0) bal *= 1 + r; // lo que quedó a la noche rinde
+    bal += porDia[iso] || 0;
+  }
+  return { saldo: bal, intereses: Math.max(0, bal - base), tna };
 }
 export const totalCuentas = (s) => sum(cuentasConSaldo(s), (c) => saldoCuenta(s, c.id) || 0);
 
