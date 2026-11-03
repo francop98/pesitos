@@ -178,6 +178,45 @@ export function closeModal() {
 }
 
 // Barra superior de una pantalla con flecha para volver
+// ---------- elegir mes y año (para todos los calendarios) ----------
+// abrirSelectorMes({ actual: 'AAAA-MM', min, max, accion, marcados, titulo })
+// Al tocar un mes se llama a la acción `accion` con data-mk. El año se elige igual:
+// tocando el año se abre la grilla de años.
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+let selCfg = null;
+const hoyMk = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+function selectorHtml() {
+  const c = selCfg;
+  const yMin = Number(c.min.slice(0, 4)); const yMax = Number(c.max.slice(0, 4));
+  if (c.vista === 'anio') {
+    const anios = []; for (let y = yMax; y >= yMin; y--) anios.push(y);
+    return `<div data-selmes><p class="small muted" style="margin:0">Elegí el año</p>
+      <div class="meses-grid anios-grid">${anios.map((y) => `<button class="mes-op${y === c.anio ? ' on' : ''}${(c.marcados && [...c.marcados].some((k) => k.startsWith(y + '-'))) ? ' datos' : ''}" data-action="selElegirAnio" data-y="${y}" aria-pressed="${y === c.anio}">${y}</button>`).join('')}</div></div>`;
+  }
+  return `<div data-selmes><div class="month-nav anio-nav">
+      <button class="icon-btn" data-action="selElegirAnio" data-y="${c.anio - 1}" aria-label="Año anterior" ${c.anio <= yMin ? 'disabled' : ''}>${icon('back', 18, 2.2)}</button>
+      <button class="mes-btn" data-action="selVerAnios" aria-label="Elegir el año">${c.anio} ${icon('chevron', 14, 2.4)}</button>
+      <button class="icon-btn" data-action="selElegirAnio" data-y="${c.anio + 1}" aria-label="Año siguiente" ${c.anio >= yMax ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
+    </div>
+    <div class="meses-grid">${MESES_CORTOS.map((n, i) => {
+      const k = `${c.anio}-${String(i + 1).padStart(2, '0')}`;
+      return `<button class="mes-op${k === c.actual ? ' on' : ''}${c.marcados && c.marcados.has(k) ? ' datos' : ''}" data-action="${c.accion}" data-mk="${k}" ${k < c.min || k > c.max ? 'disabled' : ''} aria-pressed="${k === c.actual}">${n}</button>`;
+    }).join('')}</div>
+    ${c.marcados ? `<span class="small muted">${esc(c.nota || 'El puntito marca los meses con movimientos.')}</span>` : ''}
+    ${c.actual !== hoyMk() && hoyMk() >= c.min && hoyMk() <= c.max ? `<button class="btn small block" data-action="${c.accion}" data-mk="${hoyMk()}">Ir a este mes</button>` : ''}</div>`;
+}
+export function abrirSelectorMes(cfg) {
+  selCfg = { titulo: 'Elegí el mes', ...cfg, anio: Number(cfg.actual.slice(0, 4)), vista: 'mes' };
+  openModal(selCfg.titulo, selectorHtml());
+}
+const repintarSelector = () => { const n = document.querySelector('#modal [data-selmes]'); if (n && selCfg) n.outerHTML = selectorHtml(); };
+export const selectorActions = {
+  selVerAnios() { if (!selCfg) return; selCfg.vista = 'anio'; repintarSelector(); },
+  selElegirAnio(ctx, el) { if (!selCfg) return; selCfg.anio = Number(el.dataset.y); selCfg.vista = 'mes'; repintarSelector(); },
+};
+/** Botón con el nombre del mes que abre el selector. */
+export const botonMes = (mk, accion) => { const [y, m] = mk.split('-').map(Number); return `<button class="mes-btn" data-action="${accion}" aria-label="Elegir mes y año">${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][m - 1]} ${y} ${icon('chevron', 14, 2.4)}</button>`; };
+
 // ---------- ocultar montos (Ahorro y Sueldo) ----------
 // Se recuerda en este dispositivo. Tapa los importes con puntitos; los porcentajes quedan.
 const K_OCULTAR = 'pesitos_ocultar';

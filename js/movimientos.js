@@ -9,7 +9,7 @@ import { monthExpenses, monthIncome, fixedTotal, fixedActive, fixedProgress } fr
 import { parseAmount } from './interprete.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { medioOptions } from './acciones.js';
-import { icon, catIcon, screenHead, quickForm, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
+import { icon, catIcon, screenHead, quickForm, openModal, closeModal, toast, borrarConDeshacer, abrirSelectorMes, botonMes } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
@@ -67,7 +67,7 @@ export function render(s) {
 
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
-      <button class="mes-btn" data-action="movElegirMes" aria-label="Elegir mes">${monthLabel(mk).replace(/^./, (c) => c.toUpperCase())} ${icon('chevron', 14, 2.4)}</button>
+      ${botonMes(mk, 'movElegirMes')}
       <button class="icon-btn" data-action="monthNext" aria-label="Mes siguiente" ${offset === 0 ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
     </div>
 
@@ -107,31 +107,11 @@ export function render(s) {
   </section>`;
 }
 
-// ---------- elegir mes y año de una ----------
+// primer mes con movimientos (para el selector de mes)
 function primerMes(s) {
   let min = monthKey();
   for (const x of [...s.expenses, ...s.incomes]) if (x.date && x.date.slice(0, 7) < min) min = x.date.slice(0, 7);
   return min;
-}
-function mesesHtml(s, anio) {
-  const hoy = monthKey();
-  const desde = primerMes(s);
-  const actual = addMonthKey(hoy, -offset);
-  const yHoy = Number(hoy.slice(0, 4));
-  const yMin = Math.min(Number(desde.slice(0, 4)), yHoy - 5);
-  const conDatos = new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7)));
-  return `<div data-meses><div class="month-nav anio-nav">
-      <button class="icon-btn" data-action="movAnio" data-y="${anio - 1}" aria-label="Año anterior" ${anio <= yMin ? 'disabled' : ''}>${icon('back', 18, 2.2)}</button>
-      <span>${anio}</span>
-      <button class="icon-btn" data-action="movAnio" data-y="${anio + 1}" aria-label="Año siguiente" ${anio >= yHoy ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
-    </div>
-    <div class="meses-grid">${MONTHS_LONG.map((n, i) => {
-      const k = `${anio}-${String(i + 1).padStart(2, '0')}`;
-      const futuro = k > hoy;
-      return `<button class="mes-op${k === actual ? ' on' : ''}${conDatos.has(k) ? ' datos' : ''}" data-action="movIrMes" data-mk="${k}" ${futuro ? 'disabled' : ''} aria-pressed="${k === actual}">${n.slice(0, 3).replace(/^./, (c) => c.toUpperCase())}</button>`;
-    }).join('')}</div>
-    <span class="small muted">El puntito marca los meses en los que anotaste algo.</span>
-    ${offset ? '<button class="btn small block" data-action="movIrMes" data-mk="">Volver a este mes</button>' : ''}</div>`;
 }
 
 function fixedForm(s, f = {}) {
@@ -172,11 +152,15 @@ export const actions = {
   ahorroPesitosInfo(ctx) {
     openModal('Plata que te ahorraste', `<p class="text" style="margin:0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
       <div class="card"><span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
-      <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Asesor → Ahorro, se suma lo que no gastaste.</span></div>
+      <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Ahorro → Plan de ahorro, se suma lo que no gastaste.</span></div>
       <a class="btn primary block" href="#/beneficios">Ver las promos de hoy</a>`);
   },
-  movElegirMes(ctx) { openModal('Elegí el mes', mesesHtml(ctx.state, Number(addMonthKey(monthKey(), -offset).slice(0, 4)))); },
-  movAnio(ctx, el) { const m = document.querySelector('#modal [data-meses]'); if (m) m.outerHTML = mesesHtml(ctx.state, Number(el.dataset.y)); },
+  movElegirMes(ctx) {
+    const s = ctx.state; const hoy = monthKey();
+    const desde = primerMes(s);
+    const min = `${Math.min(Number(desde.slice(0, 4)), Number(hoy.slice(0, 4)) - 5)}-01`;
+    abrirSelectorMes({ actual: addMonthKey(hoy, -offset), min, max: hoy, accion: 'movIrMes', marcados: new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7))) });
+  },
   movIrMes(ctx, el) { offset = el.dataset.mk ? Math.max(0, monthDiff(el.dataset.mk, monthKey())) : 0; closeModal(); ctx.render(); },
   newFixed(ctx) { openModal('Nuevo gasto fijo', fixedForm(ctx.state)); },
   fillFixedName(ctx, el) { const i = document.getElementById('fx-n'); if (i) { i.value = el.dataset.name; document.getElementById('fx-a')?.focus(); } },

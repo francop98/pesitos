@@ -126,7 +126,7 @@ export function agendaBetween(s, from, to) {
   // pagos programados
   for (const b of s.bills || []) {
     for (const d of billOccurrences(b, from, to)) {
-      push({ key: `bill:${b.id}:${toISO(d)}`, kind: 'bill', refId: b.id, name: b.name, amount: b.amount, dueDate: d, icon: 'calendar', sub: repeatLabel(b.repeat) + (b.autoDebit ? ' · débito automático' : ''), payWith: b.payWith || '', autoDebit: !!b.autoDebit, fromSavings: !!b.saveAhead });
+      push({ key: `bill:${b.id}:${toISO(d)}`, kind: 'bill', refId: b.id, name: b.name, amount: b.amount || 0, dueDate: d, icon: 'calendar', sub: repeatLabel(b.repeat) + (b.variable ? ' · el monto varía' : '') + (b.autoDebit ? ' · débito automático' : ''), payWith: b.payWith || '', autoDebit: !!b.autoDebit, fromSavings: !!b.saveAhead, estimated: !!b.variable && !!b.amount, variable: !!b.variable || !b.amount });
     }
   }
 
@@ -215,7 +215,7 @@ export function buildICS(s) {
   for (const b of s.bills || []) {
     const step = (REPEATS.find((r) => r.id === b.repeat) || REPEATS[0]).months;
     const rr = !step ? '' : step === 12 ? 'FREQ=YEARLY' : `FREQ=MONTHLY;INTERVAL=${step}`;
-    event(`bill-${b.id}`, `Vence ${b.name} (${money(b.amount)})`, parseISO(b.date), rr, `${repeatLabel(b.repeat)}. Cargado en Pesitos.`);
+    event(`bill-${b.id}`, `Vence ${b.name}${b.amount ? ` (${b.variable ? '≈ ' : ''}${money(b.amount)})` : ''}`, parseISO(b.date), rr, `${repeatLabel(b.repeat)}. Cargado en Pesitos.`);
   }
   lines.push('END:VCALENDAR');
   return lines.join('\r\n');
@@ -230,7 +230,7 @@ export async function notifyDue(ctx) {
   const due = agenda(s, 1).filter((i) => !i.paid && i.days >= -3 && i.days <= 1);
   if (!due.length) return;
   const title = due.length === 1 ? `${due[0].days < 0 ? 'Venció' : due[0].days === 0 ? 'Vence hoy' : 'Vence mañana'}: ${due[0].name}` : `Tenés ${due.length} pagos por vencer`;
-  const body = due.map((i) => `${i.name}: ${money(i.amount)}`).join(' · ');
+  const body = due.map((i) => (i.amount ? `${i.name}: ${i.estimated ? "≈ " : ""}${money(i.amount)}` : `${i.name}: monto a confirmar`)).join(' · ');
   try {
     const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration());
     if (reg) reg.showNotification(title, { body, icon: 'assets/icon-192.png', tag: 'pesitos-pagos' });

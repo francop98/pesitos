@@ -142,6 +142,8 @@ export function cerrarMenu(rapido = false) {
 }
 
 // deslizar con el dedo
+// zonas donde deslizar de costado ya hace otra cosa (filas que se desplazan, campos, gráficos)
+const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, select, .cat-row, .medio-row, .chips, .tabs, .meses-grid, .dist, svg, #modal, .drawer'));
 (() => {
   let x0 = 0; let y0 = 0; let modo = null; let dx = 0; let decidido = false;
   const ancho = () => panel().offsetWidth || 320;
@@ -150,7 +152,9 @@ export function cerrarMenu(rapido = false) {
     const t = e.touches[0];
     x0 = t.clientX; y0 = t.clientY; dx = 0; decidido = false; modo = null;
     if (menuAbierto()) modo = 'cerrar';
-    else if (x0 < 24 && ctxMenu && !document.body.classList.contains('no-nav') && !document.body.classList.contains('sin-sesion') && !document.body.classList.contains('bloqueado') && document.getElementById('modal').hidden && document.querySelector('[data-action=openMenu]')) modo = 'abrir';
+    // se abre deslizando hacia la derecha desde la mitad izquierda de la pantalla.
+    // No hace falta empezar en el borde: el borde del celular es el gesto de "atrás" del sistema.
+    else if (x0 < window.innerWidth * 0.5 && !arrastrable(e.target) && ctxMenu && !document.body.classList.contains('no-nav') && !document.body.classList.contains('sin-sesion') && !document.body.classList.contains('bloqueado') && document.getElementById('modal').hidden && document.querySelector('[data-action=openMenu]')) modo = 'abrir';
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
     if (!modo) return;
@@ -159,6 +163,7 @@ export function cerrarMenu(rapido = false) {
     if (!decidido) {
       if (Math.abs(dx) < 8 && Math.abs(t.clientY - y0) < 8) return;
       if (Math.abs(t.clientY - y0) > Math.abs(dx)) { modo = null; return; } // era scroll vertical
+      if (modo === 'abrir' && dx < 0) { modo = null; return; } // hacia la izquierda: no es para el menú
       decidido = true;
       const d = drawer();
       if (modo === 'abrir') { pintarMenu(); d.hidden = false; d.classList.add('arrastrando'); }

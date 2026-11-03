@@ -146,14 +146,14 @@ export function answer(question, s) {
   }
 
   if (/promo|descuento|reintegro/.test(q)) {
-    if (!(s.wallets || []).length) return 'Cargá tus bancos, billeteras y tarjetas en Asesor → Mis medios de pago y te digo qué descuentos tenés cada día.';
+    if (!(s.wallets || []).length) return 'Cargá tus bancos, billeteras y tarjetas en Menú → Mis medios de pago y te digo qué descuentos tenés cada día.';
     const lines = [];
     for (let i = 0; i < 7; i++) {
       const day = (new Date().getDay() + i) % 7;
       const ps = promosForDay(s, day).slice(0, 2);
       if (ps.length) lines.push(`• ${WEEKDAYS[day][0].toUpperCase() + WEEKDAYS[day].slice(1)}: ${ps.map((p) => `${p.pct}% ${p.merchant || catLabel(p.category).toLowerCase()} (${p.name})`).join(', ')}`);
     }
-    return lines.length ? 'Tus promos de la semana:\n' + lines.join('\n') : 'No encontré promos cargadas para tus medios de pago. Podés sumar las tuyas en Asesor → Promos.';
+    return lines.length ? 'Tus promos de la semana:\n' + lines.join('\n') : 'No encontré promos cargadas para tus medios de pago. Podés sumar las tuyas en Inicio → Beneficios → Promos que cargaste.';
   }
 
   if (/aguinaldo|bono|extra/.test(q)) {

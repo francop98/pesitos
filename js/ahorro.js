@@ -6,6 +6,7 @@ import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
 import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizaciones.js';
+import { planAhorroHtml } from './asesor.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
@@ -40,15 +41,32 @@ function quotes(s) {
   </div>`;
 }
 
+let vista = 'mis'; // 'mis' | 'plan'
+
 export function render(s) {
   const total = holdingsTotal(s);
   const items = s.holdings.map((h) => ({ ...h, ars: holdingArs(s, h) }));
   const tips = insights(s).filter((t) => t.id === 'idle' && !((s.tipsNo || {}).idle >= todayISO()));
+  const metasHtml = `
+    <div class="section-title"><span>Metas</span><button data-action="openGoalForm">+ Nueva meta</button></div>
+    ${taparMontos(`<div class="card tight">
+      ${s.goals.length ? s.goals.map((g) => `<button class="row" data-action="openGoal" data-id="${g.id}">
+        ${ring(goalPct(g), 40, 5, `${g.name}`)}
+        <span class="grow"><span class="name">${esc(g.name)}${g.main ? ' <span class="pill lime" style="margin-left:4px">Principal</span>' : ''}</span><span class="meta">${g.target ? `${money(g.saved)} de ${money(g.target)} · ` : ''}${esc(goalEta(g).text)}</span></span>
+        <span class="amount">${Math.round(goalPct(g) * 100)}%</span>
+      </button>`).join('') : '<p class="empty">¿Para qué estás ahorrando? Creá una meta (un viaje, un fondo de emergencia) y te muestro cuánto llevás y cuándo llegás.</p>'}
+    </div>`, 'ahorro')}
+`;
 
   return `<section class="screen">
-    ${screenHead('Ahorro e inversiones', ojoMontos('ahorro'))}
+    ${screenHead('Ahorro', ojoMontos('ahorro'))}
 
-    ${taparMontos(`<div class="card green" style="gap:12px;padding:20px">
+    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <button role="tab" data-action="ahorroVista" data-v="mis" aria-pressed="${vista === 'mis'}">Mis ahorros</button>
+      <button role="tab" data-action="ahorroVista" data-v="plan" aria-pressed="${vista === 'plan'}">Plan de ahorro</button>
+    </div>
+
+    ${vista === 'mis' ? taparMontos(`<div class="card green" style="gap:12px;padding:20px">
       <span class="hero-label">Tenés ahorrado (en pesos)</span>
       <span style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">${money(total)}</span>
       ${total > 0 ? `<div class="dist" role="img" aria-label="Distribución de tus ahorros">${items.filter((h) => h.ars > 0).map((h) => `<span style="width:${(h.ars / total) * 100}%;background:${holdingType(h.type).color}"></span>`).join('')}</div>` : ''}
@@ -60,22 +78,15 @@ export function render(s) {
         </button>`).join('') || '<span class="small on-green-muted">Todavía no cargaste dónde tenés tus ahorros.</span>'}
       </div>
       <button class="btn small lime" data-action="newHolding">+ Agregar dónde ahorrás</button>
-    </div>`, 'ahorro')}
+    </div>`, 'ahorro') : ''}
 
+    ${vista === 'mis' ? `
     ${quotes(s)}
-
-    <div class="section-title"><span>Metas</span><button data-action="openGoalForm">+ Nueva meta</button></div>
-    ${taparMontos(`<div class="card tight">
-      ${s.goals.length ? s.goals.map((g) => `<button class="row" data-action="openGoal" data-id="${g.id}">
-        ${ring(goalPct(g), 40, 5, `${g.name}`)}
-        <span class="grow"><span class="name">${esc(g.name)}${g.main ? ' <span class="pill lime" style="margin-left:4px">Principal</span>' : ''}</span><span class="meta">${g.target ? `${money(g.saved)} de ${money(g.target)} · ` : ''}${esc(goalEta(g).text)}</span></span>
-        <span class="amount">${Math.round(goalPct(g) * 100)}%</span>
-      </button>`).join('') : '<p class="empty">¿Para qué estás ahorrando? Creá una meta (un viaje, un fondo de emergencia) y te muestro cuánto llevás y cuándo llegás.</p>'}
-    </div>`, 'ahorro')}
 
     ${tips.map(tipCard).join('')}
 
     <button class="btn" data-action="showOptions">¿Dónde conviene poner mis ahorros?</button>
+    ` : planAhorroHtml(s, metasHtml)}
   </section>`;
 }
 
@@ -90,7 +101,7 @@ function goalForm(g = {}) {
     </div>
     <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="decimal" value="${g.monthly || ''}" placeholder="Ej: 100.000"><span class="hint">Con esto calculo cuándo llegás.</span></div>
     <label class="check"><input type="checkbox" name="main" ${g.main ? 'checked' : ''}> <span>Es mi meta principal<br><span class="small muted">Aparece en Inicio con su avance. Podés tener una sola; si marcás otra, esta deja de serlo.</span></span></label>
-    <span class="small muted">La meta no cambia lo que podés gastar por día. Lo que apartás cada mes lo define tu forma de ahorrar (Asesor → Ahorro).</span>
+    <span class="small muted">La meta no cambia lo que podés gastar por día. Lo que apartás cada mes lo define tu forma de ahorrar (acá en Plan de ahorro).</span>
     <button class="btn primary block" type="submit">Guardar</button>
     ${g.id ? `<button class="btn ghost block" type="button" data-action="deleteGoal" data-id="${g.id}">Borrar meta</button>` : ''}
   </form>`;
@@ -153,6 +164,7 @@ function converterBody(s, d = { amount: 100, from: 'USD', to: 'ARS' }) {
 }
 
 export const actions = {
+  ahorroVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
   refreshQuotes(ctx) {
     toast('Actualizando cotizaciones…');
     refreshRates(ctx, true).then((ok) => toast(ok ? 'Cotizaciones actualizadas' : 'Sin conexión: uso las últimas guardadas'));

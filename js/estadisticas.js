@@ -4,11 +4,11 @@
 // cuentas y exportar (Excel y PDF).
 // =========================================================
 
-import { money, esc, monthKey, addMonthKey, monthName, todayISO, pct } from './formato.js';
+import { money, esc, monthKey, addMonthKey, monthName, todayISO, pct , MONTHS_LONG} from './formato.js';
 import { monthExpenses, monthIncome, fixedTotal } from './calculos.js';
 import { catById } from './categorias.js';
 import { merchantKey } from './interprete.js';
-import { screenHead, icon, catIcon } from './interfaz.js';
+import { screenHead, icon, catIcon , abrirSelectorMes, closeModal } from './interfaz.js';
 import { nombreCuenta, patrimonio } from './cuentas.js';
 import { descargarCSV, imprimirResumen, tablaMovimientos } from './exportar.js';
 
@@ -18,6 +18,7 @@ const PERIODOS = [['mes', 'Este mes'], ['anterior', 'Mes pasado'], ['3m', '3 mes
 
 function meses(p = periodo) {
   const mk = monthKey();
+  if (p.startsWith('mk:')) return [p.slice(3)];
   if (p === 'anterior') return [addMonthKey(mk, -1)];
   if (p === '3m') return [-2, -1, 0].map((k) => addMonthKey(mk, k));
   if (p === '6m') return [-5, -4, -3, -2, -1, 0].map((k) => addMonthKey(mk, k));
@@ -82,7 +83,7 @@ export function render(s) {
   const pat = patrimonio(s);
   return `<section class="screen">
     ${screenHead('Estadísticas', `<span class="head-actions"><button class="icon-btn" data-action="statsCSV" aria-label="Exportar a Excel">${icon('download', 20)}</button><button class="btn small" data-action="statsPDF">PDF</button></span>`)}
-    <div class="chips periodo">${PERIODOS.map(([v, l]) => `<button class="chip toggle" data-action="statsPeriodo" data-v="${v}" aria-pressed="${periodo === v}">${l}</button>`).join('')}</div>
+    <div class="chips periodo">${PERIODOS.map(([v, l]) => `<button class="chip toggle" data-action="statsPeriodo" data-v="${v}" aria-pressed="${periodo === v}">${l}</button>`).join('')}<button class="chip toggle" data-action="statsElegirMes" aria-pressed="${periodo.startsWith('mk:')}">${periodo.startsWith('mk:') ? `${MONTHS_LONG[Number(periodo.slice(8, 10)) - 1].replace(/^./, (c) => c.toUpperCase())} ${periodo.slice(3, 7)}` : 'Otro mes…'}</button></div>
     <div class="stat-grid three">
       <div class="stat three"><span class="k">Ingresos</span><span class="v pos">${money(r.ingresos)}</span>${cambio(comp(r.ingresos, prev.ingresos), true)}</div>
       <div class="stat three"><span class="k">Gastos</span><span class="v">${money(r.gastos)}</span>${cambio(comp(r.gastos, prev.gastos))}</div>
@@ -105,13 +106,19 @@ export function render(s) {
 
 export const actions = {
   statsPeriodo(ctx, el) { periodo = el.dataset.v; ctx.render(); },
+  statsElegirMes(ctx) {
+    const s = ctx.state; const hoy = monthKey();
+    let min = hoy; for (const x of [...s.expenses, ...s.incomes]) if (x.date && x.date.slice(0, 7) < min) min = x.date.slice(0, 7);
+    abrirSelectorMes({ actual: periodo.startsWith('mk:') ? periodo.slice(3) : hoy, min: `${Math.min(Number(min.slice(0, 4)), Number(hoy.slice(0, 4)) - 5)}-01`, max: hoy, accion: 'statsIrMes', marcados: new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7))) });
+  },
+  statsIrMes(ctx, el) { periodo = `mk:${el.dataset.mk}`; closeModal(); ctx.render(); },
   statsCSV(ctx) {
     const r = resumen(ctx.state, meses());
     descargarCSV(ctx.state, [...r.gastosLista.map((e) => ({ ...e, _k: 'e' })), ...r.ingresosLista.map((i) => ({ ...i, _k: 'i' }))].sort((a, b) => a.date.localeCompare(b.date)), `pesitos-${periodo}`);
   },
   statsPDF(ctx) {
     const s = ctx.state; const ms = meses(); const r = resumen(s, ms);
-    const titulo = `${(PERIODOS.find((p) => p[0] === periodo) || [])[1]} · ${monthName(ms[0], true)} ${ms[0].slice(0, 4)}${ms.length > 1 ? ` a ${monthName(ms[ms.length - 1], true)} ${ms[ms.length - 1].slice(0, 4)}` : ''}`;
+    const titulo = `${(PERIODOS.find((p) => p[0] === periodo) || [0, 'Mes elegido'])[1]} · ${monthName(ms[0], true)} ${ms[0].slice(0, 4)}${ms.length > 1 ? ` a ${monthName(ms[ms.length - 1], true)} ${ms[ms.length - 1].slice(0, 4)}` : ''}`;
     const cats = Object.entries(r.byCat).sort((a, b) => b[1] - a[1]);
     imprimirResumen(titulo, `<div class="print-grid"><div>Ingresos<b>${money(r.ingresos)}</b></div><div>Gastos<b>${money(r.gastos)}</b></div><div>${r.ahorro >= 0 ? 'Te quedó' : 'Faltó'}<b>${money(Math.abs(r.ahorro))}</b></div></div>
       <h2>Gastos por categoría</h2><table class="print-tabla"><tbody>${cats.map(([c, v]) => `<tr><td>${esc(catById(c).label)}</td><td class="num">${money(v)}</td><td class="num">${r.variables ? Math.round((v / r.variables) * 100) : 0}%</td></tr>`).join('')}<tr><td>Gastos fijos</td><td class="num">${money(r.fijos)}</td><td></td></tr></tbody></table>

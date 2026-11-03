@@ -1,5 +1,6 @@
-// Asesor: reglas de ahorro (y propias), desafíos (y propios), medios de
-// aprendizaje y consultas.
+// Asesor: lecciones (Aprendé) y consultas.
+// La forma de ahorrar, las reglas y los desafíos se muestran en Ahorro → Plan de ahorro
+// (planAhorroHtml), pero sus acciones siguen acá.
 
 import { money, esc, num, monthKey, todayISO } from './formato.js';
 import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES } from './categorias.js';
@@ -9,7 +10,7 @@ import { budget } from './calculos.js';
 import { sprout, icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 
-let tab = 'ahorro'; // 'ahorro' | 'aprende' | 'consultas'
+let tab = 'aprende'; // 'aprende' | 'consultas'
 
 const MODE_LABEL = (s) => ({
   payFirst: `Apartás el ${s.rules.payFirst.pct}% apenas cobrás.`,
@@ -35,23 +36,18 @@ function customText(c) {
   return `El ${c.value}% de lo que gastás en ${catLabel(c.category).toLowerCase()}`;
 }
 
-export function render(s) {
+/** Forma de ahorrar, reglas y desafíos (se muestra en Ahorro → Plan de ahorro). */
+export function planAhorroHtml(s, metasHtml = '') {
   const ch = challengeStatus(s);
-  const chat = s.chat.slice(-8);
   const b = budget(s);
-  return `<section class="screen">
-    ${screenHead('Tu asesor', '', 'Ahorro, aprendizaje y consultas')}
-
-    <div class="tabs" role="tablist" aria-label="Sección">
-      ${[['ahorro', 'Ahorro'], ['aprende', 'Aprendé'], ['consultas', 'Consultas']].map(([v, l]) => `<button role="tab" data-action="asesorTab" data-v="${v}" aria-pressed="${tab === v}">${l}</button>`).join('')}
-    </div>
-
-    ${tab === 'ahorro' ? `
+  return `
     <div class="card">
       <div class="topbar"><strong style="font-size:14px">Tu forma de ahorrar</strong><button class="chip" data-action="changeMode">Cambiar</button></div>
       <span class="text">${esc(MODE_LABEL(s))}</span>
       <button class="btn ghost small" data-action="openLesson" data-id="modos" style="align-self:flex-start;min-height:36px;padding:0 4px">¿Cuál me conviene?</button>
     </div>
+
+    ${metasHtml}
 
     <div class="section-title"><span>Reglas de ahorro</span><button data-action="newRule">+ Crear regla</button></div>
     <div class="card tight">
@@ -80,7 +76,18 @@ export function render(s) {
     </div>` : `<div class="card"><span class="small muted">Elegí uno y te muestro cuánto ahorrás frente a tu ritmo de siempre.</span>
       <div class="chips">${allChallenges(s).map((c) => `<button class="chip" data-action="startChallenge" data-id="${c.id}">${esc(c.name)}</button>`).join('')}</div></div>`}
 
-    ` : ''}
+`;
+}
+
+export function render(s) {
+  const chat = s.chat.slice(-8);
+  return `<section class="screen">
+    ${screenHead('Tu asesor', '', 'Aprendé y consultá lo que quieras')}
+
+    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      ${[['aprende', 'Aprendé'], ['consultas', 'Consultas']].map(([v, l]) => `<button role="tab" data-action="asesorTab" data-v="${v}" aria-pressed="${tab === v}">${l}</button>`).join('')}
+    </div>
+
 
     ${tab === 'aprende' ? `
     <p class="small muted" style="margin:0">Lecciones cortas para manejar mejor tu plata. Leíste ${LESSONS.filter((l) => s.lessonsSeen[l.id]).length} de ${LESSONS.length}.</p>

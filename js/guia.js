@@ -34,7 +34,7 @@ function candidates(s) {
     text: `¿"${sinTasa.name}" te da intereses? Si me decís dónde está, sumo los intereses de cada día solo.`,
     options: [...BILLETERAS_QUE_RINDEN.map((b) => ({ value: b.id, label: b.nombre })), { value: 'otra', label: 'Otra (cargo la tasa)' }], no: 'No da intereses' });
   if (!s.savingMode) q.push({ id: 'savingMode', p: 92, title: 'Tu forma de ahorrar', kind: 'choice', lesson: 'modos',
-    text: '¿Cómo te gustaría ahorrar? Elegí la que te resulte más cómoda; la podés cambiar cuando quieras en Asesor.',
+    text: '¿Cómo te gustaría ahorrar? Elegí la que te resulte más cómoda; la podés cambiar cuando quieras en Ahorro → Plan de ahorro.',
     options: [
       { value: 'payFirst:10', label: 'Apartar el 10% apenas cobro' },
       { value: 'payFirst:15', label: 'Apartar el 15% apenas cobro' },
@@ -186,7 +186,7 @@ function apply(ctx, qid, input) {
   });
   if (q.id === 'province') refreshLive(ctx, true);
   if (openHoldingAfter) { const b = document.createElement('button'); b.dataset.action = 'editHolding'; b.dataset.id = openHoldingAfter; document.body.appendChild(b); b.click(); b.remove(); }
-  toast(no ? (q.id === 'savingMode' ? 'Entendido. Cuando quieras, lo activás en Asesor' : 'Perfecto, sigo con otra cosa') : msg);
+  toast(no ? (q.id === 'savingMode' ? 'Entendido. Cuando quieras, lo activás en Ahorro → Plan de ahorro' : 'Perfecto, sigo con otra cosa') : msg);
 }
 
 // ---------- sugerencias de mejora ----------

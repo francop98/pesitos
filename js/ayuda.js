@@ -100,7 +100,8 @@ const TEMAS = [
     ['¿Para qué son los presupuestos?', 'Ponele un tope por mes a una categoría (por ejemplo, Delivery). Te aviso cuando llegás al 80% y al 100%.'],
   ] },
   { titulo: 'Ahorro y metas', ic: 'target', preguntas: [
-    ['¿Cómo funciona la forma de ahorrar?', 'Elegís una (apartar un % al cobrar, un monto fijo, lo que sobre o redondear cada gasto) y te recuerdo hacerlo. La cambiás en Asesor.'],
+    ['¿Cómo abro el menú?', 'Tocá ☰ arriba a la izquierda, o deslizá el dedo hacia la derecha desde la mitad izquierda de la pantalla. No empieces justo en el borde: ahí el celular usa el gesto de "atrás".'],
+    ['¿Cómo funciona la forma de ahorrar?', 'Elegís una (apartar un % al cobrar, un monto fijo, lo que sobre o redondear cada gasto) y te recuerdo hacerlo. La cambiás en Ahorro → Plan de ahorro.'],
     ['¿Cómo cargo lo que tengo ahorrado?', 'En Ahorro → agregar. Puede ser en pesos, dólares, cripto u oro (en gramos). Lo paso a pesos con la cotización del día y, si rinde, sumo los intereses solo.'],
     ['¿Cómo creo una meta?', 'En Ahorro → Metas. Poné cuánto necesitás y te digo cuánto apartar por mes y cuándo llegás.'],
   ] },

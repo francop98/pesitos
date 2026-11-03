@@ -164,6 +164,32 @@ export function installmentsVsCash(price, n, discountPct, monthlyInflPct) {
   return { pv, cash, better: pv < cash ? 'cuotas' : 'contado', diff: Math.abs(cash - pv) };
 }
 
+// ---------- compras en cuotas: cuánto te costaron de verdad ----------
+// Cada cuota se lleva a "plata del día de la compra" con la inflación real del INDEC
+// (y la esperada para los meses que todavía no se publicaron). La diferencia con
+// el total es lo que la inflación te "licuó".
+export function cuotasReales(s, e) {
+  const n = Number(e.installments) || 1;
+  if (n <= 1 || !e.amount || !e.date) return null;
+  const m = ipcMap(s); const esperada = expectedInflation(s) / 100;
+  const cuota = e.amount / n; const mk0 = e.date.slice(0, 7); const hoy = monthKey();
+  let factor = 1; let pv = 0; let pagadas = 0; let estimadas = 0;
+  for (let k = 1; k <= n; k++) {
+    const mk = addMonthKey(mk0, k);
+    const real = m[mk] != null && Number.isFinite(Number(m[mk]));
+    factor *= 1 + (real ? Number(m[mk]) / 100 : esperada);
+    if (!real) estimadas++;
+    pv += cuota / factor;
+    if (mk <= hoy) pagadas++;
+  }
+  return { n, cuota, total: e.amount, pv, licuado: e.amount - pv, pagadas, estimadas };
+}
+export function resumenCuotas(s) {
+  const out = { compras: 0, total: 0, pv: 0, licuado: 0 };
+  for (const e of s.expenses) { if (e.pending) continue; const r = cuotasReales(s, e); if (!r) continue; out.compras++; out.total += r.total; out.pv += r.pv; out.licuado += r.licuado; }
+  return out;
+}
+
 // ---------- totales por mes y categoría ----------
 export function monthExpenses(s, mk) {
   let total = 0; const byCat = {};

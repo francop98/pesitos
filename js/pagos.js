@@ -2,12 +2,12 @@
 // el cobro, alerta si no alcanza, vista calendario, totales por cuenta,
 // historial de cumplimiento y recordatorios.
 
-import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday } from './formato.js';
+import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday , monthDiff} from './formato.js';
 import { allCategories, walletName } from './categorias.js';
 import { payCycle } from './calculos.js';
 import { agenda, agendaBetween, groups, pendingUntil, provisions, dueLabel, buildICS, REPEATS, repeatLabel, history, byAccount, statementDates, statementOf } from './agenda.js';
 import { projection, coverage, inflows } from './flujo.js';
-import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
+import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer , abrirSelectorMes, botonMes } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
 import { fechaDeCobro, reglaDeCobro } from './feriados.js';
@@ -20,6 +20,7 @@ let calOffset = 0;
 const shortDate = (iso) => { const d = parseISO(iso); return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}`; };
 const accountName = (id) => (id === 'efectivo' ? 'Efectivo' : walletName(id));
 
+const montoAgenda = (it) => (it.amount ? `${it.estimated ? '≈ ' : ''}${money(it.amount)}` : 'A confirmar');
 function row(it) {
   const tone = it.paid ? 'ok' : it.overdue ? 'warn' : it.days <= 3 ? 'lime' : '';
   const label = it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado' : dueLabel(it);
@@ -31,7 +32,7 @@ function row(it) {
       <span class="pill ${tone}" style="align-self:flex-start;margin-top:4px">${label}</span>
     </button>
     <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-      <span class="amount">${it.estimated ? '≈ ' : ''}${money(it.amount)}</span>
+      <span class="amount${it.amount ? '' : ' muted'}">${montoAgenda(it)}</span>
       ${it.paid ? '' : it.autoDebit ? '<span class="small muted">Se debita solo</span>' : `<button class="btn small green" data-action="markPaid" data-key="${esc(it.key)}" style="min-height:36px">Pagué</button>`}
     </span>
   </div>`;
@@ -112,7 +113,7 @@ function calendar(s) {
   return `<div class="card">
     <div class="month-nav" style="background:var(--bg)">
       <button class="icon-btn" data-action="calMove" data-d="-1" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
-      <span>${MONTHS_LONG[m - 1][0].toUpperCase() + MONTHS_LONG[m - 1].slice(1)} ${y}</span>
+      ${botonMes(mk, 'calElegirMes')}
       <button class="icon-btn" data-action="calMove" data-d="1" aria-label="Mes siguiente" style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
     </div>
     <div class="cal-grid">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => `<span class="cal-head">${d}</span>`).join('')}${cells.join('')}</div>
@@ -216,13 +217,14 @@ function billForm(s, b = {}) {
     <input type="hidden" name="id" value="${esc(b.id || '')}">
     <div class="field"><label for="bl-n">¿Qué tenés que pagar?</label><input id="bl-n" name="name" value="${esc(b.name || '')}" placeholder="Ej: Patente, seguro del auto, matrícula" required></div>
     <div class="field-row">
-      <div class="field"><label for="bl-a">Monto</label><input id="bl-a" name="amount" inputmode="decimal" value="${b.amount || ''}" placeholder="Ej: 45.000" required></div>
+      <div class="field"><label for="bl-a">Monto${b.variable ? ' aproximado' : ''}</label><input id="bl-a" name="amount" inputmode="decimal" value="${b.amount || ''}" placeholder="Ej: 45.000"></div>
       <div class="field"><label for="bl-d">Vence el</label><input id="bl-d" name="date" type="date" value="${b.date || todayISO()}" required></div>
     </div>
     <div class="field-row">
       <div class="field"><label for="bl-r">Se repite</label><select id="bl-r" name="repeat">${REPEATS.map((r) => `<option value="${r.id}" ${r.id === (b.repeat || 'once') ? 'selected' : ''}>${r.label}</option>`).join('')}</select></div>
       <div class="field"><label for="bl-c">Categoría</label><select id="bl-c" name="category">${allCategories().map((c) => `<option value="${c.id}" ${c.id === (b.category || 'otros') ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div>
     </div>
+    <label class="check"><input type="checkbox" name="variable" ${b.variable ? 'checked' : ''}> <span>El monto cambia cada vez<br><span class="small muted">Por ejemplo, impuestos o servicios por consumo. Si no sabés cuánto va a ser, dejá el monto vacío: aparece "a confirmar" y, cuando marques "Pagué", te pregunto cuánto fue. Lo que pagaste queda como referencia para la próxima.</span></span></label>
     <div class="field"><label for="bl-w">Se paga con</label><select id="bl-w" name="payWith">${payOptions(s, b.payWith)}</select></div>
     <label class="check"><input type="checkbox" name="autoDebit" ${b.autoDebit ? 'checked' : ''}> <span>Débito automático<br><span class="small muted">Se marca como pagado solo el día del vencimiento. Te aviso que tengas saldo.</span></span></label>
     <label class="check"><input type="checkbox" name="saveAhead" ${b.saveAhead ? 'checked' : ''}> <span>Ahorrar de a poco para este pago<br><span class="small muted">Ideal para pagos grandes: lo divido en los meses que faltan y lo sumo a tu ahorro.</span></span></label>
@@ -251,6 +253,8 @@ function findItem(s, key) { return agenda(s, 400).find((i) => i.key === key); }
 export const actions = {
   setPayView(ctx, el) { view = el.dataset.v; ctx.render(); },
   calMove(ctx, el) { calOffset += Number(el.dataset.d); ctx.render(); },
+  calElegirMes() { const hoy = monthKey(); abrirSelectorMes({ actual: addMonthKey(hoy, calOffset), min: addMonthKey(hoy, -36), max: addMonthKey(hoy, 36), accion: 'calIrMes' }); },
+  calIrMes(ctx, el) { calOffset = monthDiff(monthKey(), el.dataset.mk); view = 'calendario'; closeModal(); ctx.render(); },
   openDay(ctx, el) {
     const iso = el.dataset.day; const d = parseISO(iso);
     const items = agendaBetween(ctx.state, d, d);
@@ -268,10 +272,12 @@ export const actions = {
   editBill(ctx, el) { const b = (ctx.state.bills || []).find((x) => x.id === el.dataset.id); if (b) openModal('Editar pago', billForm(ctx.state, b)); },
   saveBill(ctx, d) {
     const amount = num(d.amount);
-    if (!amount || !String(d.name || '').trim()) { toast('Completá qué pagás y el monto'); return; }
+    const variable = !!d.variable || !amount;
+    if (!String(d.name || '').trim()) { toast('Completá qué pagás'); return; }
+    if (!amount && d.saveAhead) { toast('Para ahorrar de a poco necesito un monto, aunque sea aproximado'); return; }
     ctx.commit((s) => {
       s.bills = s.bills || [];
-      const data = { name: d.name.trim(), amount, date: d.date, repeat: d.repeat, category: d.category, payWith: d.payWith || '', autoDebit: !!d.autoDebit, saveAhead: !!d.saveAhead };
+      const data = { name: d.name.trim(), amount, variable, date: d.date, repeat: d.repeat, category: d.category, payWith: d.payWith || '', autoDebit: !!d.autoDebit, saveAhead: !!d.saveAhead };
       const b = s.bills.find((x) => x.id === d.id);
       if (b) { if (b.amount !== amount) data.lastAmount = b.amount; Object.assign(b, data); } else s.bills.push({ id: uid(), ...data });
     });
@@ -311,13 +317,13 @@ export const actions = {
     const goto = it.kind === 'card' ? '<button class="btn block" data-action="goTo" data-route="tarjetas">Ver el plan de pago de la tarjeta</button>'
       : it.kind === 'bill' ? `<button class="btn block" data-action="editBill" data-id="${it.refId}">Editar este pago</button>`
       : `<button class="btn block" data-action="editFixed" data-id="${it.refId}">Editar el gasto fijo</button>`;
-    openModal(it.name, `<div class="card"><span class="small muted">${esc(it.sub)}</span><span style="font-size:28px;font-weight:800">${it.estimated ? '≈ ' : ''}${money(it.amount)}</span><span class="pill ${it.overdue ? 'warn' : ''}" style="align-self:flex-start">${it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado automáticamente' : dueLabel(it)}</span>
+    openModal(it.name, `<div class="card"><span class="small muted">${esc(it.sub)}</span><span style="font-size:28px;font-weight:800">${montoAgenda(it)}</span><span class="pill ${it.overdue ? 'warn' : ''}" style="align-self:flex-start">${it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado automáticamente' : dueLabel(it)}</span>
       ${it.payWith ? `<span class="small">Se paga con ${esc(accountName(it.payWith))}</span>` : ''}
       ${it.paidInfo && !it.paidInfo.auto ? `<span class="small">Pagado el ${shortDate(it.paidInfo.date)} · ${money(it.paidInfo.amount)}</span>` : ''}</div>
       ${it.paid ? (it.paidInfo && it.paidInfo.auto ? '' : `<button class="btn block" data-action="unmarkPaid" data-key="${esc(it.key)}">Marcar como no pagado</button>`) : `<form class="form" data-submit="markPaidForm">
         <input type="hidden" name="key" value="${esc(it.key)}">
         <div class="field-row">
-          <div class="field"><label for="pp-a">Monto pagado</label><input id="pp-a" name="amount" inputmode="decimal" value="${Math.round(it.amount)}"></div>
+          <div class="field"><label for="pp-a">Monto pagado</label><input id="pp-a" name="amount" inputmode="decimal" value="${it.amount && !it.variable ? Math.round(it.amount) : ''}" placeholder="${it.amount ? `Ej: ${Math.round(it.amount)}` : 'Cuánto pagaste'}"></div>
           <div class="field"><label for="pp-d">Fecha</label><input id="pp-d" name="date" type="date" value="${todayISO()}" max="${todayISO()}"></div>
         </div>
         <div class="field"><label for="pp-c">Pagado con</label><select id="pp-c" name="account">${payOptions(ctx.state, it.payWith || '').replace('Sin asignar', 'No sé / no importa')}</select></div>
@@ -330,10 +336,15 @@ export const actions = {
   markPaid(ctx, el) {
     // los fijos que varían: antes de marcar, preguntar cuánto fue
     const it = findItem(ctx.state, el.dataset.key);
-    if (it && it.variable) { actions.openPayment(ctx, el); return; }
-    pay(ctx, el.dataset.key);
+    if (it && (it.variable || !it.amount)) { actions.openPayment(ctx, el); return; }
+    pay(ctx, el.dataset.key, undefined, undefined, undefined, true);
   },
-  markPaidForm(ctx, d) { pay(ctx, d.key, num(d.amount) || parseAmount(d.amount), d.date, d.account || ''); closeModal(); },
+  markPaidForm(ctx, d) {
+    const amount = num(d.amount) || parseAmount(d.amount);
+    const it = findItem(ctx.state, d.key);
+    if (!amount && it && !it.amount) { toast('Poné cuánto pagaste'); return; }
+    pay(ctx, d.key, amount, d.date, d.account || ''); closeModal();
+  },
   unmarkPaid(ctx, el) {
     const key = el.dataset.key;
     ctx.commit((s) => {
@@ -357,7 +368,7 @@ export const actions = {
   },
 };
 
-function pay(ctx, key, amount, date, account) {
+function pay(ctx, key, amount, date, account, corregible = false) {
   const it = findItem(ctx.state, key);
   if (!it) return;
   const paidAmount = amount || it.amount;
@@ -374,6 +385,11 @@ function pay(ctx, key, amount, date, account) {
       const f = s.fixed.find((x) => x.id === it.refId);
       if (f && f.variable && paidAmount && Math.abs(paidAmount - f.amount) >= 1) { f.lastAmount = f.amount; f.amount = paidAmount; }
     }
+    // pago programado que varía: lo pagado queda como monto aproximado del próximo
+    if (it.kind === 'bill') {
+      const b = s.bills.find((x) => x.id === it.refId);
+      if (b && b.variable && paidAmount && Math.abs(paidAmount - (b.amount || 0)) >= 1) { if (b.amount) b.lastAmount = b.amount; b.amount = paidAmount; }
+    }
     // los pagos programados no están en otro lado: se anotan como gasto
     if (it.kind === 'bill') {
       const b = s.bills.find((x) => x.id === it.refId);
@@ -383,6 +399,8 @@ function pay(ctx, key, amount, date, account) {
   });
   if (it.kind === 'card' && paidAmount < it.amount - 1) msg = `Pagaste ${money(paidAmount)} de ${money(it.amount)}: quedan ${money(it.amount - paidAmount)} que generan intereses en el próximo resumen.`;
   else if (when > it.due) msg = `${it.name}: pagado (con ${Math.round((parseISO(when) - parseISO(it.due)) / 86400000)} días de atraso)`;
-  toast(msg);
+  // con "Pagué" se usa el monto agendado: si fue otro, se corrige con un toque
+  if (corregible && it.kind !== 'card') toast(`${msg} (${money(paidAmount)})`, { label: 'Otro monto', fn: () => { ctx.commit((s) => { delete s.paid[key]; s.expenses = s.expenses.filter((e) => e.fromPayment !== key); }); actions.openPayment(ctx, { dataset: { key } }); } });
+  else toast(msg);
 }
 

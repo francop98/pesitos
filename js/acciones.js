@@ -10,9 +10,9 @@ import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
-import { buyImpact, expectedBalance, mainGoal, lastSalary } from './calculos.js';
+import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales } from './calculos.js';
 import { demoState } from './ejemplo.js';
-import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos } from './interfaz.js';
+import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus } from './economista.js';
 import { ratesAge, arsPer } from './cotizaciones.js';
 import { listaCuentas, cuentaPrincipal, nombreCuenta } from './cuentas.js';
@@ -73,7 +73,8 @@ export function entryForm(s, e, kind) {
            <span class="hint">Las partes tienen que sumar el total. La que dejes vacía no se usa.</span>
          </div>
          <div class="field-row"><div class="field"><label for="f-medio">Con qué pagaste</label><select id="f-medio" name="medio">${medioOptions(s, medio)}</select></div>
-         <div class="field"><label for="f-inst">Cuotas (con tarjeta)</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments > 1 ? e.installments : ''}" placeholder="1 (sin cuotas)"></div></div>`}
+         <div class="field"><label for="f-inst">Cuotas (con tarjeta)</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments > 1 ? e.installments : ''}" placeholder="1 (sin cuotas)"></div></div>
+         ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime" style="padding:12px 14px"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
     <div class="field-row">
       <div class="field"><label for="f-date">Fecha</label><input id="f-date" name="date" type="date" value="${esc(e.date || todayISO())}"></div>
       <div class="field"><label for="f-tags">Etiquetas</label><input id="f-tags" name="tags" value="${esc((e.tags || []).join(', '))}" placeholder="Ej: vacaciones, auto"></div>
@@ -168,6 +169,7 @@ function weekDetail(w) {
 }
 
 export const commonActions = {
+  ...selectorActions,
   closeModal: () => closeModal(),
   goTo(ctx, el) { closeModal(); ctx.go(el.dataset.route); },
   modalBack: () => modalBack(),
