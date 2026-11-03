@@ -12,6 +12,10 @@ import { sprout, icon, screenHead, openModal, closeModal, toast, borrarConDeshac
 import { uid } from './almacenamiento.js';
 
 let tab = 'consultas'; // 'consultas' | 'aprende' | 'ayuda'
+let masPreguntas = false;
+const PREGUNTAS = ['¿Cuánto puedo gastar hoy?', '¿Qué vence esta semana?', '¿Cuánto gasté este mes?', '¿Me compro algo de $80.000?',
+  '¿Cuánto tengo en mis cuentas?', '¿6 cuotas o contado con 10%? $300.000', '¿Dónde rinde más mi plata?', '¿A cuánto está el dólar?', '¿Qué promos tengo hoy?',
+  '¿Le gané a la inflación?', '¿Cómo van mis metas?', '¿Quién me debe plata?', '¿Qué es el dólar MEP?', '¿Qué es un plazo fijo UVA?', '¿Conviene pagar el mínimo de la tarjeta?', '¿Cómo importo el resumen de la tarjeta?']; 
 
 const MODE_LABEL = (s) => ({
   payFirst: `Apartás el ${s.rules.payFirst.pct}% apenas cobrás.`,
@@ -104,8 +108,9 @@ export function render(s) {
     <div class="chat">
       ${chat.length ? chat.map((m) => `<div class="bubble ${m.from}">${esc(m.text)}</div>`).join('') : '<div class="bubble bot">Hola. Preguntame lo que quieras de tu plata, con tus palabras: cuánto podés gastar hoy, qué vence, cuánto gastaste en algo, si te conviene una compra, dónde rinde más o dónde está cada cosa en la app.</div>'}
     </div>
-    <div class="chips chips-scroll">
-      ${['¿Cuánto puedo gastar hoy?', '¿Qué vence esta semana?', '¿Cuánto gasté este mes?', '¿Cuánto tengo en mis cuentas?', '¿Me compro algo de $80.000?', '¿6 cuotas o contado con 10%? $300.000', '¿Dónde rinde más mi plata?', '¿A cuánto está el dólar?', '¿Qué promos tengo hoy?', '¿Le gané a la inflación?', '¿Cómo van mis metas?', '¿Dónde están mis deudas?'].map((q) => `<button class="chip" data-action="ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}
+    <div class="chips">
+      ${PREGUNTAS.slice(0, masPreguntas ? PREGUNTAS.length : 4).map((q) => `<button class="chip" data-action="ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}
+      <button class="chip mas" data-action="masPreguntas">${masPreguntas ? 'Menos' : 'Más preguntas'}</button>
     </div>
     <form class="quick" data-submit="askForm" autocomplete="off">
       <label for="ask" class="sr-only">Escribí tu consulta</label>
@@ -156,6 +161,7 @@ function ask(ctx, q) {
 
 export const actions = {
   asesorTab(ctx, el) { tab = el.dataset.v; ctx.render(); },
+  masPreguntas(ctx) { masPreguntas = !masPreguntas; ctx.render(); },
   changeMode(ctx) {
     ctx.commit((s) => { s.savingMode = null; delete s.asked.savingMode; s.askLog = null; });
     ctx.go('inicio');

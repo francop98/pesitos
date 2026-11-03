@@ -8,10 +8,11 @@ import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizaciones.js';
 import { planAhorroHtml } from './asesor.js';
 import { cuerpo as cuerpoCuentas, patrimonioHtml } from './miscuentas.js';
+import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
-import { BILLETERAS_QUE_RINDEN, tnaDe, valorHoy, rinde, refreshRendimientos } from './rendimientos.js';
+import { BILLETERAS_QUE_RINDEN, tnaDe, valorHoy, rinde, refreshRendimientos, tasaDe, textoTasa, nombreBilletera } from './rendimientos.js';
 import { parseAmount } from './interprete.js';
 
 const nf = (d) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: d, minimumFractionDigits: 0 });
@@ -42,7 +43,7 @@ function quotes(s) {
   </div>`;
 }
 
-let vista = 'cuentas'; // 'cuentas' | 'mis' | 'plan'
+let vista = 'cuentas'; // 'cuentas' | 'mis' | 'sueldo' | 'plan'
 let patAbierto = false;
 /** Abrir Mi plata en una pestaña (las rutas viejas #/cuentas llegan acá). */
 export function renderVista(s, v) { vista = v; return render(s); }
@@ -67,11 +68,13 @@ export function render(s) {
 
     ${taparMontos(patrimonioHtml(s, patAbierto), 'ahorro')}
 
-    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div class="tabs tabs-4" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(4,minmax(0,1fr))">
       <button role="tab" data-action="ahorroVista" data-v="cuentas" aria-pressed="${vista === 'cuentas'}">Cuentas</button>
       <button role="tab" data-action="ahorroVista" data-v="mis" aria-pressed="${vista === 'mis'}">Ahorros</button>
-      <button role="tab" data-action="ahorroVista" data-v="plan" aria-pressed="${vista === 'plan'}">Plan de ahorro</button>
+      <button role="tab" data-action="ahorroVista" data-v="sueldo" aria-pressed="${vista === 'sueldo'}">Sueldo</button>
+      <button role="tab" data-action="ahorroVista" data-v="plan" aria-pressed="${vista === 'plan'}">Plan</button>
     </div>
+    ${vista === 'sueldo' ? sueldoCuerpo(s, 'ahorro') : ''}
 
     ${vista === 'cuentas' ? `<div class="btn-row"><button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir entre cuentas</button></div>
     ${taparMontos(cuerpoCuentas(s), 'ahorro')}` : ''}
@@ -83,7 +86,7 @@ export function render(s) {
       <div style="display:flex;flex-direction:column;gap:2px">
         ${items.map((h) => `<button class="row" data-action="editHolding" data-id="${h.id}" style="color:#fff;border-color:rgba(255,255,255,.12);padding:8px 0">
           <span style="width:10px;height:10px;border-radius:3px;background:${holdingType(h.type).color};flex-shrink:0"></span>
-          <span class="grow"><span class="name" style="font-weight:600">${esc(h.name || holdingType(h.type).label)}</span>${h.currency !== 'ARS' ? `<span class="meta on-green-muted">${fmtAsset(h.amount, h.currency)}</span>` : ''}${tnaDe(s, h) ? `<span class="meta on-green-muted">Rinde ${String(tnaDe(s, h)).replace('.', ',')}% anual${valorHoy(s, h) - h.amount >= 1 ? ` · +${money(valorHoy(s, h) - h.amount)} de intereses` : ''}</span>` : ''}</span>
+          <span class="grow"><span class="name" style="font-weight:600">${esc(h.name || holdingType(h.type).label)}</span>${h.currency !== 'ARS' ? `<span class="meta on-green-muted">${fmtAsset(h.amount, h.currency)}</span>` : ''}${tnaDe(s, h) ? `<span class="meta on-green-muted">${h.rinde && tasaDe(s, h.rinde) ? `${esc(nombreBilletera(h.rinde))}: ${textoTasa(tasaDe(s, h.rinde), money)}` : `Rinde ${String(tnaDe(s, h)).replace('.', ',')}% anual`}${valorHoy(s, h) - h.amount >= 1 ? ` · +${money(valorHoy(s, h) - h.amount)} de intereses` : ''}</span>` : ''}</span>
           <span class="amount">${h.ars ? money(h.ars) : fmtAsset(h.amount, h.currency)}</span>
         </button>`).join('') || '<span class="small on-green-muted">Todavía no cargaste dónde tenés tus ahorros.</span>'}
       </div>
@@ -111,7 +114,7 @@ function goalForm(g = {}) {
     </div>
     <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="decimal" value="${g.monthly || ''}" placeholder="Ej: 100.000"><span class="hint">Con esto calculo cuándo llegás.</span></div>
     <label class="check"><input type="checkbox" name="main" ${g.main ? 'checked' : ''}> <span>Es mi meta principal<br><span class="small muted">Aparece en Inicio con su avance. Podés tener una sola; si marcás otra, esta deja de serlo.</span></span></label>
-    <span class="small muted">La meta no cambia lo que podés gastar por día. Lo que apartás cada mes lo define tu forma de ahorrar (acá en Plan de ahorro).</span>
+    <span class="small muted">La meta no cambia lo que podés gastar por día. Lo que apartás cada mes lo define tu forma de ahorrar (acá en Mi plata → Plan).</span>
     <button class="btn primary block" type="submit">Guardar</button>
     ${g.id ? `<button class="btn ghost block" type="button" data-action="deleteGoal" data-id="${g.id}">Borrar meta</button>` : ''}
   </form>`;
@@ -127,7 +130,7 @@ function rindeFields(s, h, type) {
   return `<div class="rinde-box" ${rinde(type) ? '' : 'hidden'}>
     <div class="field"><label for="h-r">¿Te da intereses?</label><select id="h-r" name="rinde" data-change="rindeChanged">
       <option value="" ${!sel ? 'selected' : ''}>Elegí…</option>
-      ${BILLETERAS_QUE_RINDEN.map((b) => `<option value="${b.id}" ${sel === b.id ? 'selected' : ''}>${b.nombre}${tasas[b.id] ? ` · hoy ${String(tasas[b.id].tna).replace('.', ',')}% anual` : ''}</option>`).join('')}
+      ${BILLETERAS_QUE_RINDEN.map((b) => `<option value="${b.id}" ${sel === b.id ? 'selected' : ''}>${b.nombre}${tasas[b.id] ? ` · hoy ${String(tasas[b.id].tna).replace('.', ',')}%${tasas[b.id].tope ? ` hasta ${money(tasas[b.id].tope)}` : ''}` : ''}</option>`).join('')}
       <option value="manual" ${sel === 'manual' ? 'selected' : ''}>Otra: escribo la tasa (TNA)</option>
       <option value="no" ${sel === 'no' ? 'selected' : ''}>No da intereses</option></select>
       <span class="hint">Con las billeteras de la lista, la tasa se actualiza sola todos los días.</span></div>

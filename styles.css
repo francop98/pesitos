@@ -788,3 +788,13 @@ button.mov-resumen { border: none; width: 100%; text-align: left; font: inherit;
 .chips.chips-scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
 .chips.chips-scroll::-webkit-scrollbar { display: none; }
 .chips.chips-scroll .chip { flex: 0 0 auto; white-space: nowrap; }
+/* v18 */
+.deudas-card { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; border: 2px solid var(--line); text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 14px; }
+.deudas-card.activa { border-color: var(--amber-pill); background: var(--amber-bg); }
+.deudas-card[aria-pressed="true"] { outline: 2px solid var(--green); outline-offset: 1px; }
+.deudas-card .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.deudas-card .t { font-size: 15px; }
+.deudas-cta { flex-shrink: 0; font-size: 13px; font-weight: 800; color: var(--green-text); background: var(--green-soft); padding: 7px 12px; border-radius: 999px; }
+.cat-icon.amber { background: var(--amber-pill); color: var(--amber); }
+button.dia-fila { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.cuota-vivo { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--green-soft); color: var(--green-text); font-size: 14px; }

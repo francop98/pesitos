@@ -74,7 +74,7 @@ export function abrirTutorial({ alTerminar } = {}) {
 }
 
 // ---------- ayuda ----------
-const TEMAS = [
+export const AYUDA_TEMAS = [
   { titulo: 'Primeros pasos', ic: 'sprout', preguntas: [
     ['¿Qué es "Hoy podés gastar"?', 'Es lo que podés gastar hoy para llegar bien al próximo cobro. Toma tu sueldo, le resta tus gastos fijos, lo que tenés que pagar de tarjetas y lo que elegiste ahorrar, y lo reparte entre los días que faltan. Si un día gastás menos, al día siguiente tenés un poco más.'],
     ['¿Qué tengo que cargar sí o sí?', 'Con tu sueldo ya funciona. Después, cuanto más cargues (gastos fijos, tarjetas, gastos del día), más preciso es. Lo demás te lo voy preguntando de a poco.'],
@@ -135,7 +135,7 @@ export function ayudaHtml() {
 function listaAyuda(q) {
   const n = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const qq = n(q.trim());
-  const bloques = TEMAS.map((t) => {
+  const bloques = AYUDA_TEMAS.map((t) => {
     const ps = qq ? t.preguntas.filter(([p, r]) => n(p + ' ' + r).includes(qq)) : t.preguntas;
     if (!ps.length) return '';
     return `<div class="ay-tema"><div class="ay-tema-t">${icon(t.ic, 18)} ${esc(t.titulo)}</div>

@@ -79,7 +79,8 @@ function menuHtml(ctx) {
       <span class="meta sync">${icon(ic, 14)} ${s.demo ? 'Datos de ejemplo: no se guardan en tu cuenta' : esc(estado)}</span></span><span class="menu-cuenta-cta">Mi cuenta ${icon('chevron', 16)}</span></button>
 
     <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
-      ${item('irSueldo', 'trend', 'Tu sueldo', 'Si le ganás a la inflación (en Movimientos → Estadísticas)')}
+      ${item('irEstadisticas', 'pie', 'Estadísticas', 'En qué se fue tu plata, mes a mes, y topes por categoría')}
+      ${item('irProyectos', 'folder', 'Proyectos', 'Lo que gastás en una obra, un viaje o un evento, aparte')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
     </div>
 
@@ -206,6 +207,8 @@ const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, 
 export const menuActions = {
   openMenu(ctx) { abrirMenu(ctx); },
   irSueldo(ctx) { ctx.go('sueldo'); },
+  irEstadisticas(ctx) { ctx.go('estadisticas'); },
+  irProyectos(ctx) { ctx.go('proyectos'); },
 
   openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
   openAvisos(ctx) {

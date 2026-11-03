@@ -73,12 +73,15 @@ export function plannedSaving(s, salary, extras = 0, expenses = []) {
   return { total: sum(parts, (p) => p.amount), parts };
 }
 
+/** Gastos que no cuentan en "Hoy podés gastar": pagados con ahorros (incluye proyectos que se pagan con ahorros). */
+export const deAhorros = (s, e) => !!(e.fromSavings || (e.proyectoId && (s.proyectos || []).some((p) => p.id === e.proyectoId && p.conAhorros)));
+
 // Gasto variable que cae en el ciclo (las compras en cuotas cuentan de a una cuota por mes).
 export function cycleVariable(s, cycle) {
   const startMk = cycle.startISO.slice(0, 7);
   let total = 0;
   for (const e of s.expenses) {
-    if (e.pending || e.fromSavings) continue;
+    if (e.pending || deAhorros(s, e)) continue;
     if (e.date >= cycle.startISO && e.date < cycle.nextISO) total += share(e);
     else if (e.date < cycle.startISO && e.installments > 1) {
       const k = monthDiff(e.date.slice(0, 7), startMk);
@@ -102,7 +105,7 @@ export function budget(s) {
   const plan = plannedSaving(s, salary, extras, cycleExpenses(s, cycle));
   const saving = plan.total;
   const variable = cycleVariable(s, cycle);
-  const spentToday = sum(s.expenses.filter((e) => !e.pending && !e.fromSavings && e.date === todayStr), share);
+  const spentToday = sum(s.expenses.filter((e) => !e.pending && !deAhorros(s, e) && e.date === todayStr), share);
   const free = income - fixed - saving - variable;
   // Lo de hoy: lo libre repartido entre los días que faltan, pero nunca más que
   // tu ritmo normal del mes (si sobra, se sugiere ahorrarlo; no gastarlo de una).

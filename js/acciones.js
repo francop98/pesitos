@@ -10,7 +10,8 @@ import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
-import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget } from './calculos.js';
+import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal } from './calculos.js';
+import { statementDates, statementOf } from './agenda.js';
 import { demoState } from './ejemplo.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
@@ -19,7 +20,7 @@ import { listaCuentas, cuentaPrincipal, nombreCuenta } from './cuentas.js';
 import { avancePresupuesto } from './presupuestos.js';
 import { ASSETS } from './categorias.js';
 import { extraerEtiquetas, etiquetasDeTexto } from './formato.js';
-import { lastIpc, refreshLive } from './datosvivos.js';
+import { lastIpc, refreshLive, expectedInflation } from './datosvivos.js';
 
 const catOptions = (sel) => allCategories().map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.emoji ? c.emoji + ' ' : '')}${esc(c.label)}</option>`).join('');
 const MONEDAS = ASSETS.filter((a) => ['ARS', 'USD', 'EUR', 'BRL', 'UYU', 'CLP', 'USDT'].includes(a.id));
@@ -75,6 +76,7 @@ export function entryForm(s, e, kind) {
          <div class="field-row"><div class="field"><label for="f-medio">Con qué pagaste</label><select id="f-medio" name="medio">${medioOptions(s, medio)}</select></div>
          <div class="field"><label for="f-inst">Cuotas (con tarjeta)</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments > 1 ? e.installments : ''}" placeholder="1 (sin cuotas)"></div></div>
          ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime" style="padding:12px 14px"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
+    ${(s.proyectos || []).some((p) => !p.cerrado || p.id === e.proyectoId) ? `<div class="field"><label for="f-proy">Proyecto (opcional)</label><select id="f-proy" name="proyectoId"><option value="">Ninguno</option>${s.proyectos.filter((p) => !p.cerrado || p.id === e.proyectoId).map((p) => `<option value="${esc(p.id)}" ${p.id === e.proyectoId ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>` : ''}
     <div class="field-row">
       <div class="field"><label for="f-date">Fecha</label><input id="f-date" name="date" type="date" value="${esc(e.date || todayISO())}"></div>
       <div class="field"><label for="f-tags">Etiquetas</label><input id="f-tags" name="tags" value="${esc((e.tags || []).join(', '))}" placeholder="Ej: vacaciones, auto"></div>
@@ -210,9 +212,9 @@ export const commonActions = {
     const date = data.date && data.date !== todayISO() ? data.date : p.date;
     const antes = kind === 'expense' ? avancePresupuesto(ctx.state, category) : null;
     ctx.commit((s) => {
-      if (kind === 'income') s.incomes.push({ id: uid(), date, amount, type: /sueldo/i.test(texto) ? 'sueldo' : 'extra', note: note === 'Gasto' ? 'Ingreso' : note, ...(accountId ? { accountId } : {}), ...(tags.length ? { tags } : {}), ...moneda });
+      if (kind === 'income') s.incomes.push({ id: uid(), date, amount, type: /sueldo/i.test(texto) ? 'sueldo' : 'extra', note: note === 'Gasto' ? 'Ingreso' : note, ...(accountId ? { accountId } : {}), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
       else {
-        s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...moneda });
+        s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
         if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
       }
     });
@@ -256,7 +258,7 @@ export const commonActions = {
     const [tipo, id] = String(form.querySelector('[name=medio]')?.value || '').split(':');
     const cat = form.querySelector('[name=category]').value;
     const e = { note: p.note || '', amount: p.amount || 0, date: form.querySelector('[name=date]')?.value || todayISO(),
-      category: cat && cat !== 'auto' ? cat : p.category, ...(tipo === 'card' ? { cardId: id } : tipo === 'acc' ? { accountId: id } : {}) };
+      category: cat && cat !== 'auto' ? cat : p.category, ...(tipo === 'card' ? { cardId: id } : tipo === 'acc' ? { accountId: id } : {}), ...(form.querySelector('[name=proyecto]')?.value ? { proyectoId: form.querySelector('[name=proyecto]').value } : {}) };
     openModal(kind === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto', entryForm(ctx.state, e, kind));
   },
   pickCat(ctx, el) {
@@ -361,6 +363,7 @@ export const commonActions = {
         const item = { id: d.id || uid(), date: d.date || todayISO(), amount: ars(original), type: d.type, note: d.note || (d.type === 'sueldo' ? 'Sueldo' : 'Ingreso'), ...moneda };
         if (medioTipo === 'acc') item.accountId = medioId;
         if (tags.length) item.tags = tags;
+        if (d.proyectoId) item.proyectoId = d.proyectoId;
         const i = s.incomes.findIndex((x) => x.id === d.id);
         if (i >= 0) s.incomes[i] = item; else s.incomes.push(item);
         return;
@@ -390,6 +393,7 @@ export const commonActions = {
       if (medioTipo === 'card') item.cardId = medioId; else if (medioTipo === 'acc') item.accountId = medioId;
       if (!item.cardId) item.installments = 1;
       if (splits && splits.length > 1) item.splits = splits;
+      if (d.proyectoId) item.proyectoId = d.proyectoId;
       if (tags.length) item.tags = tags;
       if (shared) item.shared = shared;
       if (prev && prev.category !== item.category && !item.splits) {
@@ -426,11 +430,7 @@ export const commonActions = {
   // ---------- ¿Me lo compro? ----------
   openBuy() {
     openModal('¿Me lo compro?', `<form class="form" data-submit="buyCheck">
-      <div class="field"><label for="b-que">¿Qué querés comprar?</label><input id="b-que" name="que" placeholder="Ej: Zapatillas" autocomplete="off"></div>
-      <div class="field-row">
-        <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="decimal" placeholder="Ej: 90.000" required></div>
-        <div class="field"><label for="b-usos">¿Cuántas veces lo vas a usar?</label><input id="b-usos" name="usos" inputmode="numeric" placeholder="Opcional"></div>
-      </div>
+      <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="decimal" placeholder="Ej: 90.000" required></div>
       <button class="btn primary block" type="submit">Analizar la compra</button>
     </form><div id="buy-result"></div>`);
   },
@@ -442,51 +442,57 @@ export const commonActions = {
     const r = buyImpact(s, amount);
     const sal = lastSalary(s);
     const g = mainGoal(s);
-    const que = String(d.que || '').trim();
-    const cat = que ? parseEntry(`${que} 1`, s.learned).category : null;
-    const usos = parseInt(d.usos, 10) || 0;
     const lineas = [];
-    // 1. hoy
     if (!b.noIncome) {
       lineas.push(['sun', 'Hoy', amount <= b.todayLeft
         ? `Hoy podés gastar ${money(b.todayLeft)}. Después de esta compra te quedarían <b>${money(b.todayLeft - amount)}</b>.`
         : `Hoy podés gastar ${money(Math.max(0, b.todayLeft))}: esta compra se pasa por <b>${money(amount - Math.max(0, b.todayLeft))}</b>.`]);
-      // 2. hasta el cobro
       lineas.push(['calendar', 'Hasta el cobro', amount <= b.free
         ? `Es el <b>${Math.round((amount / Math.max(1, b.free)) * 100)}%</b> de lo que te queda libre hasta cobrar (${money(b.free)} en ${b.cycle.daysLeft} días).${amount > b.todayLeft ? ` ${esc(r.text)}` : ''}`
         : `No te alcanza: te faltan <b>${money(amount - Math.max(0, b.free))}</b> de lo libre hasta el cobro.`]);
     }
-    // 3. tu sueldo y tu tiempo
+    // contra tu gasto de todos los días (promedio de los últimos 30 días)
+    const desde = toISO(addDays(new Date(), -30));
+    const variable30 = s.expenses.filter((e) => !e.pending && e.date >= desde && !e.fromPayment).reduce((a, e) => a + (e.installments > 1 ? e.amount / e.installments : e.amount), 0);
+    const porDia = variable30 / 30;
+    if (porDia > 0) lineas.push(['chart', 'Tu gasto de siempre', `Es como <b>${(amount / porDia).toFixed(1).replace('.', ',')} días</b> de lo que gastás normalmente (${money(porDia)} por día en promedio).`]);
     if (sal) {
       const dias = amount / (sal.amount / 22);
       lineas.push(['clock', 'Tu trabajo', `Es el ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de tu sueldo: <b>${dias < 1 ? (Math.round(dias * 8) <= 1 ? 'menos de 1 hora' : `${Math.round(dias * 8)} horas`) : `${dias.toFixed(1).replace('.', ',')} días`}</b> de trabajo.`]);
     }
-    // 4. tu meta
     if (g) {
-      // sale de lo que te iba a sobrar para ahorrar o, si no alcanza, de tus ahorros
       const exceso = Math.max(0, amount - Math.max(0, b.todayLeft));
       const deSobrante = Math.min(exceso, b.sobrante || 0);
       const deAhorro = Math.max(0, amount - Math.max(0, b.free));
       const atrasa = g.monthly > 0 ? Math.round((deSobrante + deAhorro) / (g.monthly / 30)) : 0;
       lineas.push(['target', `Tu meta: ${esc(g.name)}`, atrasa >= 1 ? `Esta plata podría ir a tu meta: la atrasa unos <b>${atrasa} días</b>.` : 'No toca lo que apartaste para tu meta.']);
     }
-    // 5. costo por uso
-    if (usos > 0) lineas.push(['repeat', 'Por cada uso', `Te sale <b>${money(amount / usos)}</b> cada vez que lo uses.${amount / usos > Math.max(1, b.dailyBase) ? ' Es más que lo que gastás en un día: pensalo.' : ''}`]);
-    // 6. promo para eso hoy
-    const promo = cat ? promosForDay(s, new Date().getDay()).find((p) => p.category === cat) : null;
-    if (promo) lineas.push(['ticket', 'Promo de hoy', `Tenés <b>${promo.pct}%</b> con ${esc(promo.name)}${promo.merchant ? ` en ${esc(promo.merchant)}` : ''}: te ahorrarías hasta ${money(Math.min(amount * promo.pct / 100, promo.cap || Infinity))}.`]);
-    // preguntas para estar seguro
+    // tus ahorros y el fondo de emergencia
+    const ahorrado = holdingsTotal(s);
+    const fijos = (s.fixed || []).reduce((a, f) => a + (Number(f.amount) || 0), 0);
+    if (ahorrado > 0) lineas.push(['wallet', 'Tus ahorros', `Es el <b>${Math.max(1, Math.round((amount / ahorrado) * 100))}%</b> de lo que tenés ahorrado (${money(ahorrado)}).${fijos && ahorrado < fijos * 3 ? ' Ojo: todavía no llegás a 3 meses de gastos fijos de fondo de emergencia.' : ''}`]);
+    else lineas.push(['wallet', 'Tus ahorros', 'No tenés ahorros cargados. Si es un gusto, conviene primero armar un fondo para imprevistos.']);
+    // con tarjeta: cuándo lo pagás
+    const card = (s.cards || [])[0];
+    if (card) {
+      const due = statementDates(card, statementOf(card, todayISO())).due;
+      lineas.push(['card', `Con la tarjeta ${esc(card.name)}`, `Si lo pagás hoy en 1 pago, lo pagás recién el <b>${due.getDate()}/${due.getMonth() + 1}</b> (con el resumen). Asegurate de tener la plata ese día.`]);
+    }
+    // en cuotas sin interés
+    const infl = expectedInflation(s) / 100;
+    const vh = (n) => { let pv = 0; for (let k = 1; k <= n; k++) pv += amount / n / Math.pow(1 + infl, k); return pv; };
+    lineas.push(['repeat', 'Si hay cuotas sin interés', [3, 6, 12].map((n) => `${n} de <b>${money(amount / n)}</b>${sal ? ` (${Math.max(1, Math.round((amount / n / sal.amount) * 100))}% del sueldo)` : ''}`).join(' · ') + `. En 6 cuotas, con la inflación, en plata de hoy pagarías ${money(vh(6))}: ${money(amount - vh(6))} menos.`]);
     const grande = amount > 3 * Math.max(1, b.dailyBase || 0);
     const preguntas = [
       '¿Lo necesitás o lo querés? Las dos están bien, pero sabelo.',
       '¿Lo buscaste en otro lado? Comparar 2 o 3 precios suele ahorrar un 10% o más.',
+      '¿Hay promo con alguno de tus medios de pago? Fijate en Beneficios antes de pagar.',
       grande ? 'Es una compra grande: esperá 48 horas. Si las ganas siguen, adelante.' : '¿Lo vas a usar en serio o es un impulso del momento?',
-      ...(grande ? ['¿Hay cuotas sin interés? Con inflación, pueden convenir más que pagar todo junto.'] : []),
     ];
     setModalBody('#buy-result', `<div class="result ${r.level}"><strong>${esc(r.level === 'ok' && amount <= b.todayLeft ? 'Te alcanza, pero mirá esto antes' : r.title)}</strong>
       ${lineas.map(([ic, k, v]) => `<div class="buy-linea">${icon(ic, 16)}<span><b class="k">${k}</b><br>${v}</span></div>`).join('')}</div>
       <div class="card"><strong>Para estar seguro</strong>${preguntas.map((q) => `<span class="small">• ${esc(q)}</span>`).join('')}</div>
-      <button class="btn small" data-action="openInstallments" data-push="1">¿Y si lo pago en cuotas?</button>`);
+      <div class="btn-row"><button class="btn small" data-action="openInstallments" data-push="1">Comparar cuotas o contado</button><a class="btn small" href="#/beneficios">Ver promos</a></div>`);
   },
 
   // ---------- comprobantes ----------

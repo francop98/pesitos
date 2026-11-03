@@ -6,6 +6,7 @@
 import { money, esc, todayISO, relDay, num } from './formato.js';
 import { screenHead, openModal, closeModal, toast, icon, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
+import { tasaDe, textoTasa } from './rendimientos.js';
 import { listaCuentas, cuentaPrincipal, saldoCuenta, cuentasConSaldo, movimientosDeCuenta, totalCuentas, nombreCuenta, patrimonio, detalleSaldo, cuentaPuedeRendir, tnaCuenta } from './cuentas.js';
 
 const signo = (v) => `${v >= 0 ? '+' : '−'}${money(Math.abs(v))}`;
@@ -31,7 +32,7 @@ export function cuerpo(s) {
     </div>
     <div class="card tight">${todas.map((c) => { const sal = saldoCuenta(s, c.id); return `<button class="row" data-action="abrirCuenta" data-id="${esc(c.id)}">
       <span class="cat-icon ${c.id === ppal ? 'green' : ''}">${icon(c.id === 'efectivo' ? 'wallet' : 'card', 18)}</span>
-      <span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${c.id === ppal ? 'Cuenta principal · ' : ''}${sal == null ? 'Sin saldo cargado' : `Desde el ${s.cuentas[c.id].desde.split('-').reverse().slice(0, 2).join('/')}`}${sal != null && tnaCuenta(s, c.id) ? ` · rinde ${String(tnaCuenta(s, c.id)).replace('.', ',')}% anual` : ''}</span></span>
+      <span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${c.id === ppal ? 'Cuenta principal · ' : ''}${sal == null ? 'Sin saldo cargado' : `Desde el ${s.cuentas[c.id].desde.split('-').reverse().slice(0, 2).join('/')}`}${sal != null && tnaCuenta(s, c.id) ? ` · rinde ${textoTasa(tasaDe(s, c.id), money)}` : ''}</span></span>
       <span class="amount ${sal != null && sal < 0 ? 'neg' : ''}">${sal == null ? 'Cargar' : money(sal)}</span></button>`; }).join('')}</div>
     <p class="small muted">¿Falta una cuenta? Agregala en menú ☰ → Mis medios de pago. Las tarjetas de crédito están en <a href="#/tarjetas">Por pagar → Tarjetas</a>.</p>
 
@@ -83,10 +84,10 @@ export const actions = {
     const movs = c ? movimientosDeCuenta(s, id, c.desde).slice(0, 15) : [];
     const det = detalleSaldo(s, id);
     const noRinde = (s.cuentasRinden || {})[id] === false;
-    const tasaHoy = ((s.rendimientos && s.rendimientos.tasas && s.rendimientos.tasas[id]) || {}).tna;
+    const tObj = tasaDe(s, id); const tasaHoy = tObj && tObj.tna;
     openModal(nombreCuenta(s, id), `
       ${sal != null ? `<div class="card"><span class="small muted">Saldo de hoy</span><span style="font-size:28px;font-weight:800">${money(sal)}</span>${det && det.intereses >= 1 ? `<span class="small pos">Incluye +${money(det.intereses)} de intereses desde el ${c.desde.split('-').reverse().slice(0, 2).join('/')}</span>` : ''}</div>` : ''}
-      ${cuentaPuedeRendir(id) ? `<div class="card"><div class="cuenta-rinde"><span class="grow"><strong>¿Te da intereses?</strong><br><span class="small muted">${tasaHoy ? `Hoy rinde ${String(tasaHoy).replace('.', ',')}% anual. La tasa se actualiza sola todos los días.` : 'Busco la tasa del día apenas haya conexión.'}</span></span>
+      ${cuentaPuedeRendir(id) ? `<div class="card"><div class="cuenta-rinde"><span class="grow"><strong>¿Te da intereses?</strong><br><span class="small muted">${tObj ? `Hoy rinde <b>${textoTasa(tObj, money)}</b>.${tObj.condiciones ? ` ${esc(tObj.condiciones)}.` : ''}<br>${esc(tObj.fuente || '')}${tObj.fecha ? `, vigente desde el ${String(tObj.fecha).slice(0, 10).split('-').reverse().join('/')}` : ''}. Se actualiza sola dos veces por día.${tObj.control ? `<br>ℹ️ ${esc(tObj.control)}` : ''}` : 'Busco la tasa del día apenas haya conexión.'}</span></span>
         <div class="tabs" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:0 0 120px"><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="1" aria-pressed="${!noRinde}">Sí</button><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="0" aria-pressed="${noRinde}">No</button></div></div>
         <span class="small muted">Si es sí, sumo los intereses al saldo cada día, sobre lo que quedó en la cuenta a la noche.</span></div>` : ''}
       <form class="form" data-submit="ajustarSaldo"><input type="hidden" name="id" value="${esc(id)}">

@@ -8,8 +8,6 @@ import { payCycle } from './calculos.js';
 import { agenda, agendaBetween, groups, pendingUntil, provisions, dueLabel, buildICS, REPEATS, repeatLabel, history, byAccount, statementDates, statementOf } from './agenda.js';
 import { projection, coverage, inflows } from './flujo.js';
 import { cuerpo as tarjetasCuerpo } from './tarjetas.js';
-import { cuerpo as deudasCuerpo } from './deudas.js';
-import { saldoDeuda } from './cuentas.js';
 import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer , abrirSelectorMes, botonMes } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
@@ -17,7 +15,7 @@ import { fechaDeCobro, reglaDeCobro } from './feriados.js';
 import { parseAmount } from './interprete.js';
 import { listaCuentas } from './cuentas.js';
 
-let view = 'lista'; // 'lista' | 'calendario' | 'tarjetas' | 'deudas'
+let view = 'lista'; // 'lista' | 'calendario' | 'tarjetas'
 /** Abrir Por pagar en una pestaña (la ruta vieja #/tarjetas llega acá). */
 export function renderVista(s, v) { view = v; return render(s); }
 let showPaid = false;
@@ -128,7 +126,6 @@ function calendar(s) {
 }
 
 export function render(s) {
-  const nDeudas = (s.deudas || []).filter((d) => saldoDeuda(d) > 0.5).length;
   const items = agenda(s, 62);
   const g = groups(items);
   const cycle = payCycle(s);
@@ -144,18 +141,15 @@ export function render(s) {
   const empty = !items.length;
 
   return `<section class="screen">
-    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : view === 'deudas' ? '<button class="btn small" data-action="nuevaDeuda">+ Deuda</button>' : '<button class="btn small" data-action="newBill">+ Pago</button>', 'Vencimientos, tarjetas, deudas y cobros')}
+    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : '<button class="btn small" data-action="newBill">+ Pago</button>', 'Vencimientos, tarjetas y cobros')}
 
-    <div class="tabs tabs-4" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <button role="tab" data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista'}">Agenda</button>
       <button role="tab" data-action="setPayView" data-v="calendario" aria-pressed="${view === 'calendario'}">Calendario</button>
       <button role="tab" data-action="setPayView" data-v="tarjetas" aria-pressed="${view === 'tarjetas'}">Tarjetas</button>
-      <button role="tab" data-action="setPayView" data-v="deudas" aria-pressed="${view === 'deudas'}">Deudas${nDeudas ? ` (${nDeudas})` : ''}</button>
     </div>
 
-    ${view === 'tarjetas' ? tarjetasCuerpo(s) : view === 'deudas' ? `<p class="small muted" style="margin:0">Lo que prestaste o te prestaron: lo que tiene que entrar o salir más adelante.</p>
-      ${deudasCuerpo(s)}
-      <button class="btn primary block" data-action="nuevaDeuda">+ Anotar una deuda o un préstamo</button>` : `
+    ${view === 'tarjetas' ? tarjetasCuerpo(s) : `
 
     <div class="card green" style="gap:6px;padding:20px">
       <span class="hero-label">Hasta tu próximo cobro (${shortDate(cycle.nextISO)}) tenés que pagar</span>

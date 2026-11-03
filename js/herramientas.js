@@ -3,7 +3,7 @@
 
 import { money, MONTHS_LONG, esc } from './formato.js';
 import { lastSalary, resumenCuotas } from './calculos.js';
-import { BILLETERAS_QUE_RINDEN } from './rendimientos.js';
+import { BILLETERAS_QUE_RINDEN, gananciaEn, textoTasa } from './rendimientos.js';
 import { expectedInflation } from './datosvivos.js';
 import { parseAmount } from './interprete.js';
 import { icon, screenHead, openModal, setModalBody } from './interfaz.js';
@@ -96,25 +96,28 @@ let rindeTab = 'billeteras';
 function rindeLista(s, monto) {
   const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
   const filas = rindeTab === 'billeteras'
-    ? BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id]).map((b) => ({ n: b.nombre, tna: Number(tasas[b.id].tna), fecha: tasas[b.id].fecha }))
-    : Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).map(([n, v]) => ({ n: nombreBanco(n), tna: Number(v) }));
-  filas.sort((a, b) => b.tna - a.tna);
+    ? BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id]).map((b) => { const t = tasas[b.id]; return { n: b.nombre, t, g30: gananciaEn(t, monto, 30), g1: gananciaEn(t, monto, 1) }; })
+    : Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).map(([n, v]) => ({ n: nombreBanco(n), t: { tna: Number(v) }, g30: monto * Number(v) / 100 * 30 / 365 }));
+  filas.sort((a, b) => b.g30 - a.g30);
   if (!filas.length) return '<p class="empty">Todavía no pude traer las tasas. Se cargan solas apenas haya conexión.</p>';
-  const porDia = (tna) => monto * (Math.pow(1 + tna / 100 / 365, 1) - 1);
-  const por30 = (tna) => (rindeTab === 'billeteras' ? monto * (Math.pow(1 + tna / 100 / 365, 30) - 1) : monto * tna / 100 * 30 / 365);
   const at = s.rendimientos && s.rendimientos.at;
-  return `<div class="card tight">${filas.map((f, i) => `<div class="row"><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="grow"><span class="name">${esc(f.n)}</span><span class="meta">${tasaTxt(f.tna)}% anual${rindeTab === 'billeteras' ? ` · ${money(porDia(f.tna))} por día` : ''}</span></span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount pos">+${money(por30(f.tna))}</span><span class="small muted">en 30 días</span></span></div>`).join('')}</div>
-    <span class="small muted">${rindeTab === 'billeteras' ? 'Las billeteras pagan intereses todos los días (con interés compuesto) y podés sacar la plata cuando quieras. La tasa sale del fondo en el que invierten y cambia día a día.' : 'El plazo fijo paga todo al final y la plata queda inmovilizada esos días. Tasas para clientes que publica el BCRA para cada banco.'} ${at ? `Actualizado ${new Date(at).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}</span>`;
+  return `<div class="card tight">${filas.map((f, i) => `<div class="row"><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="grow"><span class="name">${esc(f.n)}</span><span class="meta">${rindeTab === 'billeteras' ? `${textoTasa(f.t, money)} · ${money(f.g1)} por día${f.t.condiciones ? ` · ${esc(f.t.condiciones)}` : ''}` : `${tasaTxt(f.t.tna)}% anual`}</span>${f.t.control ? `<span class="meta">ℹ️ ${esc(f.t.control)}</span>` : ''}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount pos">+${money(f.g30)}</span><span class="small muted">en 30 días</span></span></div>`).join('')}</div>
+    <span class="small muted">${rindeTab === 'billeteras' ? 'Ordenadas por lo que ganás con el monto que pusiste: si una paga más pero tiene tope, lo tengo en cuenta. Las de tasa fija son las que publica cada billetera; las que invierten en un fondo, el rendimiento de los últimos 7 días (criterio del BCRA). Fuente: ArgentinaDatos (los mismos datos que comparatasas.ar).' : 'El plazo fijo paga todo al final y la plata queda inmovilizada esos días. Tasas para clientes que publica el BCRA para cada banco.'} ${at ? `Actualizado ${new Date(at).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}</span>`;
 }
 
 function installmentsForm(s, d = {}) {
   const rc = resumenCuotas(s);
-  return `<form class="form" data-submit="calcInstallments">
-    <div class="field"><label for="iq-p">Precio pagando de contado</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 300.000" required><span class="hint">Lo que pagás en efectivo o transferencia, con el descuento si hay.</span></div>
+  return `<form class="form" data-submit="calcInstallments" data-input-form="cuotas">
+    <div class="field"><label for="iq-p">Precio de contado</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 270.000" required data-input="cuotaVivo"><span class="hint">Lo que pagás en efectivo o transferencia (con el descuento, si hay).</span></div>
     <div class="field-row">
-      <div class="field"><label for="iq-n">Cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required></div>
-      <div class="field"><label for="iq-c">Valor de cada cuota</label><input id="iq-c" name="cuota" inputmode="decimal" value="${d.cuota || ''}" placeholder="Vacío = sin interés"></div>
+      <div class="field"><label for="iq-t">Precio con tarjeta</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Igual al contado" data-input="cuotaVivo"></div>
+      <div class="field"><label for="iq-n">Cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required data-input="cuotaVivo"></div>
     </div>
+    <div class="field-row">
+      <div class="field"><label for="iq-i">¿Tiene interés?</label><select id="iq-i" name="interes" data-change="cuotaVivo"><option value="no">Sin interés</option><option value="si">Con interés</option></select></div>
+      <div class="field" data-iq-pct hidden><label for="iq-x">Interés total (%)</label><input id="iq-x" name="pct" inputmode="decimal" placeholder="Ej: 15" data-input="cuotaVivo"></div>
+    </div>
+    <p class="cuota-vivo" data-cuota-vivo>Completá los precios y las cuotas y te muestro cuánto es cada una.</p>
     <div class="field"><label for="iq-m">¿Cómo pagarías las cuotas?</label><select id="iq-m" name="modo">${opcionesPlata(s).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>
       <span class="hint">Si tenés la plata hoy, lo que rinde mientras pagás de a poco también cuenta.</span></div>
     <button class="btn primary block" type="submit">Comparar</button>
@@ -122,6 +125,16 @@ function installmentsForm(s, d = {}) {
   ${rc.compras ? `<div class="card lime"><strong>Tus compras en cuotas</strong>
     <span class="text">${rc.compras} ${rc.compras === 1 ? 'compra' : 'compras'} por ${money(rc.total)}. Con la inflación, en plata del día en que compraste te salieron <b>${money(rc.pv)}</b>: la inflación te ahorró <b>${money(rc.licuado)}</b>.</span>
     <span class="small muted">Uso la inflación real del INDEC para los meses publicados y la esperada para el resto. Tocá cualquier compra en cuotas en Movimientos para ver su detalle.</span></div>` : ''}`;
+}
+
+// cuánto es cada cuota: precio con tarjeta (o el de contado) más el interés, dividido en las cuotas
+function datosCuotas(d) {
+  const cash = amt(d.price);
+  const lista = amt(d.tarjeta) || cash;
+  const n = Math.max(1, parseInt(d.n, 10) || 0);
+  const pctI = d.interes === 'si' ? (parseFloat(String(d.pct || '0').replace(',', '.')) || 0) : 0;
+  const total = lista * (1 + pctI / 100);
+  return { cash, lista, n, pctI, total, cuota: n ? total / n : 0 };
 }
 
 // tasa mensual que hace que las cuotas valgan lo mismo que el contado (lo que "te cobran" las cuotas)
@@ -140,11 +153,8 @@ export const actions = {
   openInstallments(ctx, el) { openModal('Cuotas o contado', installmentsForm(ctx.state), { push: !!(el && el.dataset.push) }); },
   calcInstallments(ctx, d) {
     const s = ctx.state;
-    const cash = amt(d.price);
-    const n = Math.max(1, parseInt(d.n, 10) || 1);
-    if (!cash) return;
-    const cuota = amt(d.cuota) || cash / n;
-    const total = cuota * n;
+    const { cash, n, total, cuota } = datosCuotas(d);
+    if (!cash || !parseInt(d.n, 10)) return;
     const infl = expectedInflation(s); const i = infl / 100;
     const r = tasaImplicita(cash, cuota, n); // por mes
     const recargo = total - cash;
@@ -199,6 +209,14 @@ export const actions = {
       <input type="hidden" name="compra" value="${t0 && t0.compra ? Math.round(t0.compra) : ''}">
       <button class="btn primary block" type="submit">Comparar</button>
     </form><div id="pd-result"></div>`);
+  },
+  cuotaVivo(ctx, el) {
+    const f = el.closest('form'); if (!f) return;
+    const d = Object.fromEntries(new FormData(f));
+    f.querySelector('[data-iq-pct]').hidden = d.interes !== 'si';
+    const x = datosCuotas(d);
+    const p = f.querySelector('[data-cuota-vivo]');
+    if (p) p.innerHTML = x.n > 1 && x.total ? `<b>${x.n} cuotas de ${money(x.cuota)}</b> · total ${money(x.total)}${x.cash && x.total > x.cash + 0.5 ? ` (${money(x.total - x.cash)} más que de contado)` : ''}` : 'Completá los precios y las cuotas y te muestro cuánto es cada una.';
   },
   pfTipoDolar(ctx, el) {
     const x = tiposDolar(ctx.state).find((t) => t.id === el.value);

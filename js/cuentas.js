@@ -13,7 +13,7 @@
 
 import { allWallets } from './categorias.js';
 import { todayISO, monthKey, monthDiff, toISO, parseISO } from './formato.js';
-import { BILLETERAS_QUE_RINDEN } from './rendimientos.js';
+import { BILLETERAS_QUE_RINDEN, crecer } from './rendimientos.js';
 import { holdingsTotal, cardSummary, fixedActive } from './calculos.js';
 
 const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + f(x), 0);
@@ -70,8 +70,8 @@ export function saldoCuenta(s, id) {
 
 // ---------- intereses de las cuentas que rinden (Mercado Pago, Ualá…) ----------
 // La plata que dejás en una billetera remunerada suma intereses todos los días.
-// Uso la tasa del día que publica ArgentinaDatos (ver js/rendimientos.js) y la
-// aplico al saldo de cada noche, con interés compuesto diario.
+// Uso la tasa de cada día (ver js/rendimientos.js) y la aplico al saldo de cada
+// noche, con interés compuesto diario y respetando el tope de cada cuenta.
 export const cuentaPuedeRendir = (id) => BILLETERAS_QUE_RINDEN.some((b) => b.id === id);
 export function tnaCuenta(s, id) {
   if (!cuentaPuedeRendir(id) || (s.cuentasRinden || {})[id] === false) return 0;
@@ -88,17 +88,7 @@ export function detalleSaldo(s, id) {
   if (!tna || !c.desde) return { saldo: base, intereses: 0, tna: 0 };
   const porDia = {};
   for (const m of movs) porDia[m.date] = (porDia[m.date] || 0) + m.monto;
-  const r = tna / 100 / 365;
-  const hoy = todayISO();
-  let bal = Number(c.saldo || 0);
-  const d = parseISO(c.desde);
-  for (let i = 0; i < 4000; i++) {
-    d.setDate(d.getDate() + 1);
-    const iso = toISO(d);
-    if (iso > hoy) break;
-    if (bal > 0) bal *= 1 + r; // lo que quedó a la noche rinde
-    bal += porDia[iso] || 0;
-  }
+  const bal = crecer(s, { id, saldo: Number(c.saldo || 0), desde: c.desde, movs: porDia });
   return { saldo: bal, intereses: Math.max(0, bal - base), tna };
 }
 export const totalCuentas = (s) => sum(cuentasConSaldo(s), (c) => saldoCuenta(s, c.id) || 0);

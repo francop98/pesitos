@@ -10,7 +10,6 @@ import { catById } from './categorias.js';
 import { merchantKey } from './interprete.js';
 import { avancePresupuesto, barra as barraTope } from './presupuestos.js';
 import { screenHead, icon, catIcon , abrirSelectorMes, closeModal, ojoMontos } from './interfaz.js';
-import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { nombreCuenta, patrimonio } from './cuentas.js';
 import { descargarCSV, imprimirResumen, tablaMovimientos } from './exportar.js';
 
@@ -103,12 +102,8 @@ export function cuerpo(s) {
   // subir es malo en gastos y bueno en ingresos
   const cambio = (x, bueno = false) => (x == null ? '' : `<span class="${Math.abs(x) <= 0.02 ? 'igual' : (x > 0) !== bueno ? 'sube' : 'baja'}" title="Contra el período anterior">${x > 0 ? '▲' : x < 0 ? '▼' : '='} ${Math.abs(Math.round(x * 100))}%</span>`);
   return `
-    <div class="seg" role="tablist" aria-label="Qué ver">
-      <button role="tab" data-action="statsTab" data-v="gastos" aria-pressed="${statsTab === 'gastos'}">Gastos e ingresos</button>
-      <button role="tab" data-action="statsTab" data-v="sueldo" aria-pressed="${statsTab === 'sueldo'}">Tu sueldo</button>
-      <span class="seg-acc">${statsTab === 'sueldo' ? ojoMontos('sueldo') : `<button class="icon-btn" data-action="statsCSV" aria-label="Exportar a Excel">${icon('download', 20)}</button><button class="btn small" data-action="statsPDF">PDF</button>`}</span>
-    </div>
-    ${statsTab === 'sueldo' ? sueldoCuerpo(s) : `
+    <div class="seg"><span class="seg-acc"><button class="icon-btn" data-action="statsCSV" aria-label="Exportar a Excel">${icon('download', 20)}</button><button class="btn small" data-action="statsPDF">PDF</button></span></div>
+    ${`
     <div class="chips periodo">${PERIODOS.map(([v, l]) => `<button class="chip toggle" data-action="statsPeriodo" data-v="${v}" aria-pressed="${periodo === v}">${l}</button>`).join('')}<button class="chip toggle" data-action="statsElegirMes" aria-pressed="${periodo.startsWith('mk:')}">${periodo.startsWith('mk:') ? `${MONTHS_LONG[Number(periodo.slice(8, 10)) - 1].replace(/^./, (c) => c.toUpperCase())} ${periodo.slice(3, 7)}` : 'Otro mes…'}</button></div>
     <div class="stat-grid three">
       <div class="stat three"><span class="k">Ingresos</span><span class="v pos">${money(r.ingresos)}</span>${cambio(comp(r.ingresos, prev.ingresos), true)}</div>

@@ -211,6 +211,7 @@ function tuDia(s) {
     ${fila('#/pagos', 'calendar', 'Próximo pago', prox ? `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}` : 'Nada por pagar este mes', prox ? esc(dueLabel(prox)) : '')}
     ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
     ${fila('#/cuentas', 'wallet', 'En tus cuentas', con ? money(totalCuentas(s)) : 'Cargá tu saldo', '')}
+    <button class="dia-fila ahorro-fila" data-action="ahorroPesitosInfo"><span class="cat-icon green">${icon('sprout', 18)}</span><span class="grow"><span class="k">Te ahorraste con Pesitos en ${MONTHS_LONG[new Date().getMonth()]}</span><span class="v pos">${money(savedThisMonth(s))}</span></span>${icon('chevron', 16)}</button>
     ${tm || td ? fila('#/deudas', 'people', 'Deudas y préstamos', `${tm ? `Te deben ${money(tm)}` : ''}${tm && td ? ' · ' : ''}${td ? `Debés ${money(td)}` : ''}`, '') : ''}
   </div>`;
 }

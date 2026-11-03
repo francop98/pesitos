@@ -36,8 +36,8 @@ export function render(s) {
   </section>`;
 }
 
-/** Tu sueldo contra la inflación (también en Estadísticas → Sueldo). */
-export function cuerpo(s) {
+/** Tu sueldo contra la inflación (también en Mi plata → Sueldo). */
+export function cuerpo(s, clave = 'sueldo') {
   const st = salaryStats(s);
   const history = [...s.incomes].filter((i) => i.type === 'sueldo').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
   const nextMk = (() => { const l = lastSalary(s); return l ? addMonthKey(l.date.slice(0, 7), 1) : monthKey(); })();
@@ -88,7 +88,7 @@ export function cuerpo(s) {
 
     ${history.length ? `<div class="section-title"><span>Últimos sueldos</span></div>
     <div class="card tight">${history.map((i) => `<button class="row" data-action="openEntry" data-id="${i.id}" data-kind="income"><span class="grow"><span class="name">${monthName(i.date.slice(0, 7), true).replace(/^./, (c) => c.toUpperCase())} ${i.date.slice(0, 4)}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
-  `, 'sueldo');
+  `, clave);
 }
 
 export const actions = {

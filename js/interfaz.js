@@ -11,6 +11,7 @@ const P = {
   percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
   tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   receipt: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -273,6 +274,10 @@ export function quickForm(id, s = null, medioHtml = '') {
       <button type="submit" class="icon-btn dark" aria-label="Anotar">${icon('plus', 20, 2.2)}</button>
     </div>
     <input type="hidden" name="category" value="auto">
+    ${s && (s.proyectos || []).some((p) => !p.cerrado) ? `<input type="hidden" name="proyecto" value="">
+    <div class="medio-fila"><span class="medio-label">Proyecto</span><div class="medio-row" role="radiogroup" aria-label="Proyecto">
+      <button type="button" class="medio-chip" role="radio" data-action="pickProyecto" data-v="" aria-checked="true">Ninguno</button>
+      ${s.proyectos.filter((p) => !p.cerrado).map((p) => `<button type="button" class="medio-chip" role="radio" data-action="pickProyecto" data-v="${esc(p.id)}" aria-checked="false">📁 ${esc(p.nombre)}</button>`).join('')}</div></div>` : ''}
     <div class="cat-row" role="radiogroup" aria-label="Categoría">
       <button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="auto" aria-checked="true"><span class="cat-chip-ic">${icon('sprout', 18)}</span><span>Automática</span></button>
       ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}

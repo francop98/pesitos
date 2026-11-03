@@ -10,6 +10,9 @@ import { budget, buyImpact, installmentsVsCash, monthExpenses, salaryStats, main
 import { agenda } from './agenda.js';
 import { totalCuentas, cuentasConSaldo, saldoCuenta, deudasAbiertas, saldoDeuda, totalMeDeben, totalDebo } from './cuentas.js';
 import { todosLosPresupuestos } from './presupuestos.js';
+import { AYUDA_TEMAS } from './ayuda.js';
+import { nombreBilletera, textoTasa } from './rendimientos.js';
+import { LESSONS } from './aprender.js';
 
 export const DISCLAIMER = 'Información educativa y general, no es asesoramiento financiero personalizado.';
 
@@ -124,10 +127,64 @@ function amountIn(text) {
   return Math.round(n);
 }
 
+
+// ---------- conceptos de economía (respuestas generales, educativas) ----------
+const GLOSARIO = [
+  [/\btna\b|tasa nominal/, 'La TNA (tasa nominal anual) es la tasa "de lista": la que te dicen en el banco. Para saber cuánto ganás en un mes, dividila por 12 (aprox.). Ejemplo: 36% TNA ≈ 3% por mes.'],
+  [/\btea\b|tasa efectiva/, 'La TEA (tasa efectiva anual) es lo que ganás o pagás en un año contando el interés compuesto (intereses sobre intereses). Siempre es un poco más alta que la TNA.'],
+  [/\bcft\b|costo financiero/, 'El CFT (costo financiero total) es lo que realmente te cuesta un crédito o unas cuotas: incluye intereses, impuestos y comisiones. Es el número para comparar entre opciones.'],
+  [/\buva\b/, 'El UVA es una unidad que sube con la inflación. Un plazo fijo UVA (mínimo 90 días) te protege de la inflación: te devuelven tu plata actualizada más un interés chico.'],
+  [/cedear/, 'Los CEDEARs son certificados que representan acciones de empresas de afuera (Apple, Coca-Cola…) y se compran en pesos en la bolsa argentina. Siguen al precio de la acción y al dólar. Suben y bajan: son para plazos largos.'],
+  [/\bbono|obligacion negociable|\bon\b/, 'Un bono es un préstamo que le hacés al Estado o a una empresa a cambio de intereses. Hay en pesos y en dólares; el riesgo depende de quién lo emite.'],
+  [/\bfci\b|money market|fondo comun/, 'Un FCI (fondo común de inversión) junta la plata de muchas personas y la invierte. Los "money market" son los más tranquilos: rinden todos los días y la sacás cuando querés. Es lo que usan Mercado Pago o Ualá.'],
+  [/\bmep\b|dolar bolsa/, 'El dólar MEP (o "bolsa") se compra legalmente a través de un banco o broker, comprando y vendiendo un bono. Es la forma legal de comprar dólares a precio de mercado.'],
+  [/\bccl\b|contado con liqui/, 'El contado con liqui (CCL) es parecido al MEP, pero los dólares quedan en una cuenta del exterior. Lo usan más las empresas.'],
+  [/blue|paralelo/, 'El dólar blue es el que se compra en el mercado informal (cuevas, arbolitos). No es legal, pero se usa como referencia. Para comprar legalmente al precio de mercado está el MEP.'],
+  [/riesgo pais/, 'El riesgo país mide cuánto más interés le piden a Argentina para prestarle plata, comparado con Estados Unidos. Más alto = más desconfianza. Influye en los bonos y en el crédito.'],
+  [/interes compuesto/, 'Interés compuesto es ganar intereses sobre los intereses. Si dejás la plata rindiendo, cada mes ganás sobre lo que ya ganaste. Por eso conviene empezar a ahorrar temprano.'],
+  [/devaluacion/, 'La devaluación es cuando el peso pierde valor frente al dólar: el dólar sube. Suele empujar los precios para arriba (inflación).'],
+  [/pago minimo|minimo de la tarjeta/, 'Pagar el mínimo de la tarjeta evita la mora, pero lo que no pagás genera intereses muy altos (de los más caros que hay). Si podés, pagá el total; si no, pagá lo más que puedas.'],
+  [/refinanci/, 'Refinanciar es pasar una deuda a cuotas nuevas. Alivia el mes, pero casi siempre con intereses altos. Antes, mirá el CFT y si podés achicar otros gastos.'],
+  [/aguinaldo|sac\b/, 'El aguinaldo (SAC) es medio sueldo extra: se paga en dos partes, hasta el 30 de junio y el 18 de diciembre. Cada una es la mitad del mejor sueldo del semestre.'],
+  [/50.?30.?20/, 'La regla 50/30/20: 50% de lo que cobrás para necesidades (alquiler, comida, servicios), 30% para gustos y al menos 20% para ahorrar o pagar deudas. Es una guía, no una ley.'],
+  [/fondo de emergencia|imprevisto/, 'El fondo de emergencia es plata para imprevistos (quedarte sin trabajo, un arreglo). Lo ideal: de 3 a 6 meses de tus gastos fijos, en algo que puedas sacar rápido.'],
+  [/cripto|bitcoin|usdt|stablecoin/, 'Las criptomonedas como bitcoin suben y bajan mucho: son de alto riesgo. Las "stablecoins" (USDT, USDC) siguen al dólar y algunas billeteras pagan intereses por tenerlas. No pongas ahí plata que vas a necesitar pronto.'],
+  [/caucion/, 'La caución es prestar plata a muy corto plazo (de 1 a 30 días) en la bolsa, con garantía. Paga parecido o un poco más que un plazo fijo y se hace desde un broker.'],
+  [/lecap|letra/, 'Las LECAP son letras del Tesoro en pesos a tasa fija y plazo corto. Se compran desde un broker. Pagan una tasa conocida al comprarlas.'],
+  [/inflacion/, 'La inflación es la suba general de precios. Si tu plata no rinde al menos lo mismo que la inflación, pierde poder de compra.'],
+  [/presupuesto/, 'Hacer un presupuesto es decidir de antemano cuánto vas a gastar en cada cosa. En Pesitos lo hace "Hoy podés gastar" por vos, y podés ponerle topes a categorías en Estadísticas.'],
+];
+
+// busca en la ayuda de la app y en las lecciones la respuesta que más se parece a la pregunta
+const VACIAS = new Set(['como', 'para', 'que', 'cual', 'cuanto', 'cuando', 'donde', 'tengo', 'puedo', 'esta', 'este', 'esto', 'una', 'uno', 'los', 'las', 'del', 'con', 'por', 'mis', 'mi', 'hay', 'hace', 'hago', 'sirve', 'quiero', 'saber', 'pesitos', 'app']);
+// raíz simple: "importo", "importar" e "importación" cuentan como la misma palabra
+const palabras = (x) => normalize(x).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !VACIAS.has(w)).map((w) => (w.length > 5 ? w.slice(0, 5) : w.replace(/(es|s)$/, '')));
+function buscarEnAyuda(q) {
+  const qs = palabras(q);
+  if (!qs.length) return null;
+  const cand = [];
+  for (const t of AYUDA_TEMAS) for (const [preg, resp] of t.preguntas) cand.push({ titulo: preg, texto: resp });
+  for (const l of LESSONS) cand.push({ titulo: l.title, texto: l.body.join(' ') });
+  let mejor = null; let max = 0;
+  for (const c of cand) {
+    const tw = new Set(palabras(c.titulo)); const bw = new Set(palabras(c.texto));
+    const p = qs.reduce((a, w) => a + (tw.has(w) ? 2 : bw.has(w) ? 1 : 0), 0);
+    if (p > max) { max = p; mejor = c; }
+  }
+  return max >= 2 ? `${mejor.texto}${mejor.titulo ? `\n\n(De la ayuda: "${mejor.titulo}")` : ''}` : null;
+}
+
 // ---------- consultas: entiende palabras clave y responde con tus números ----------
 // Cada tema tiene palabras que lo disparan. Gana el tema con más coincidencias;
 // a igualdad, el que está antes en la lista. Si nada coincide, sugiere preguntas.
 const DONDE = [
+  [/proyecto|obra|quincho/, 'Los proyectos están en Movimientos → Proyectos (o Menú ☰ → Proyectos). Creás uno, por ejemplo "Construcción del quincho", y al cargar cada gasto elegís el proyecto.'],
+  [/tema|oscuro|modo noche|letra/, 'El tema (Auto, Claro u Oscuro) y el tamaño de letra están en Menú ☰ → La app.'],
+  [/aviso|notificacion/, 'Los avisos en el celular están en Menú ☰ → La app → Avisos en el celular.'],
+  [/instal/, 'Para instalar Pesitos: Menú ☰ → La app → Instalar Pesitos como app. En iPhone: en Safari tocá Compartir → Agregar a inicio.'],
+  [/import|resumen|excel/, 'Para importar el resumen de la tarjeta (PDF) o el Excel del banco: en Movimientos tocá la flecha hacia arriba (arriba a la derecha), o en Por pagar → Tarjetas → Importar.'],
+  [/categori/, 'Las categorías se crean, ordenan u ocultan desde la carga rápida de Inicio: tocá "Más" al final de la fila de categorías.'],
+  [/medio|banco|billetera/, 'Tus bancos, billeteras y tarjetas se eligen en Menú ☰ → Mis medios de pago.'],
   [/deuda|prest/, 'Las deudas y préstamos están en Por pagar → Deudas (barra de abajo). Si tenés alguna abierta, también la ves en Inicio, en "Tu día".'],
   [/sueldo/, 'Tu sueldo está en Movimientos → Estadísticas → Tu sueldo. También tenés un atajo en el menú ☰ → Tu sueldo.'],
   [/estadistic|grafic|en que (gasto|gaste)/, 'Las estadísticas están en Movimientos → Estadísticas (o tocando el resumen del mes).'],
@@ -165,6 +222,7 @@ const TEMAS = [
   { id: 'invertir', k: [/donde (pongo|invierto|ahorro|meto|guardo)|invertir|inversion/] },
   { id: 'ahorro', k: [/ahorr/] },
   { id: 'topes', k: [/tope|presupuesto|limite/] },
+  { id: 'proyectos', k: [/proyecto/] },
 ];
 
 const fecha = (iso) => { const d = new Date(iso + 'T00:00:00'); return `${d.getDate()}/${d.getMonth() + 1}`; };
@@ -250,7 +308,7 @@ function responder(id, q, s, b) {
       const bill = Object.entries(t).sort((a, x) => x[1].tna - a[1].tna).slice(0, 3);
       const pfs = Object.entries(pf).sort((a, x) => x[1] - a[1]).slice(0, 2);
       if (!bill.length && !pfs.length) return 'Todavía no pude traer las tasas. Se cargan solas apenas haya conexión.';
-      return `Hoy rinde más:\n${bill.map(([id, x]) => `• ${({ mercadopago: 'Mercado Pago', uala: 'Ualá', cocos: 'Cocos', fiwind: 'Fiwind', letsbit: 'Letsbit' })[id] || id}: ${String(x.tna).replace('.', ',')}% anual (día a día)`).join('\n')}${pfs.length ? `\n${pfs.map(([n, v]) => `• Plazo fijo ${n.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase())}: ${String(v).replace('.', ',')}% anual`).join('\n')}` : ''}\n\nLa comparación completa está en Herramientas → ¿Dónde rinde más?`;
+      return `Hoy rinde más:\n${bill.map(([id, x]) => `• ${nombreBilletera(id)}: ${textoTasa(x, money)}`).join('\n')}${pfs.length ? `\n${pfs.map(([n, v]) => `• Plazo fijo ${n.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase())}: ${String(v).replace('.', ',')}% anual`).join('\n')}` : ''}\n\nLa comparación completa está en Herramientas → ¿Dónde rinde más?`;
     }
     case 'sueldo': {
       const st = salaryStats(s);
@@ -278,6 +336,11 @@ function responder(id, q, s, b) {
       if (!ts.length) return 'No tenés topes por categoría. Ponelos en Movimientos → Estadísticas, tocando una categoría.';
       return ts.map((p) => `• ${catLabel(p.cat)}: ${money(p.gastado)} de ${money(p.limite)}${p.pct >= 1 ? ' (te pasaste)' : ''}`).join('\n');
     }
+    case 'proyectos': {
+      const ps = s.proyectos || [];
+      if (!ps.length) return 'No tenés proyectos. Crealos en Movimientos → Proyectos: por ejemplo "Construcción del quincho", con un presupuesto, y le vas sumando los gastos.';
+      return ps.map((p) => { const g = s.expenses.filter((e) => e.proyectoId === p.id).reduce((a, e) => a + e.amount, 0); return `• ${p.nombre}: ${money(g)} gastados${p.presupuesto ? ` de ${money(p.presupuesto)} (${Math.round((g / p.presupuesto) * 100)}%)` : ''}${p.cerrado ? ' · terminado' : ''}`; }).join('\n');
+    }
     default: return null;
   }
 }
@@ -286,10 +349,24 @@ export function answer(question, s) {
   const q = normalize(question).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
   const b = budget(s);
   const puntaje = TEMAS.map((t, i) => ({ t, i, n: t.k.reduce((a, re) => a + (re.test(q) ? 1 : 0), 0) })).filter((x) => x.n).sort((a, x) => x.n - a.n || a.i - x.i);
+  // "¿qué es…?" / "¿qué significa…?": primero el concepto
+  const concepto = /^(que (es|son|significa|quiere decir)|explica|como funciona|conviene|es bueno|sirve)/.test(q) ? GLOSARIO.find(([re]) => re.test(q)) : null;
+  if (concepto) return concepto[1];
+  // "¿cómo hago X en la app?": la ayuda primero
+  if (/^como (cargo|importo|instalo|activo|desactivo|cambio|borro|elimino|agrego|uso|hago|pongo|exporto|descargo|comparto|saco|veo|creo|anoto|marco|recupero)/.test(q)) {
+    const d = DONDE.find(([re]) => re.test(q)); if (d && /tema|oscuro|letra|import|resumen|instal|aviso|categori|medio|banco|billetera/.test(q)) return d[1];
+    const a = buscarEnAyuda(q); if (a) return a;
+  }
   for (const { t } of puntaje) {
     const r = t.r ? t.r(q) : responder(t.id, q, s, b);
     if (r) return r;
   }
+  const g = GLOSARIO.find(([re]) => re.test(q));
+  if (g) return g[1];
+  const a = buscarEnAyuda(q);
+  if (a) return a;
+  const d = /como|donde|cambio|activo|instalo|importo|cargo/.test(q) && DONDE.find(([re]) => re.test(q));
+  if (d) return d[1];
   return 'No te entendí del todo. Podés preguntarme, por ejemplo:\n• "¿Cuánto puedo gastar hoy?"\n• "¿Cuánto gasté en súper este mes?"\n• "¿Qué vence esta semana?"\n• "¿Cuánto tengo en mis cuentas?"\n• "¿Me compro algo de $80.000?"\n• "¿Dónde rinde más mi plata?"\n• "¿A cuánto está el dólar?"\n• "¿Dónde están mis deudas?"';
 }
 
