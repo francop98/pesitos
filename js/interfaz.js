@@ -8,6 +8,8 @@ const P = {
   moves: '<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
   trend: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   sprout: '<path d="M12 21v-9"/><path d="M12 12c0-4 3-7 7-7 0 4-3 7-7 7z"/><path d="M12 14c0-3.5-2.5-6-6-6 0 3.5 2.5 6 6 6z"/>',
+  percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+  tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
   chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   receipt: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -253,6 +255,11 @@ export function catIcon(c, size = 18) {
 export function quickForm(id, s = null, medioHtml = '') {
   const cats = s ? categoriasOrdenadas(s) : allCategories();
   return `<form class="quick-card" data-submit="quickAdd" autocomplete="off">
+    <div class="quick-top">
+      <label class="fecha-chip">${icon('calendar', 15)} <span data-fecha-txt>Hoy</span> ${icon('chevron', 12, 2.6)}
+        <input id="${id}-date" name="date" type="date" value="${toISO(new Date())}" max="${toISO(new Date())}" data-change="quickFecha" aria-label="Fecha del movimiento"></label>
+      <button type="button" class="link-btn" data-action="cargaDetallada">Más detalle ${icon('chevron', 12, 2.6)}</button>
+    </div>
     <div class="kind-toggle" role="group" aria-label="Tipo de movimiento">
       <button type="button" data-action="setKind" data-kind="expense" aria-pressed="true">${icon('down', 16, 2.4)} Gasto</button>
       <button type="button" data-action="setKind" data-kind="income" aria-pressed="false">${icon('up', 16, 2.4)} Ingreso</button>
@@ -273,12 +280,6 @@ export function quickForm(id, s = null, medioHtml = '') {
     ${Array.isArray(medioHtml) && medioHtml.length > 1 ? `<input type="hidden" name="medio" value="">
     <div class="medio-fila"><span class="medio-label" data-medio-label>Pagás con</span>
       <div class="medio-row" role="radiogroup" aria-label="Con qué pagás">${medioHtml.map((m) => `<button type="button" class="medio-chip${m.tarjeta ? ' tarjeta' : ''}${m.falta ? ' falta' : ''}" role="radio" data-action="pickMedio" data-v="${esc(m.v)}" aria-checked="${m.v === ''}">${m.falta ? '+ ' : ''}${esc(m.label)}</button>`).join('')}</div></div>` : ''}
-    <details class="quick-mas"><summary>Otra fecha o más detalle</summary>
-    <div class="quick-opts">
-      ${typeof medioHtml === 'string' && medioHtml ? `<label class="sr-only" for="${id}-medio">Con qué pagaste</label><select id="${id}-medio" name="medio" class="mini-select medio-select">${medioHtml}</select>` : '<label class="small muted quick-date-label" for="' + id + '-date">Fecha</label>'}
-      <input id="${id}-date" name="date" type="date" class="mini-select" value="${toISO(new Date())}" max="${toISO(new Date())}">
-    </div>
-    <button type="button" class="btn small ghost block" data-action="cargaDetallada">Cargar con más detalle: cuotas, otra moneda, dividir o compartido</button></details>
   </form>`;
 }
 export function setModalBody(selector, html) {
@@ -314,3 +315,82 @@ export function borrarConDeshacer(ctx, mensaje, borrar) {
 export function hydrateNavIcons() {
   document.querySelectorAll('[data-icon]').forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
 }
+
+
+// ---------- listas con buscador ----------
+// Los desplegables largos (más de 6 opciones) se abren en una hoja propia: la lista
+// arranca arriba de todo, con un buscador para ir filtrando, y la opción elegida a la vista.
+const MIN_OPCIONES = 7;
+let listaSel = null;
+const normalizar = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function hojaLista() {
+  let h = document.getElementById('lista-sheet');
+  if (h) return h;
+  h = document.createElement('div');
+  h.id = 'lista-sheet'; h.className = 'lista-sheet'; h.hidden = true;
+  h.innerHTML = `<div class="ls-fondo" data-ls-cerrar></div><div class="ls-panel" role="dialog" aria-modal="true">
+    <div class="ls-top"><strong data-ls-titulo></strong><button type="button" class="icon-btn" data-ls-cerrar aria-label="Cerrar">${icon('close', 20)}</button></div>
+    <input type="search" class="ls-buscar" placeholder="Escribí para buscar" autocomplete="off" aria-label="Buscar en la lista">
+    <div class="ls-items" role="listbox"></div></div>`;
+  document.body.appendChild(h);
+  h.addEventListener('click', (e) => {
+    if (e.target.closest('[data-ls-cerrar]')) { cerrarLista(); return; }
+    const op = e.target.closest('[data-ls-v]');
+    if (op && listaSel) {
+      listaSel.value = op.dataset.lsV;
+      listaSel.dispatchEvent(new Event('change', { bubbles: true }));
+      listaSel.dispatchEvent(new Event('input', { bubbles: true }));
+      cerrarLista();
+    }
+  });
+  h.querySelector('.ls-buscar').addEventListener('input', (e) => pintarLista(e.target.value));
+  return h;
+}
+function pintarLista(q = '') {
+  const h = hojaLista(); const sel = listaSel; if (!sel) return;
+  const qq = normalizar(q.trim());
+  let html = ''; let grupo = null; let n = 0;
+  for (const o of sel.querySelectorAll('option')) {
+    if (o.disabled && !o.value) continue;
+    if (qq && !normalizar(o.textContent).includes(qq)) continue;
+    const g = o.parentElement.tagName === 'OPTGROUP' ? o.parentElement.label : null;
+    if (g !== grupo) { grupo = g; if (g) html += `<span class="ls-grupo">${esc(g)}</span>`; }
+    html += `<button type="button" class="ls-op${o.value === sel.value ? ' on' : ''}" role="option" aria-selected="${o.value === sel.value}" data-ls-v="${esc(o.value)}">${esc(o.textContent)}</button>`;
+    n++;
+  }
+  h.querySelector('.ls-items').innerHTML = n ? html : '<p class="empty">No hay opciones con eso.</p>';
+}
+export function abrirLista(sel) {
+  listaSel = sel;
+  const h = hojaLista();
+  const lab = sel.id ? document.querySelector(`label[for="${sel.id}"]`) : null;
+  h.querySelector('[data-ls-titulo]').textContent = (lab && lab.textContent.trim()) || sel.getAttribute('aria-label') || 'Elegí una opción';
+  const b = h.querySelector('.ls-buscar'); b.value = '';
+  pintarLista('');
+  h.hidden = false;
+  requestAnimationFrame(() => {
+    h.classList.add('abierta');
+    const on = h.querySelector('.ls-op.on'); if (on) on.scrollIntoView({ block: 'center' });
+  });
+}
+function cerrarLista() {
+  const h = document.getElementById('lista-sheet');
+  if (!h || h.hidden) return;
+  h.classList.remove('abierta'); h.hidden = true; listaSel = null;
+}
+document.addEventListener('pointerdown', (e) => {
+  const sel = e.target.closest && e.target.closest('select');
+  if (!sel || sel.disabled || sel.multiple || sel.options.length < MIN_OPCIONES) return;
+  e.preventDefault(); sel.blur();
+  abrirLista(sel);
+}, true);
+document.addEventListener('mousedown', (e) => { const sel = e.target.closest && e.target.closest('select'); if (sel && sel.options.length >= MIN_OPCIONES) e.preventDefault(); }, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarLista(); });
+
+// Al tocar un campo dentro de una ventana, que quede arriba y a la vista (no tapado por el teclado).
+document.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!el.closest || !el.closest('#modal') || !el.matches('input:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea')) return;
+  const arriba = el.closest('.ciudad-picker, .banco-picker');
+  setTimeout(() => el.scrollIntoView({ block: arriba ? 'start' : 'center', behavior: 'smooth' }), 280);
+});

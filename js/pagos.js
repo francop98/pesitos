@@ -7,6 +7,7 @@ import { allCategories, walletName } from './categorias.js';
 import { payCycle } from './calculos.js';
 import { agenda, agendaBetween, groups, pendingUntil, provisions, dueLabel, buildICS, REPEATS, repeatLabel, history, byAccount, statementDates, statementOf } from './agenda.js';
 import { projection, coverage, inflows } from './flujo.js';
+import { cuerpo as tarjetasCuerpo } from './tarjetas.js';
 import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer , abrirSelectorMes, botonMes } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
@@ -14,7 +15,9 @@ import { fechaDeCobro, reglaDeCobro } from './feriados.js';
 import { parseAmount } from './interprete.js';
 import { listaCuentas } from './cuentas.js';
 
-let view = 'lista';
+let view = 'lista'; // 'lista' | 'calendario' | 'tarjetas'
+/** Abrir Por pagar en una pestaña (la ruta vieja #/tarjetas llega acá). */
+export function renderVista(s, v) { view = v; return render(s); }
 let showPaid = false;
 let calOffset = 0;
 const shortDate = (iso) => { const d = parseISO(iso); return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}`; };
@@ -130,14 +133,23 @@ export function render(s) {
   const pr = projection(s);
   const cov = coverage(s, pr);
   const prov = provisions(s);
-  const ins = inflows(s, startOfToday(), addDays(startOfToday(), 62));
+  // cobros que vienen: del sueldo, solo el próximo
+  const ins = (() => { let sal = false; return inflows(s, startOfToday(), addDays(startOfToday(), 62)).filter((i) => (i.kind === 'salary' ? (sal ? false : (sal = true)) : true)); })();
   const weekItems = items.filter((i) => !i.paid && i.days <= 7);
   const accounts = byAccount(weekItems, accountName);
   const h = history(s);
   const empty = !items.length;
 
   return `<section class="screen">
-    ${screenHead('Por pagar', '<button class="btn small" data-action="newBill">+ Pago</button>', 'Vencimientos, cobros y tu plata hasta el cobro')}
+    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : '<button class="btn small" data-action="newBill">+ Pago</button>', 'Vencimientos, tarjetas y cobros')}
+
+    <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <button role="tab" data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista'}">Agenda</button>
+      <button role="tab" data-action="setPayView" data-v="calendario" aria-pressed="${view === 'calendario'}">Calendario</button>
+      <button role="tab" data-action="setPayView" data-v="tarjetas" aria-pressed="${view === 'tarjetas'}">Tarjetas${s.cards.length ? ` (${s.cards.length})` : ''}</button>
+    </div>
+
+    ${view === 'tarjetas' ? tarjetasCuerpo(s) : `
 
     <div class="card green" style="gap:6px;padding:20px">
       <span class="hero-label">Hasta tu próximo cobro (${shortDate(cycle.nextISO)}) tenés que pagar</span>
@@ -152,10 +164,6 @@ export function render(s) {
       ${cov.options.map((o) => `<p class="text">• ${esc(o)}</p>`).join('')}
     </div>` : ''}
 
-    <div class="tabs" role="group" aria-label="Vista" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <button data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista'}">Lista</button>
-      <button data-action="setPayView" data-v="calendario" aria-pressed="${view === 'calendario'}">Calendario</button>
-    </div>
 
     ${view === 'calendario' ? calendar(s) : `
       ${empty ? `<div class="card"><strong>Todavía no hay pagos en tu agenda</strong>
@@ -164,7 +172,6 @@ export function render(s) {
       ${section('Vencidos', g.overdue, '¿Ya los pagaste? Marcalos para que no te avise más.')}
       ${section('Hoy', g.today)}
       ${section('Esta semana', g.week)}
-      ${section('Este mes', g.month)}
       ${section('Más adelante', g.later)}
       ${ins.length ? `<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div><div class="card tight">${ins.map(inRow).join('')}</div>`
         : '<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div>'}
@@ -201,16 +208,23 @@ export function render(s) {
     </div>
 
     ${(s.bills || []).length ? `<div class="section-title"><span>Tus pagos programados</span></div>
-    <div class="card tight">${s.bills.map((b) => `<button class="row" data-action="editBill" data-id="${b.id}"><span class="grow"><span class="name">${esc(b.name)}</span><span class="meta">${repeatLabel(b.repeat)} · desde el ${shortDate(b.date)}${b.saveAhead ? ' · ahorrando de a poco' : ''}${b.autoDebit ? ' · débito automático' : ''}</span></span><span class="amount">${money(b.amount)}</span></button>`).join('')}</div>` : ''}
+    <div class="card tight">${s.bills.map((b) => `<button class="row" data-action="editBill" data-id="${b.id}"><span class="grow"><span class="name">${esc(b.name)}</span><span class="meta">${repeatLabel(b.repeat, b)} · desde el ${shortDate(b.date)}${b.saveAhead ? ' · ahorrando de a poco' : ''}${b.autoDebit ? ' · débito automático' : ''}</span></span><span class="amount">${money(b.amount)}</span></button>`).join('')}</div>` : ''}
 
     ${(s.expectedIncomes || []).length ? `<div class="section-title"><span>Tus cobros programados</span></div>
-    <div class="card tight">${s.expectedIncomes.map((c) => `<button class="row" data-action="editIncome" data-id="${c.id}"><span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${repeatLabel(c.repeat)} · desde el ${shortDate(c.date)}</span></span><span class="amount pos">+${money(c.amount)}</span></button>`).join('')}</div>` : ''}
+    <div class="card tight">${s.expectedIncomes.map((c) => `<button class="row" data-action="editIncome" data-id="${c.id}"><span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${repeatLabel(c.repeat, c)} · desde el ${shortDate(c.date)}</span></span><span class="amount pos">+${money(c.amount)}</span></button>`).join('')}</div>` : ''}
 
+    `}
   </section>`;
 }
 
 const payOptions = (s, sel) => `<option value="">Sin asignar</option>${listaCuentas(s).map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`;
 export { payOptions };
+
+// "Personalizado": cada N días, semanas o meses
+const repetirCustom = (x) => `<div class="field-row repetir-custom" ${x.repeat === 'custom' ? '' : 'hidden'}>
+  <div class="field"><label>Cada</label><input name="everyN" inputmode="numeric" value="${(x.every && x.every.n) || ''}" placeholder="Ej: 10"></div>
+  <div class="field"><label>Unidad</label><select name="everyUnit">${[['dias', 'Días'], ['semanas', 'Semanas'], ['meses', 'Meses']].map(([v, l]) => `<option value="${v}" ${(x.every && x.every.unit) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
+const everyDe = (d) => (d.repeat === 'custom' ? { n: Math.max(1, parseInt(d.everyN, 10) || 1), unit: ['dias', 'semanas', 'meses'].includes(d.everyUnit) ? d.everyUnit : 'dias' } : null);
 
 function billForm(s, b = {}) {
   return `<form class="form" data-submit="saveBill">
@@ -221,9 +235,10 @@ function billForm(s, b = {}) {
       <div class="field"><label for="bl-d">Vence el</label><input id="bl-d" name="date" type="date" value="${b.date || todayISO()}" required></div>
     </div>
     <div class="field-row">
-      <div class="field"><label for="bl-r">Se repite</label><select id="bl-r" name="repeat">${REPEATS.map((r) => `<option value="${r.id}" ${r.id === (b.repeat || 'once') ? 'selected' : ''}>${r.label}</option>`).join('')}</select></div>
+      <div class="field"><label for="bl-r">Se repite</label><select id="bl-r" name="repeat" data-change="repeatChanged">${REPEATS.map((r) => `<option value="${r.id}" ${r.id === (b.repeat || 'once') ? 'selected' : ''}>${r.label}</option>`).join('')}</select></div>
       <div class="field"><label for="bl-c">Categoría</label><select id="bl-c" name="category">${allCategories().map((c) => `<option value="${c.id}" ${c.id === (b.category || 'otros') ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div>
     </div>
+    ${repetirCustom(b)}
     <label class="check"><input type="checkbox" name="variable" ${b.variable ? 'checked' : ''}> <span>El monto cambia cada vez<br><span class="small muted">Por ejemplo, impuestos o servicios por consumo. Si no sabés cuánto va a ser, dejá el monto vacío: aparece "a confirmar" y, cuando marques "Pagué", te pregunto cuánto fue. Lo que pagaste queda como referencia para la próxima.</span></span></label>
     <div class="field"><label for="bl-w">Se paga con</label><select id="bl-w" name="payWith">${payOptions(s, b.payWith)}</select></div>
     <label class="check"><input type="checkbox" name="autoDebit" ${b.autoDebit ? 'checked' : ''}> <span>Débito automático<br><span class="small muted">Se marca como pagado solo el día del vencimiento. Te aviso que tengas saldo.</span></span></label>
@@ -242,7 +257,8 @@ function incomeForm(c = {}) {
       <div class="field"><label for="in-a">Monto</label><input id="in-a" name="amount" inputmode="decimal" value="${c.amount || ''}" placeholder="Ej: 250.000" required></div>
       <div class="field"><label for="in-d">Fecha</label><input id="in-d" name="date" type="date" value="${c.date || todayISO()}" required></div>
     </div>
-    <div class="field"><label for="in-r">Se repite</label><select id="in-r" name="repeat">${REPEATS.map((r) => `<option value="${r.id}" ${r.id === (c.repeat || 'monthly') ? 'selected' : ''}>${r.label}</option>`).join('')}</select></div>
+    <div class="field"><label for="in-r">Se repite</label><select id="in-r" name="repeat" data-change="repeatChanged">${REPEATS.map((r) => `<option value="${r.id}" ${r.id === (c.repeat || 'monthly') ? 'selected' : ''}>${r.label}</option>`).join('')}</select></div>
+      ${repetirCustom(c)}
     <button class="btn primary block" type="submit">Guardar</button>
     ${c.id ? `<button class="btn ghost block" type="button" data-action="deleteIncome" data-id="${c.id}">Borrar</button>` : ''}
   </form>`;
@@ -251,6 +267,7 @@ function incomeForm(c = {}) {
 function findItem(s, key) { return agenda(s, 400).find((i) => i.key === key); }
 
 export const actions = {
+  repeatChanged(ctx, el) { const c = el.closest('form')?.querySelector('.repetir-custom'); if (c) c.hidden = el.value !== 'custom'; },
   setPayView(ctx, el) { view = el.dataset.v; ctx.render(); },
   calMove(ctx, el) { calOffset += Number(el.dataset.d); ctx.render(); },
   calElegirMes() { const hoy = monthKey(); abrirSelectorMes({ actual: addMonthKey(hoy, calOffset), min: addMonthKey(hoy, -240), max: addMonthKey(hoy, 60), accion: 'calIrMes' }); },
@@ -277,7 +294,7 @@ export const actions = {
     if (!amount && d.saveAhead) { toast('Para ahorrar de a poco necesito un monto, aunque sea aproximado'); return; }
     ctx.commit((s) => {
       s.bills = s.bills || [];
-      const data = { name: d.name.trim(), amount, variable, date: d.date, repeat: d.repeat, category: d.category, payWith: d.payWith || '', autoDebit: !!d.autoDebit, saveAhead: !!d.saveAhead };
+      const data = { name: d.name.trim(), amount, variable, date: d.date, repeat: d.repeat, every: everyDe(d), category: d.category, payWith: d.payWith || '', autoDebit: !!d.autoDebit, saveAhead: !!d.saveAhead };
       const b = s.bills.find((x) => x.id === d.id);
       if (b) { if (b.amount !== amount) data.lastAmount = b.amount; Object.assign(b, data); } else s.bills.push({ id: uid(), ...data });
     });
@@ -292,7 +309,7 @@ export const actions = {
     if (!amount || !String(d.name || '').trim()) { toast('Completá qué cobrás y el monto'); return; }
     ctx.commit((s) => {
       s.expectedIncomes = s.expectedIncomes || [];
-      const data = { name: d.name.trim(), amount, date: d.date, repeat: d.repeat };
+      const data = { name: d.name.trim(), amount, date: d.date, repeat: d.repeat, every: everyDe(d) };
       const c = s.expectedIncomes.find((x) => x.id === d.id);
       if (c) Object.assign(c, data); else s.expectedIncomes.push({ id: uid(), ...data });
     });

@@ -230,6 +230,12 @@ export const commonActions = {
     toast(msg);
   },
   alternarMontos(ctx, el) { const o = alternarMontos(el.dataset.clave); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles'); },
+  quickFecha(ctx, el) {
+    const t = el.closest('form').querySelector('[data-fecha-txt]');
+    if (!t) return;
+    const d = parseISO(el.value || todayISO()); const r = relDay(el.value || todayISO());
+    t.textContent = r === 'Hoy' || r === 'Ayer' ? r : `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`;
+  },
   pickMedio(ctx, el) {
     const form = el.closest('form');
     if (el.dataset.v.startsWith('falta:')) {

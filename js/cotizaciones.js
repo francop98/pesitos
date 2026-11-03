@@ -1,5 +1,5 @@
 // Cotizaciones en vivo.
-// - Dólar blue: DolarApi.com, que toma los valores de DolarHoy.
+// - Dólares (blue, oficial, MEP, CCL, tarjeta, cripto, mayorista): DolarApi.com.
 // - Euro, real, peso uruguayo y chileno: DolarApi.com.
 // - Bitcoin, Ethereum, USDT y oro (vía PAX Gold, 1 token = 1 onza troy = 31,1035 g; se guarda por GRAMO): CoinGecko.
 // Si no hay conexión, se usan las últimas guardadas y se avisa que no están al día.
@@ -24,10 +24,20 @@ export async function refreshRates(ctx, force = false) {
   loading = true;
   const out = { ...(cur || {}) };
   let ok = false;
+  // todos los dólares (oficial, blue, MEP, CCL, tarjeta, cripto, mayorista); el blue es el de referencia
   try {
-    const b = await getJSON('https://dolarapi.com/v1/dolares/blue');
-    if (b && b.venta) { out.USD = { compra: b.compra, venta: b.venta, updated: b.fechaActualizacion }; ok = true; }
+    const todos = await getJSON('https://dolarapi.com/v1/dolares');
+    const dolares = {};
+    for (const d of todos || []) if (d && d.casa && d.venta) dolares[d.casa] = { nombre: d.nombre, compra: d.compra, venta: d.venta, updated: d.fechaActualizacion };
+    if (Object.keys(dolares).length) out.dolares = dolares;
+    if (dolares.blue) { out.USD = { compra: dolares.blue.compra, venta: dolares.blue.venta, updated: dolares.blue.updated }; ok = true; }
   } catch { /* sin conexión */ }
+  if (!out.USD || !ok) {
+    try {
+      const b = await getJSON('https://dolarapi.com/v1/dolares/blue');
+      if (b && b.venta) { out.USD = { compra: b.compra, venta: b.venta, updated: b.fechaActualizacion }; ok = true; }
+    } catch { /* sin conexión */ }
+  }
   try {
     const list = await getJSON('https://dolarapi.com/v1/cotizaciones');
     for (const c of list || []) {

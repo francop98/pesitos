@@ -66,7 +66,7 @@ function current() {
     };
     case 'sueldo': return {
       bubbles: [`Buenísimo${n}. ¿Cuánto cobrás por mes, más o menos?`],
-      controls: `${inputForm('salary', 'Ej: 900.000', 'decimal')}<p class="small muted guide-hint">Con eso calculo cuánto podés gastar por día. Queda guardado cifrado en tu cuenta: solo lo ves vos.</p><div class="chips">${chip('', 'Prefiero no decirlo ahora')}</div>`,
+      controls: `${inputForm('salary', 'Ej: 900.000', 'decimal')}<p class="small muted guide-hint">Con eso calculo cuánto podés gastar por día. Queda guardado en tu cuenta: solo lo ves vos.</p><div class="chips">${chip('', 'Prefiero no decirlo ahora')}</div>`,
     };
     case 'cobro': return {
       bubbles: ['¿Cuándo cobrás? Tocá una opción o escribilo como te salga: "el 5", "4.º día hábil", "último día hábil"…'],

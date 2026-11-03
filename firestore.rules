@@ -1,13 +1,12 @@
 rules_version = '2';
 // =========================================================
-// Pesitos — reglas de seguridad de Firestore
+// Pesitos — reglas de seguridad de Firestore (versión 3: sin cifrado de extremo a extremo)
 // Pegalas en Firebase → Firestore Database → Reglas → Publicar.
 //
-//   usuarios/{uid}           solo fechas y la llave envuelta (cifrada con la clave
-//                            de Pesitos de su dueño). Sin nombre ni mail.
-//   usuarios/{uid}/estado/*  datos de la app, CIFRADOS en el dispositivo (AES-GCM):
-//                            solo { c, iv, actualizado }. Nadie puede leerlos sin la
-//                            clave de su dueño, ni siquiera quien administra el proyecto.
+//   usuarios/{uid}           fechas y el PIN de seguridad (solo su hash). Sin nombre ni mail.
+//                            'llave' solo existe en cuentas de la versión cifrada hasta que migran.
+//   usuarios/{uid}/estado/*  datos de la app: { json, actualizado }. Los documentos viejos
+//                            { c, iv } (cifrados) se pueden leer y borrar, pero ya no escribir.
 //   usuarios/{uid}/push/*    solo si activás los avisos: la suscripción del
 //                            navegador para mandarte notificaciones.
 //   usuarios/{uid}/avisos/agenda  solo si activás los avisos: qué días hay algo
@@ -26,34 +25,29 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
-    function llaveValida(l) {
-      return l is map
-        && l.keys().hasOnly(['v', 'pass', 'rec'])
-        && l.pass is map && l.rec is map
-        && l.pass.keys().hasOnly(['salt', 'iv', 'ct', 'iter'])
-        && l.rec.keys().hasOnly(['salt', 'iv', 'ct', 'iter'])
-        && l.pass.ct is string && l.pass.ct.size() < 200
-        && l.rec.ct is string && l.rec.ct.size() < 200
-        && l.pass.iter is int && l.pass.iter >= 100000;
+    function pinValido(p) {
+      return p is map
+        && p.keys().hasOnly(['salt', 'hash', 'largo'])
+        && p.salt is string && p.salt.size() < 64
+        && p.hash is string && p.hash.size() < 100
+        && p.largo is int && p.largo >= 4 && p.largo <= 6;
     }
 
     match /usuarios/{uid} {
       allow read, delete: if esDueno(uid);
       allow create, update: if esDueno(uid)
-        && request.resource.data.keys().hasOnly(['creado', 'ultimoIngreso', 'llave'])
-        && (!('llave' in request.resource.data) || llaveValida(request.resource.data.llave))
-        // una llave guardada nunca se borra por accidente
-        && (resource == null || !('llave' in resource.data) || 'llave' in request.resource.data);
+        && request.resource.data.keys().hasOnly(['creado', 'ultimoIngreso', 'llave', 'pin'])
+        // la llave vieja no se puede crear ni cambiar: solo queda o se borra
+        && (!('llave' in request.resource.data) || (resource != null && 'llave' in resource.data && request.resource.data.llave == resource.data.llave))
+        && (!('pin' in request.resource.data) || pinValido(request.resource.data.pin));
 
       match /estado/{docId} {
         allow read, delete: if esDueno(uid);
         allow create, update: if esDueno(uid)
           && docId.matches('^(general|(expenses|incomes|transfers)-([0-9]{4}|sin-fecha))(~[0-9]{1,2})?$')
-          && request.resource.data.keys().hasOnly(['c', 'iv', 'actualizado'])
-          && request.resource.data.c is string
-          && request.resource.data.c.size() < 1000000
-          && request.resource.data.iv is string
-          && request.resource.data.iv.size() < 40;
+          && request.resource.data.keys().hasOnly(['json', 'actualizado'])
+          && request.resource.data.json is string
+          && request.resource.data.json.size() < 1000000;
       }
 
       match /push/{subId} {

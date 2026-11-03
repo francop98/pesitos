@@ -12,12 +12,18 @@ const signo = (v) => `${v >= 0 ? '+' : '−'}${money(Math.abs(v))}`;
 const opcionesCuenta = (s, sel) => listaCuentas(s).map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 
 export function render(s) {
+  return `<section class="screen">
+    ${screenHead('Saldo', `<button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir</button>`, 'Cuánto tenés en cada cuenta')}
+    ${cuerpo(s)}
+  `;
+}
+
+/** Saldo de cada cuenta y transferencias (también en Mi plata → Cuentas). */
+export function cuerpo(s) {
   const todas = listaCuentas(s);
   const con = cuentasConSaldo(s);
   const ppal = cuentaPrincipal(s);
-  const pat = patrimonio(s);
-  return `<section class="screen">
-    ${screenHead('Saldo', `<button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir</button>`, 'Cuánto tenés en cada cuenta')}
+  return `
     <div class="card green" style="gap:6px">
       <span class="hero-label">${con.length ? 'Tenés en tus cuentas' : 'Cargá el saldo de tus cuentas'}</span>
       <span class="hero-number" style="font-size:34px">${con.length ? money(totalCuentas(s)) : '—'}</span>
@@ -27,23 +33,31 @@ export function render(s) {
       <span class="cat-icon ${c.id === ppal ? 'green' : ''}">${icon(c.id === 'efectivo' ? 'wallet' : 'card', 18)}</span>
       <span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${c.id === ppal ? 'Cuenta principal · ' : ''}${sal == null ? 'Sin saldo cargado' : `Desde el ${s.cuentas[c.id].desde.split('-').reverse().slice(0, 2).join('/')}`}${sal != null && tnaCuenta(s, c.id) ? ` · rinde ${String(tnaCuenta(s, c.id)).replace('.', ',')}% anual` : ''}</span></span>
       <span class="amount ${sal != null && sal < 0 ? 'neg' : ''}">${sal == null ? 'Cargar' : money(sal)}</span></button>`; }).join('')}</div>
-    <p class="small muted">¿Falta una cuenta? Agregala en menú ☰ → Mis medios de pago. Las tarjetas de crédito están en <a href="#/tarjetas">Tarjetas</a>.</p>
+    <p class="small muted">¿Falta una cuenta? Agregala en menú ☰ → Mis medios de pago. Las tarjetas de crédito están en <a href="#/tarjetas">Por pagar → Tarjetas</a>.</p>
 
-    <div class="section-title"><span>Tu patrimonio</span><button data-action="verDeudas">Deudas y préstamos</button></div>
-    <div class="card">
+    ${(s.transferencias || []).length ? `<div class="section-title"><span>Últimas transferencias</span></div>
+    <div class="card tight">${s.transferencias.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8).map((t) => `<button class="row" data-action="editarTransferencia" data-id="${esc(t.id)}">
+      <span class="cat-icon">${icon('swap', 18)}</span><span class="grow"><span class="name">${esc(nombreCuenta(s, t.from))} → ${esc(nombreCuenta(s, t.to))}</span><span class="meta">${relDay(t.date)}${t.note ? ' · ' + esc(t.note) : ''}</span></span><span class="amount">${money(t.amount)}</span></button>`).join('')}</div>` : ''}
+  </section>`;
+}
+
+
+/** Patrimonio neto: lo que tenés menos lo que debés (arriba de Mi plata). */
+export function patrimonioHtml(s, abierto = false) {
+  const pat = patrimonio(s);
+  return `<div class="card patrimonio">
+    <button class="pat-top" data-action="patToggle" aria-expanded="${abierto}"><span class="grow"><span class="small muted" style="font-weight:700">Tu patrimonio neto</span><b class="pat-v ${pat.neto >= 0 ? '' : 'neg'}">${money(pat.neto)}</b><span class="small muted">Lo que tenés menos lo que debés</span></span>${icon('chevron', 18)}</button>
+    ${abierto ? `<div class="pat-detalle">
       <div class="split"><span>Cuentas</span><b>${money(pat.cuentas)}</b></div>
       <div class="split"><span>Ahorros e inversiones</span><b>${money(pat.ahorros)}</b></div>
       ${pat.meDeben ? `<div class="split"><span>Te deben</span><b>${money(pat.meDeben)}</b></div>` : ''}
       ${pat.tarjetas ? `<div class="split"><span>Tarjetas (lo que falta pagar)</span><b>−${money(pat.tarjetas)}</b></div>` : ''}
       ${pat.creditos ? `<div class="split"><span>Créditos y cuotas que faltan</span><b>−${money(pat.creditos)}</b></div>` : ''}
       ${pat.debo ? `<div class="split"><span>Debés a otras personas</span><b>−${money(pat.debo)}</b></div>` : ''}
-      <div class="split" style="border-top:1px solid var(--line);padding-top:8px;font-size:16px"><span><b>Patrimonio neto</b></span><b class="${pat.neto >= 0 ? 'pos' : 'neg'}">${money(pat.neto)}</b></div>
       ${pat.conCuentas ? '' : '<span class="small muted">Para que sea exacto, cargá el saldo de tus cuentas.</span>'}
-    </div>
-    ${(s.transferencias || []).length ? `<div class="section-title"><span>Últimas transferencias</span></div>
-    <div class="card tight">${s.transferencias.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8).map((t) => `<button class="row" data-action="editarTransferencia" data-id="${esc(t.id)}">
-      <span class="cat-icon">${icon('swap', 18)}</span><span class="grow"><span class="name">${esc(nombreCuenta(s, t.from))} → ${esc(nombreCuenta(s, t.to))}</span><span class="meta">${relDay(t.date)}${t.note ? ' · ' + esc(t.note) : ''}</span></span><span class="amount">${money(t.amount)}</span></button>`).join('')}</div>` : ''}
-  </section>`;
+      <button class="btn small ghost" data-action="verDeudas" style="align-self:flex-start">Ver deudas y préstamos</button>
+    </div>` : ''}
+  </div>`;
 }
 
 function formTransferencia(s, t = {}) {

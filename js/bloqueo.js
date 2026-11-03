@@ -1,9 +1,11 @@
 // =========================================================
-// Pesitos — bloqueo con huella / cara o PIN
-// Se guarda solo en este dispositivo (cada celular tiene su propio bloqueo).
-// - PIN de 4 a 6 números (guardado como hash PBKDF2, nunca el PIN).
-// - Huella o cara con el lector del celular (WebAuthn, sin servidor).
-// - Se bloquea al abrir la app y al volver después de un rato.
+// Pesitos — PIN de seguridad y huella / cara
+// - El PIN es de tu cuenta (4 a 6 números, se guarda solo su hash PBKDF2): sirve en
+//   todos tus dispositivos y se pide cada vez que iniciás sesión. Si querés, también
+//   al abrir la app o al volver después de un rato (configurable; por defecto, no).
+// - Huella o cara: de cada dispositivo (WebAuthn, sin servidor), reemplaza al PIN ahí.
+// - Al volver a la app después de un rato también se pide (configurable).
+// - "Olvidé mi PIN": cerrás sesión, volvés a entrar con tu mail o Google y creás otro.
 // =========================================================
 
 import { esc } from './formato.js';
@@ -20,10 +22,31 @@ let abierto = false;
 let intentos = 0;
 let esperaHasta = 0;
 let alOlvidar = null;
+let pinCuenta = null;      // { salt, hash, largo } de la cuenta
+let guardarPinCuenta = null;
 
-const leer = () => { try { return JSON.parse(localStorage.getItem(clave(uidActual))) || null; } catch { return null; } };
-const guardar = (c) => { try { if (c) localStorage.setItem(clave(uidActual), JSON.stringify(c)); else localStorage.removeItem(clave(uidActual)); } catch { /* nada */ } };
-export const bloqueoActivo = () => Boolean(uidActual && leer() && (leer().pin || leer().bio));
+const leerLocal = () => { try { return JSON.parse(localStorage.getItem(clave(uidActual))) || null; } catch { return null; } };
+// la config de este dispositivo (huella, tiempo) + el PIN de la cuenta
+const leer = () => { const l = leerLocal() || {}; return { ...l, pin: pinCuenta || null }; };
+const guardar = (c) => { try { if (c) { const { pin, ...resto } = c; localStorage.setItem(clave(uidActual), JSON.stringify(resto)); } else localStorage.removeItem(clave(uidActual)); } catch { /* nada */ } };
+/** PIN que tenía este dispositivo con la versión anterior (para no pedir uno nuevo). */
+export const pinDelDispositivo = (uid) => { try { const c = JSON.parse(localStorage.getItem(clave(uid))); return (c && c.pin) || null; } catch { return null; } };
+export const bioActiva = () => Boolean(uidActual && leer().bio);
+export const bloqueoActivo = () => Boolean(uidActual && (pinCuenta || leer().bio));
+const K_RESET = (uid) => `pesitos_pin_reset:${uid}`;
+export const pinParaRehacer = (uid) => { try { return localStorage.getItem(K_RESET(uid)) === '1'; } catch { return false; } };
+// sesión ya desbloqueada con el PIN en este dispositivo (se borra al cerrar sesión)
+const K_SES = (uid) => `pesitos_sesion_pin:${uid}`;
+export const sesionConPin = (uid) => { try { return localStorage.getItem(K_SES(uid)) === '1'; } catch { return false; } };
+export const marcarSesionConPin = (uid) => { try { localStorage.setItem(K_SES(uid), '1'); } catch { /* nada */ } };
+export const olvidarSesionConPin = (uid) => { try { localStorage.removeItem(K_SES(uid)); } catch { /* nada */ } };
+/** ¿Hay que pedir el PIN al abrir la app? Siempre si es un inicio de sesión; si no, según la configuración. */
+export function pedirPinAlAbrir(uid) {
+  if (!sesionConPin(uid)) return true;
+  let m = -1; try { const c = JSON.parse(localStorage.getItem(clave(uid))); if (c && typeof c.minutos === 'number') m = c.minutos; } catch { /* nada */ }
+  return m !== -1;
+}
+export const pinRehecho = (uid) => { try { localStorage.removeItem(K_RESET(uid)); } catch { /* nada */ } };
 
 async function hashPin(pin, salt) {
   const base = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveBits']);
@@ -72,6 +95,9 @@ function pantalla(nota = '') {
   </div>`;
 }
 
+// después de "olvidé mi PIN": al volver a entrar se crea uno nuevo
+function olvidado() { try { localStorage.setItem(K_RESET(uidActual), '1'); localStorage.removeItem(K_SES(uidActual)); } catch { /* nada */ } }
+
 /** Muestra el bloqueo y resuelve cuando se desbloquea. */
 export function mostrarBloqueo() {
   if (!bloqueoActivo() || abierto) return Promise.resolve();
@@ -83,12 +109,15 @@ export function mostrarBloqueo() {
   return new Promise((resolver) => {
     const dibujar = (nota = '') => { capa.innerHTML = pantalla(nota); capa.hidden = false; marcar(); };
     const marcar = () => capa.querySelectorAll('.pin-puntos i').forEach((el, i) => el.classList.toggle('on', i < pin.length));
-    const listo = () => { abierto = false; intentos = 0; capa.hidden = true; capa.innerHTML = ''; document.body.classList.remove('bloqueado'); document.removeEventListener('keydown', teclas); resolver(); };
+    const cerrarCapa = () => { abierto = false; intentos = 0; capa.hidden = true; capa.innerHTML = ''; document.body.classList.remove('bloqueado'); document.removeEventListener('keydown', teclas); };
+    const listo = () => { cerrarCapa(); resolver(); };
+    // olvidé el PIN: se cierra la sesión (la app no sigue abriéndose)
+    const porOlvido = () => { olvidado(); cerrarCapa(); if (alOlvidar) alOlvidar(); };
     const probarPin = async () => {
       if (Date.now() < esperaHasta) { pin = ''; dibujar(`Esperá ${Math.ceil((esperaHasta - Date.now()) / 1000)} segundos.`); return; }
       if (await pinCorrecto(pin)) { listo(); return; }
       intentos++; pin = '';
-      if (intentos >= 10) { guardar(null); listo(); if (alOlvidar) alOlvidar(); return; }
+      if (intentos >= 10) { porOlvido(); return; }
       if (intentos % 5 === 0) esperaHasta = Date.now() + 30000;
       capa.querySelector('.pin-puntos')?.classList.add('mal');
       dibujar(intentos % 5 === 0 ? 'Demasiados intentos. Esperá 30 segundos.' : `PIN incorrecto. ${intentos >= 5 ? `Te quedan ${10 - intentos} intentos.` : 'Probá de nuevo.'}`);
@@ -109,11 +138,11 @@ export function mostrarBloqueo() {
       if (b.dataset.bloqueo === 'borrar') { pin = pin.slice(0, -1); marcar(); }
       if (b.dataset.bloqueo === 'bio') { if (await verificarBio()) listo(); else dibujar('No se pudo verificar. Probá de nuevo o usá el PIN.'); }
       if (b.dataset.bloqueo === 'olvide') {
-        dibujar('Para entrar sin el PIN tenés que volver a iniciar sesión y escribir tu clave de Pesitos. ¿Seguimos?');
+        dibujar('Para crear un PIN nuevo, cerrás sesión y volvés a entrar con tu mail y contraseña (o con Google). Tus datos no se pierden. ¿Seguimos?');
         capa.querySelector('.bloqueo-olvide').outerHTML = '<div class="btn-row"><button class="btn" data-bloqueo="cancelar">Cancelar</button><button class="btn lime" data-bloqueo="salir">Iniciar sesión de nuevo</button></div>';
       }
       if (b.dataset.bloqueo === 'cancelar') dibujar();
-      if (b.dataset.bloqueo === 'salir') { guardar(null); listo(); if (alOlvidar) alOlvidar(); }
+      if (b.dataset.bloqueo === 'salir') porOlvido();
     };
     dibujar();
     if (leer().bio) setTimeout(async () => { if (abierto && await verificarBio()) listo(); }, 300);
@@ -121,36 +150,36 @@ export function mostrarBloqueo() {
 }
 
 /** Activa el control: bloquea al volver a la app después de un rato. */
-export function iniciarBloqueo(uid, { onOlvido } = {}) {
-  uidActual = uid; alOlvidar = onOlvido || null;
+export function iniciarBloqueo(uid, { onOlvido, pin, guardarPin } = {}) {
+  uidActual = uid; alOlvidar = onOlvido || null; pinCuenta = pin || null; guardarPinCuenta = guardarPin || null;
 }
-export function terminarBloqueo() { uidActual = null; const c = document.getElementById('bloqueo'); if (c) { c.hidden = true; c.innerHTML = ''; } document.body.classList.remove('bloqueado'); abierto = false; }
+export function terminarBloqueo() { uidActual = null; pinCuenta = null; const c = document.getElementById('bloqueo'); if (c) { c.hidden = true; c.innerHTML = ''; } document.body.classList.remove('bloqueado'); abierto = false; }
 
 document.addEventListener('visibilitychange', () => {
   if (!bloqueoActivo()) return;
   if (document.visibilityState === 'hidden') {
     ocultoDesde = Date.now();
     // si el bloqueo es inmediato, se tapa ya (así el selector de apps no muestra tus números)
-    if ((leer().minutos ?? 1) === 0) document.body.classList.add('bloqueado');
+    if ((leer().minutos ?? -1) === 0) document.body.classList.add('bloqueado');
     return;
   }
-  const min = leer().minutos ?? 1;
-  if (ocultoDesde && Date.now() - ocultoDesde >= min * 60000) mostrarBloqueo();
+  const min = leer().minutos ?? -1;
+  if (min >= 0 && ocultoDesde && Date.now() - ocultoDesde >= min * 60000) mostrarBloqueo();
   else if (!abierto) document.body.classList.remove('bloqueado');
 });
 
 // ---------- configuración (menú) ----------
 export async function abrirConfigBloqueo(email) {
-  const c = leer() || {};
+  const c = leer();
   const bio = await bioDisponible();
-  openModal('Bloqueo de la app', `
-    <p class="text muted" style="margin:0">Pedí tu huella, tu cara o un PIN para abrir Pesitos en este dispositivo. Así nadie que agarre tu celular ve tu plata.</p>
+  openModal('PIN de seguridad', `
+    <p class="text muted" style="margin:0">Te pido el PIN cada vez que iniciás sesión. Es el mismo en todos tus dispositivos.</p>
     <div class="card">
-      <div class="split"><span><b>PIN</b><br><span class="small muted">${c.pin ? `Activado (${c.pin.largo} números)` : 'Desactivado'}</span></span><button class="btn small" data-action="bloqueoPin">${c.pin ? 'Cambiar' : 'Crear PIN'}</button></div>
-      <div class="split"><span><b>Huella o cara</b><br><span class="small muted">${!bio ? 'Este dispositivo no tiene o el navegador no lo permite' : c.bio ? 'Activado' : 'Desactivado'}</span></span>${bio ? `<button class="btn small" data-action="bloqueoBio">${c.bio ? 'Desactivar' : 'Activar'}</button>` : ''}</div>
+      <div class="split"><span><b>PIN</b><br><span class="small muted">${c.pin ? `Activado (${c.pin.largo} números)` : 'Sin PIN'}</span></span><button class="btn small" data-action="bloqueoPin">${c.pin ? 'Cambiar' : 'Crear PIN'}</button></div>
+      <div class="split"><span><b>Huella o cara</b><br><span class="small muted">${!bio ? 'Este dispositivo no tiene o el navegador no lo permite' : c.bio ? 'Activada en este dispositivo: la uso en lugar del PIN' : 'Desactivada'}</span></span>${bio ? `<button class="btn small" data-action="bloqueoBio">${c.bio ? 'Desactivar' : 'Activar'}</button>` : ''}</div>
     </div>
-    ${c.pin || c.bio ? `<div class="field"><label for="bl-t">Bloquear cuando vuelvo a la app después de</label><select id="bl-t" data-change="bloqueoTiempo">${[[0, 'Siempre (al instante)'], [1, '1 minuto'], [5, '5 minutos'], [15, '15 minutos']].map(([v, l]) => `<option value="${v}" ${(c.minutos ?? 1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    <button class="btn ghost small danger" data-action="bloqueoQuitar">Quitar el bloqueo</button>` : ''}
+    <div class="field"><label for="bl-t">¿Cuándo te lo pido?</label><select id="bl-t" data-change="bloqueoTiempo">${[[-1, 'Solo cuando iniciás sesión'], [-2, 'También cada vez que abro la app'], [5, 'Al abrir y al volver después de 5 minutos'], [1, 'Al abrir y al volver después de 1 minuto'], [0, 'Al abrir y cada vez que vuelvo a la app']].map(([v, l]) => `<option value="${v}" ${(c.minutos ?? -1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <p class="small muted" style="margin:0">¿Te olvidaste el PIN? En la pantalla del PIN tocá "Olvidé mi PIN": volvés a entrar con tu mail o Google y creás otro. Tus datos no se pierden.</p>
   `, { push: true });
   window.__pesitosEmail = email;
 }
@@ -177,19 +206,19 @@ export const bloqueoActions = {
   async bloqueoPin() {
     const pin = await pedirPinNuevo();
     const salt = crypto.getRandomValues(new Uint8Array(16));
-    const c = leer() || {};
-    guardar({ ...c, pin: { salt: b64(salt), hash: await hashPin(pin, salt), largo: pin.length }, minutos: c.minutos ?? 1 });
-    closeModal(); toast('PIN activado: te lo voy a pedir al abrir Pesitos');
+    const datos = { salt: b64(salt), hash: await hashPin(pin, salt), largo: pin.length };
+    pinCuenta = datos;
+    try { if (guardarPinCuenta) await guardarPinCuenta(datos); } catch { toast('Sin conexión: el PIN nuevo se guarda en tu cuenta cuando vuelva internet'); }
+    closeModal(); toast('PIN cambiado: vale en todos tus dispositivos');
   },
   async bloqueoBio() {
     const c = leer() || {};
     if (c.bio) { guardar({ ...c, bio: null }); closeModal(); toast('Huella o cara desactivada'); return; }
     try {
       const id = await registrarBio(window.__pesitosEmail);
-      guardar({ ...c, bio: id, minutos: c.minutos ?? 1 });
-      closeModal(); toast(c.pin ? 'Listo: podés entrar con huella, cara o PIN' : 'Listo. Te recomiendo crear también un PIN por si falla el lector');
+      guardar({ ...c, bio: id });
+      closeModal(); toast('Listo: en este dispositivo podés entrar con huella, cara o PIN');
     } catch { toast('No se pudo activar. Probá de nuevo.'); }
   },
   bloqueoTiempo(ctx, el) { const c = leer() || {}; guardar({ ...c, minutos: Number(el.value) }); toast('Guardado'); },
-  bloqueoQuitar() { guardar(null); closeModal(); toast('Bloqueo quitado'); },
 };

@@ -322,7 +322,7 @@ button.row { cursor: pointer; }
 .card.ask .quick { background: var(--bg); }
 
 /* ---------- navegación inferior ---------- */
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--card); border-top: 1px solid var(--line); padding: 6px max(4px, calc((100vw - 480px) / 2)) calc(10px + env(safe-area-inset-bottom)); }
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--card); border-top: 1px solid var(--line); padding: 6px max(4px, calc((100vw - 480px) / 2)) calc(10px + env(safe-area-inset-bottom)); }
 .nav[hidden] { display: none; }
 .nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0; min-height: 52px; color: var(--muted); text-decoration: none; font-size: 10.5px; font-weight: 600; }
 .nav a[aria-current="page"] { color: var(--green-text); font-weight: 800; }
@@ -716,3 +716,51 @@ button.mov-ahorro { border: none; width: 100%; text-align: left; font: inherit; 
 .banco-lista .ciudad-op b { flex-shrink: 0; }
 .anios-grid { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
 .nav a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.label-like { font-size: 13px; font-weight: 700; }
+.banco-actual { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); font: inherit; font-size: 15px; text-align: left; }
+.banco-actual svg { transform: rotate(90deg); transition: transform .2s; flex-shrink: 0; }
+.banco-picker.abierto .banco-actual svg { transform: rotate(-90deg); }
+.banco-panel { display: none; flex-direction: column; gap: 6px; }
+.banco-picker.abierto .banco-panel { display: flex; }
+.rank { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font-weight: 800; font-size: 13px; flex-shrink: 0; }
+.rank.top { background: var(--lime, #C8F169); color: #17331F; }
+.mov-mini { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.card.mini { border: none; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 12px 14px; gap: 2px; min-width: 0; }
+.card.mini .k { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
+.card.mini b { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card.mini.activa { outline: 2px solid var(--green); }
+.quick-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -2px 0 2px; }
+.fecha-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; min-height: 34px; border-radius: 999px; background: var(--bg); color: var(--ink); font-size: 13px; font-weight: 700; cursor: pointer; }
+.fecha-chip > svg:last-of-type { transform: rotate(90deg); }
+.fecha-chip input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; border: 0; padding: 0; cursor: pointer; }
+.link-btn { display: inline-flex; align-items: center; gap: 3px; border: none; background: none; color: var(--green-text); font: inherit; font-size: 13px; font-weight: 700; padding: 6px 4px; min-height: 34px; cursor: pointer; }
+.lista-sheet { position: fixed; inset: 0; z-index: 60; }
+.lista-sheet[hidden] { display: none; }
+.ls-fondo { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+.ls-panel { position: absolute; left: 0; right: 0; top: max(16px, env(safe-area-inset-top)); bottom: 0; margin: 0 auto; max-width: 560px; background: var(--card); border-radius: 20px 20px 0 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.15); }
+.ls-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ls-top strong { font-size: 17px; }
+.ls-buscar { width: 100%; }
+.ls-items { flex: 1; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 2px; }
+.ls-op { text-align: left; border: none; background: none; font: inherit; font-size: 15px; color: var(--ink); padding: 12px; border-radius: 10px; min-height: 46px; cursor: pointer; }
+.ls-op.on { background: var(--green-soft); color: var(--green-text); font-weight: 700; }
+.ls-grupo { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; padding: 10px 12px 4px; }
+.ls-buscar { min-height: 46px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; }
+.ls-buscar:focus { outline: 2px solid var(--green); outline-offset: 1px; }
+.tu-dia { padding: 6px 4px; gap: 0; }
+.tu-dia-t { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; padding: 8px 12px 2px; }
+.dia-fila { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: inherit; border-radius: 12px; min-height: 52px; }
+.dia-fila + .dia-fila { border-top: 1px solid var(--line); }
+.dia-fila .grow { display: flex; flex-direction: column; min-width: 0; }
+.dia-fila .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dia-fila .v { font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dia-sub { flex-shrink: 0; max-width: 34%; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.patrimonio { padding: 0; }
+.pat-top { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 16px; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.pat-top .grow { display: flex; flex-direction: column; gap: 1px; }
+.pat-v { font-size: 24px; font-weight: 800; letter-spacing: -.5px; }
+.pat-top > svg { transform: rotate(90deg); transition: transform .2s; flex-shrink: 0; }
+.pat-top[aria-expanded="true"] > svg { transform: rotate(-90deg); }
+.pat-detalle { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 14px; }
+
+@media (max-width: 360px) { .nav a { font-size: 9.5px; letter-spacing: -.2px; } }

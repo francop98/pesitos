@@ -1,6 +1,6 @@
 // =========================================================
 // Pesitos — menú (☰)
-// Tu plata: Mis datos, Mis medios de pago, Datos que se actualizan solos
+// Tu plata: Tu sueldo, Mis medios de pago (Mis datos está dentro de Mi cuenta)
 // La app:  Tema, Tamaño de letra, Avisos en el celular, Instalar
 // Seguridad: Bloqueo, Copia de seguridad, Privacidad, Cerrar sesión
 // Arriba de todo, tu nombre y mail: abre "Mi cuenta" (todo lo de la cuenta)
@@ -79,8 +79,6 @@ function menuHtml(ctx) {
       <span class="meta sync">${icon(ic, 14)} ${s.demo ? 'Datos de ejemplo: no se guardan en tu cuenta' : esc(estado)}</span></span><span class="menu-cuenta-cta">Mi cuenta ${icon('chevron', 16)}</span></button>
 
     <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
-      ${item('irSueldo', 'trend', 'Tu sueldo', 'Si le ganás a la inflación, mes a mes')}
-      ${item('openMisDatos', 'calendar', 'Mis datos', 'Cuándo cobrás, provincia y ciudad')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
     </div>
 
@@ -88,12 +86,11 @@ function menuHtml(ctx) {
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
       ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
-      ${item('openAyuda', 'help', 'Ayuda y tutorial', 'Preguntas frecuentes y cómo se usa')}
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
     </div>
 
     <div class="menu-grupo ambar"><span class="menu-label">Seguridad</span>
-      ${item('openBloqueo', 'lock', 'Bloqueo con huella o PIN', 'Que nadie abra Pesitos sin vos')}
+      ${item('openBloqueo', 'lock', 'PIN de seguridad y huella', 'Lo que te pido al iniciar sesión')}
       ${item('openCopia', 'download', 'Copia de seguridad', 'Descargar o restaurar tus datos')}
       ${item('openSeguridad', 'shield', 'Privacidad', 'Cómo se cuidan tus datos')}
       <button class="menu-item salir" data-action="cerrarSesion"><span class="menu-ic">${icon('logout', 20)}</span><span class="grow"><span class="name">Cerrar sesión</span></span></button>
@@ -282,12 +279,12 @@ export const menuActions = {
 
   openSeguridad() {
     openModal('Privacidad', `<div class="card">
-      <span class="small">🔐 <b>Cifrado de extremo a extremo:</b> tus datos se cifran en este dispositivo antes de guardarse. En la nube solo hay texto ilegible.</span>
-      <span class="small">👀 <b>Nadie más puede verlos:</b> ni otras personas, ni quien administra Pesitos. Solo se abren con tu clave de Pesitos o tu código de recuperación.</span>
+      <span class="small">🔐 <b>Protegidos:</b> tus datos viajan cifrados (HTTPS) y se guardan cifrados en los servidores de Google (Firebase).</span>
+      <span class="small">👀 <b>Solo vos los ves:</b> las reglas de la base de datos no dejan que otra persona los lea desde la app. Entrás con tu cuenta y tu PIN de seguridad.</span>
       <span class="small">🚫 No se venden, no se comparten y no hay publicidad ni seguimiento.</span>
       <span class="small">📵 Pesitos no se conecta a tu banco ni te pide claves bancarias.</span>
       <span class="small">🗑 Podés descargar una copia (Menú → Copia de seguridad) o eliminar tu cuenta y todos tus datos (tocando tu nombre arriba del menú) cuando quieras.</span></div>
-      <button class="btn block" data-action="openMiCuenta">🔐 Clave de Pesitos y código de recuperación</button>
+      <button class="btn block" data-action="openBloqueo">🔐 PIN de seguridad y huella</button>
       <div class="btn-row"><button class="btn small" data-action="verLegalMenu" data-cual="privacidad">Política de privacidad</button><button class="btn small" data-action="verLegalMenu" data-cual="terminos">Términos y condiciones</button></div>`, { push: true });
   },
   verLegalMenu(ctx, el) { verLegal(el.dataset.cual); },

@@ -51,7 +51,7 @@ export function inflows(s, from, to) {
     for (const d of billOccurrences(c, from, to)) {
       const key = `inc:${c.id}:${toISO(d)}`;
       if ((s.received || {})[key]) continue;
-      out.push({ key, kind: 'income', refId: c.id, name: c.name, amount: c.amount, date: toISO(d), sub: repeatLabel(c.repeat) });
+      out.push({ key, kind: 'income', refId: c.id, name: c.name, amount: c.amount, date: toISO(d), sub: repeatLabel(c.repeat, c) });
     }
   }
 

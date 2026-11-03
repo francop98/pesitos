@@ -84,9 +84,9 @@ pesitos/
 └── js/
     ├── firebaseconfig.js   Conexión con Firebase (Authentication + Firestore)
     ├── autenticacion.js    Ingreso, crear cuenta, Google, verificación, Mi cuenta
-    ├── sincronizacion.js   Tus datos en la nube (usuarios/{uid}), cifrados, con cola de pendientes
-    ├── cifrado.js          Cifrado de extremo a extremo (AES-GCM + PBKDF2, llave en el dispositivo)
-    ├── clave.js            Clave de Pesitos y código de recuperación (charla)
+    ├── sincronizacion.js   Tus datos en la nube (usuarios/{uid}), con cola de pendientes y migración de la versión cifrada
+    ├── cifrado.js          Solo para migrar datos de la versión cifrada anterior (AES-GCM)
+    ├── clave.js            PIN de seguridad (charla) y última apertura con la clave vieja
     ├── rendimientos.js     Cuánto rinden billeteras y plazos fijos (TNA automática, ArgentinaDatos)
     ├── feriados.js         Días hábiles, feriados y día de cobro (1.er hábil, último hábil…)
     ├── almacenamiento.js   Copia local por cuenta y estructura de los datos
@@ -124,11 +124,11 @@ Para agregar una acción: poné `data-action="miAccion"` en un botón (o `data-s
 
 ## Cuentas y datos
 - La cuenta es obligatoria: mail y contraseña (con verificación de mail) o Google.
-- Tus datos se cifran en el dispositivo (AES-GCM) con una llave que solo abre tu **clave de Pesitos** o tu **código de recuperación**: en Firestore (`usuarios/{uid}`) solo hay texto ilegible y nadie más puede leerlo, ni quien administra el proyecto (`js/cifrado.js`, `firestore.rules`).
+- Tus datos se guardan en Firestore (`usuarios/{uid}/estado`) y solo los puede leer su dueño, con el mail verificado (`firestore.rules`). Viajan por HTTPS y Google los guarda cifrados. Ya no hay cifrado de extremo a extremo: las cuentas de la versión anterior migran solas la primera vez que entran.
 - Encabezados de seguridad (CSP, HSTS, X-Frame-Options…) en `vercel.json`. Si cambiás el `<script>` de `index.html` o de `pages/`, hay que actualizar su hash en la CSP. El dispositivo guarda una copia para abrir rápido y funcionar sin conexión; lo que cargás sin internet se envía solo cuando vuelve.
-- Avisos en el celular (opcional): si los activás, se guarda sin cifrar solo **qué días** hay algo y cuántas cosas (`usuarios/{uid}/avisos/agenda`) y la suscripción del navegador (`usuarios/{uid}/push`). Nunca montos ni nombres.
-- La clave de Pesitos es libre (la que quieras); cuanto más larga, más segura.
-- Desde *Menú → Copia de seguridad* podés descargar o restaurar un archivo, y desde *Menú → Mi cuenta*, eliminar la cuenta con todos sus datos.
+- Avisos en el celular (opcional): si los activás, el servidor guarda solo **qué días** hay algo y cuántas cosas (`usuarios/{uid}/avisos/agenda`) y la suscripción del navegador (`usuarios/{uid}/push`). Nunca montos ni nombres.
+- PIN de seguridad de 4 a 6 números, de la cuenta (se guarda solo su hash en `usuarios/{uid}.pin`): se pide al iniciar sesión (opcional: también al abrir la app). En cada celular se puede usar huella o cara. Si se olvida, se vuelve a entrar con la cuenta y se crea otro.
+- Desde *Menú → Copia de seguridad* podés descargar o restaurar un archivo, y desde *Menú → tu nombre (Mi cuenta)*, eliminar la cuenta con todos sus datos.
 - Las recomendaciones son educativas y generales, no asesoramiento financiero personalizado.
 
 ## Próximos pasos

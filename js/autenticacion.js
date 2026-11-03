@@ -5,7 +5,7 @@
 // - Ingresar con Google.
 // - Recuperar la contraseña.
 // - Mi cuenta (se abre tocando tu nombre arriba del menú): datos de la cuenta,
-//   nombre, clave de Pesitos, contraseña, cerrar sesión y eliminar la cuenta.
+//   nombre, mis datos, PIN de seguridad, contraseña, cerrar sesión y eliminar la cuenta.
 // =========================================================
 
 import { firebase } from './firebaseconfig.js';
@@ -95,7 +95,7 @@ let charla = [];          // [{ q, a }] lo ya respondido
 let aviso = '';           // mensaje de error o novedad, dicho por Pesitos
 let ocupado = false;
 let aceptado = false;     // aceptó Términos y Privacidad en esta pantalla
-export const LEGAL_VERSION = '2.0';
+export const LEGAL_VERSION = '3.0';
 export const aceptoLegales = () => aceptado;
 
 const googleIcon = () => '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
@@ -114,7 +114,7 @@ function actual_() {
   switch (paso) {
     case 'hola': return {
       bubbles: ['¡Hola! Soy Pesitos, tu economista de bolsillo.', 'Antes de arrancar armemos tu cuenta: así tu plata queda guardada y la ves desde cualquier dispositivo. Es gratis.',
-        '🔒 Tus datos son tuyos: se cifran en tu celular antes de guardarse, así que nadie más puede verlos, ni siquiera quien administra Pesitos. No se venden, no se comparten y no hay publicidad.'],
+        '🔒 Tus datos son tuyos: viajan y se guardan protegidos, solo vos los ves desde tu cuenta, que además se protege con un PIN. No se venden, no se comparten y no hay publicidad.'],
       controls: `<label class="check legal-check"><input type="checkbox" id="a-acepto" ${aceptado ? 'checked' : ''}> <span>Leí y acepto los <button type="button" class="link" data-auth="terminos">Términos y condiciones</button> y la <button type="button" class="link" data-auth="privacidad">Política de privacidad</button></span></label>
         <button type="button" class="btn block google" data-auth="google" ${aceptado ? '' : 'disabled'}>${googleIcon()} Seguir con Google</button>
         <div class="chips">${chip('nuevo', 'Crear cuenta con mail', 'primary', aceptado ? '' : 'disabled')}${chip('tengo', 'Ya tengo cuenta')}</div>
@@ -302,7 +302,7 @@ function fechaCuenta(u) {
   const alta = f(u.metadata && u.metadata.creationTime);
   return alta ? `<span class="small muted">Cuenta creada el ${alta}</span>` : '';
 }
-export function abrirMiCuenta({ onNombre, onEliminar, abrirClave } = {}) {
+export function abrirMiCuenta({ onNombre, onEliminar } = {}) {
   const u = actual;
   if (!u) return;
   const mail = esPorMail(u);
@@ -313,7 +313,8 @@ export function abrirMiCuenta({ onNombre, onEliminar, abrirClave } = {}) {
       ${fechaCuenta(u)}
       <span class="small muted">Este dispositivo recuerda tu sesión: no tenés que volver a ingresar.</span>
     </div>
-    <button class="btn block" data-cuenta="clave">🔐 Clave de Pesitos y código de recuperación</button>
+    <button class="btn block" data-action="openMisDatos">📅 Mis datos: cuándo cobrás, provincia y ciudad</button>
+    <button class="btn block" data-action="openBloqueo">🔐 PIN de seguridad y huella</button>
     <form class="form" id="f-nombre"><div class="field"><label for="c-nombre">Tu nombre</label><input id="c-nombre" name="nombre" value="${esc(u.displayName || '')}" maxlength="40"></div>
       <button class="btn small" type="submit">Guardar nombre</button></form>
     ${mail ? `<form class="form" id="f-clave"><strong>Cambiar contraseña</strong>
@@ -323,7 +324,7 @@ export function abrirMiCuenta({ onNombre, onEliminar, abrirClave } = {}) {
       <button class="btn small" type="submit">Cambiar contraseña</button></form>` : ''}
     <button class="btn block" data-cuenta="salir">${icon('logout', 20)} Cerrar sesión</button>
     <button class="btn ghost small danger" data-cuenta="eliminar">Eliminar mi cuenta y mis datos</button>`);
-  cuentaHandlers = { onNombre, onEliminar, abrirClave };
+  cuentaHandlers = { onNombre, onEliminar };
 }
 
 // Los formularios de "Mi cuenta" se atienden desde el documento: así siguen
@@ -364,7 +365,6 @@ document.addEventListener('click', async (e) => {
   e.preventDefault();
   if (el.dataset.cuenta === 'salir') { closeModal(); await salir(); }
   if (el.dataset.cuenta === 'eliminar') abrirEliminar();
-  if (el.dataset.cuenta === 'clave' && cuentaHandlers.abrirClave) cuentaHandlers.abrirClave();
 });
 
 function abrirEliminar() {

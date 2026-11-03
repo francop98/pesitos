@@ -9,23 +9,30 @@ import { parseAmount } from './interprete.js';
 import { icon, screenHead, openModal, setModalBody } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 
-const TOOLS = [
-  { action: 'openBuy', icon: 'cart', title: '¿Me lo compro?', text: 'Cómo impacta una compra en tu día, tu mes y tus metas.' },
-  { action: 'openInstallments', icon: 'card', title: 'Cuotas o contado', text: 'Con o sin interés, con la inflación: cuánto ganás o perdés de verdad.' },
-  { action: 'openPfDolar', icon: 'trend', title: 'Plazo fijo o dólar', text: 'A cuánto tiene que estar el dólar para que convenga más que el plazo fijo.' },
-  { action: 'openGoalCalc', icon: 'sprout', title: '¿Cuánto ahorrar por mes?', text: 'Para llegar a un monto en una fecha.' },
-  { action: 'openYield', icon: 'trend', title: '¿Cuánto rinde mi plata?', text: 'Interés de un plazo fijo o cuenta, y si le gana a la inflación.' },
-  { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Dólar blue, euro, real, bitcoin y oro, con cotización del día.' },
+const GRUPOS = [
+  ['Antes de comprar', [
+    { action: 'openBuy', icon: 'cart', title: '¿Me lo compro?', text: 'Cómo impacta una compra en tu día, tu mes y tus metas.' },
+    { action: 'openInstallments', icon: 'card', title: 'Cuotas o contado', text: 'Con o sin interés, con la inflación: cuánto ganás o perdés de verdad.' },
+  ]],
+  ['Hacer rendir tu plata', [
+    { action: 'openRinde', icon: 'percent', title: '¿Dónde rinde más?', text: 'Billeteras y plazos fijos ordenados por lo que pagan, y cuánto ganás con tu tasa.' },
+    { action: 'openPfDolar', icon: 'trend', title: 'Plazo fijo o dólar', text: 'A cuánto tiene que estar el dólar para que convenga más que el plazo fijo.' },
+    { action: 'openGoalCalc', icon: 'sprout', title: '¿Cuánto ahorrar por mes?', text: 'Para llegar a un monto en una fecha.' },
+  ]],
+  ['Monedas', [
+    { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Dólar, euro, real, bitcoin y oro, con cotización del día.' },
+  ]],
 ];
 
 export function render(s) {
   return `<section class="screen">
     ${screenHead('Herramientas', '', 'Para decidir mejor antes de gastar')}
-    ${TOOLS.map((t) => `<button class="card tool" data-action="${t.action}" style="border:none;text-align:left;flex-direction:row;align-items:center">
+    ${GRUPOS.map(([titulo, tools]) => `<div class="section-title"><span>${titulo}</span></div>
+    ${tools.map((t) => `<button class="card tool" data-action="${t.action}" style="border:none;text-align:left;flex-direction:row;align-items:center">
       <span class="cat-icon green" style="width:44px;height:44px;border-radius:12px">${icon(t.icon, 22)}</span>
       <span style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-weight:800;font-size:15px">${t.title}</span><span class="small muted">${t.text}</span></span>
       ${icon('chevron', 18)}
-    </button>`).join('')}
+    </button>`).join('')}`).join('')}
   </section>`;
 }
 
@@ -61,6 +68,43 @@ function bancosHtml(s, q) {
   const lista = pf.filter(([n]) => !qq || sinTildes(n).includes(qq) || sinTildes(nombreBanco(n)) === qq);
   const todos = qq && lista.length === 1 && sinTildes(nombreBanco(lista[0][0])) === qq ? pf : lista; // ya elegido: mostrar todos
   return todos.length ? todos.map(([n, v]) => `<button type="button" class="ciudad-op${sinTildes(nombreBanco(n)) === qq ? ' on' : ''}" data-action="pfElegirBanco" data-v="${v}" data-n="${esc(nombreBanco(n))}"><span>${esc(nombreBanco(n))}</span><b>${tasaTxt(v)}%</b></button>`).join('') : '<span class="small muted">No encuentro ese banco. Podés escribir la tasa a mano arriba.</span>';
+}
+
+// dólares disponibles (DolarApi): blue, oficial, MEP, CCL, tarjeta, cripto
+function tiposDolar(s) {
+  const r = s.rates || {};
+  const d = r.dolares || {};
+  const orden = [['blue', 'Blue'], ['oficial', 'Oficial'], ['bolsa', 'MEP (bolsa)'], ['contadoconliqui', 'Contado con liqui'], ['tarjeta', 'Tarjeta'], ['cripto', 'Cripto']];
+  const out = orden.filter(([id]) => d[id]).map(([id, nombre]) => ({ id, nombre, compra: d[id].compra, venta: d[id].venta }));
+  if (!out.length && r.USD) out.push({ id: 'blue', nombre: 'Blue', compra: r.USD.compra, venta: r.USD.venta });
+  if (!out.length) out.push({ id: 'blue', nombre: 'Blue' });
+  return out;
+}
+
+// selector de banco: cerrado muestra el elegido; al tocarlo se abre con buscador
+function bancoPicker(s, def, { destino = 'pd-t', calc = false } = {}) {
+  const pf = Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {});
+  if (!pf.length) return '';
+  return `<div class="field banco-picker" data-destino="${destino}" ${calc ? 'data-calc="1"' : ''}><span class="label-like">Banco</span>
+    <button type="button" class="banco-actual" data-action="pfAbrirBancos"><span data-banco-elegido>${def ? `${esc(nombreBanco(def.entidad))} · <b>${tasaTxt(def.tna)}%</b>` : 'Elegí un banco'}</span>${icon('chevron', 16, 2.4)}</button>
+    <div class="banco-panel"><input placeholder="Escribí para buscar (ej: Galicia)" autocomplete="off" data-input="pfFiltrar" aria-label="Buscar banco">
+      <div class="ciudad-lista banco-lista" data-banco-lista></div></div>
+    <span class="hint">Tasas para clientes que publica el BCRA.</span></div>`;
+}
+
+let rindeTab = 'billeteras';
+function rindeLista(s, monto) {
+  const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
+  const filas = rindeTab === 'billeteras'
+    ? BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id]).map((b) => ({ n: b.nombre, tna: Number(tasas[b.id].tna), fecha: tasas[b.id].fecha }))
+    : Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).map(([n, v]) => ({ n: nombreBanco(n), tna: Number(v) }));
+  filas.sort((a, b) => b.tna - a.tna);
+  if (!filas.length) return '<p class="empty">Todavía no pude traer las tasas. Se cargan solas apenas haya conexión.</p>';
+  const porDia = (tna) => monto * (Math.pow(1 + tna / 100 / 365, 1) - 1);
+  const por30 = (tna) => (rindeTab === 'billeteras' ? monto * (Math.pow(1 + tna / 100 / 365, 30) - 1) : monto * tna / 100 * 30 / 365);
+  const at = s.rendimientos && s.rendimientos.at;
+  return `<div class="card tight">${filas.map((f, i) => `<div class="row"><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="grow"><span class="name">${esc(f.n)}</span><span class="meta">${tasaTxt(f.tna)}% anual${rindeTab === 'billeteras' ? ` · ${money(porDia(f.tna))} por día` : ''}</span></span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount pos">+${money(por30(f.tna))}</span><span class="small muted">en 30 días</span></span></div>`).join('')}</div>
+    <span class="small muted">${rindeTab === 'billeteras' ? 'Las billeteras pagan intereses todos los días (con interés compuesto) y podés sacar la plata cuando quieras. La tasa sale del fondo en el que invierten y cambia día a día.' : 'El plazo fijo paga todo al final y la plata queda inmovilizada esos días. Tasas para clientes que publica el BCRA para cada banco.'} ${at ? `Actualizado ${new Date(at).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}</span>`;
 }
 
 function installmentsForm(s, d = {}) {
@@ -131,30 +175,41 @@ export const actions = {
 
   openPfDolar(ctx) {
     const s = ctx.state;
-    const r = (s.rates && s.rates.USD) || {};
-    const pf = Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).sort((a, b) => b[1] - a[1]);
     const def = mejorPlazoFijo(s);
+    const tipos = tiposDolar(s);
+    const t0 = tipos.find((x) => x.id === 'blue') || tipos[0];
     openModal('Plazo fijo o dólar', `<form class="form" data-submit="calcPfDolar">
       <div class="field"><label for="pd-a">¿Cuántos pesos tenés?</label><input id="pd-a" name="amount" inputmode="decimal" placeholder="Ej: 1.000.000" required></div>
       <div class="field-row">
         <div class="field"><label for="pd-d">Plazo (días)</label><input id="pd-d" name="days" inputmode="numeric" value="30"></div>
         <div class="field"><label for="pd-t">Tasa del plazo fijo (TNA %)</label><input id="pd-t" name="tna" inputmode="decimal" value="${def ? tasaTxt(def.tna) : ''}" placeholder="Ej: 32" required></div>
       </div>
-      ${pf.length ? `<div class="field banco-picker"><label for="pd-b">O elegí el banco</label><input id="pd-b" placeholder="Escribí para buscar (ej: Galicia)" autocomplete="off" data-input="pfFiltrar" value="${def ? esc(nombreBanco(def.entidad)) : ''}">
-        <div class="ciudad-lista banco-lista" data-banco-lista>${bancosHtml(s, '')}</div><span class="hint">Tasas para clientes que publica el BCRA, se actualizan solas.</span></div>` : ''}
-      <div class="field-row">
-        <div class="field"><label for="pd-v">Dólar hoy (venta)</label><input id="pd-v" name="venta" inputmode="decimal" value="${r.venta ? Math.round(r.venta) : ''}" required></div>
-        <div class="field"><label for="pd-c">Dólar hoy (compra)</label><input id="pd-c" name="compra" inputmode="decimal" value="${r.compra ? Math.round(r.compra) : ''}"></div>
-      </div>
-      <span class="small muted">Precargado con el dólar blue del día. Si usás el oficial o el MEP, cambialo.</span>
+      ${bancoPicker(s, def)}
+      <div class="field"><label for="pd-tipo">¿Qué dólar comprarías?</label><select id="pd-tipo" name="tipo" data-change="pfTipoDolar">${tipos.map((x) => `<option value="${x.id}" ${x === t0 ? 'selected' : ''}>${esc(x.nombre)}${x.venta ? ` · ${money(x.venta)}` : ''}</option>`).join('')}</select></div>
+      <div class="field"><label for="pd-v">Precio al que lo comprás hoy</label><input id="pd-v" name="venta" inputmode="decimal" value="${t0 && t0.venta ? Math.round(t0.venta) : ''}" required>
+        <span class="hint" data-pd-hint>${t0 && t0.venta ? 'Se actualiza solo cada 5 minutos (DolarApi). Si te lo venden a otro precio, cambialo.' : 'No pude traer la cotización: escribila.'}</span></div>
+      <input type="hidden" name="compra" value="${t0 && t0.compra ? Math.round(t0.compra) : ''}">
       <button class="btn primary block" type="submit">Comparar</button>
     </form><div id="pd-result"></div>`);
   },
-  pfFiltrar(ctx, el) { const l = document.querySelector('#modal [data-banco-lista]'); if (l) l.innerHTML = bancosHtml(ctx.state, el.value); },
+  pfTipoDolar(ctx, el) {
+    const x = tiposDolar(ctx.state).find((t) => t.id === el.value);
+    const f = el.closest('form'); if (!f || !x) return;
+    f.venta.value = x.venta ? Math.round(x.venta) : '';
+    f.compra.value = x.compra ? Math.round(x.compra) : '';
+  },
+  pfAbrirBancos(ctx, el) {
+    const p = el.closest('.banco-picker'); if (!p) return;
+    const abierto = p.classList.toggle('abierto');
+    if (abierto) { const i = p.querySelector('input'); if (i) { i.value = ''; p.querySelector('[data-banco-lista]').innerHTML = bancosHtml(ctx.state, ''); setTimeout(() => i.focus(), 50); } p.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  },
+  pfFiltrar(ctx, el) { const l = el.closest('.banco-picker')?.querySelector('[data-banco-lista]'); if (l) l.innerHTML = bancosHtml(ctx.state, el.value); },
   pfElegirBanco(ctx, el) {
-    const i = document.getElementById('pd-t'); if (i) i.value = tasaTxt(el.dataset.v);
-    const b = document.getElementById('pd-b'); if (b) b.value = el.dataset.n;
-    const l = document.querySelector('#modal [data-banco-lista]'); if (l) l.innerHTML = bancosHtml(ctx.state, el.dataset.n);
+    const p = el.closest('.banco-picker');
+    const i = document.getElementById(p?.dataset.destino || 'pd-t'); if (i) i.value = tasaTxt(el.dataset.v);
+    const b = p && p.querySelector('[data-banco-elegido]'); if (b) b.innerHTML = `${esc(el.dataset.n)} · <b>${tasaTxt(el.dataset.v)}%</b>`;
+    if (p) p.classList.remove('abierto');
+    if (p && p.dataset.calc) actions.calcRinde(ctx);
   },
   calcPfDolar(ctx, d) {
     const monto = amt(d.amount); const dias = Math.max(1, parseInt(d.days, 10) || 30);
@@ -163,24 +218,34 @@ export const actions = {
     if (!monto || !tna || !venta) return;
     const pfFinal = monto * (1 + tna / 100 * dias / 365);
     const dolares = monto / venta;
-    const equilibrio = pfFinal / dolares; // dólar (compra) al vencimiento que empata
+    const equilibrio = pfFinal / dolares; // precio al que tendrías que poder vender cada dólar para empatar
     const suba = equilibrio / compra - 1;
-    const subaMes = Math.pow(1 + suba, 30 / dias) - 1;
+    const subaMes = Math.pow(1 + Math.max(suba, -0.99), 30 / dias) - 1;
     const siQueda = dolares * compra;
     const infl = expectedInflation(ctx.state) / 100;
     const inflPlazo = Math.pow(1 + infl, dias / 30) - 1;
     setModalBody('#pd-result', `<div class="result ok">
       <strong>El dólar tiene que estar arriba de ${money(equilibrio)} en ${dias} días</strong>
-      <span class="text">Si al vencimiento el dólar (compra) está <b>por debajo de ${money(equilibrio)}</b>, gana el plazo fijo. <b>Por encima</b>, gana el dólar.</span>
-      <span class="text">Hoy está a ${money(compra)}: tendría que subir <b>${pctTxt(suba)}</b> en ${dias} días (≈ ${pctTxt(subaMes)} por mes).</span>
+      <span class="text">Si cuando vendas tus dólares te pagan <b>menos de ${money(equilibrio)}</b> por cada uno, gana el plazo fijo. <b>Más</b>, gana el dólar.</span>
+      <span class="text">Hoy te lo compran a ${money(compra)}: tendría que subir <b>${pctTxt(suba)}</b> en ${dias} días (≈ ${pctTxt(subaMes)} por mes).</span>
       <div class="cuentas-cuotas">
         <div class="split small"><span>Plazo fijo al vencimiento</span><b>${money(pfFinal)}</b></div>
         <div class="split small"><span>Dólares que comprás hoy</span><b>US$ ${(Math.round(dolares * 100) / 100).toLocaleString('es-AR')}</b></div>
         <div class="split small"><span>Si el dólar no se mueve, al venderlos</span><b>${money(siQueda)}</b></div>
       </div>
-      <span class="small">Ojo con la diferencia entre compra y venta: si comprás y vendés enseguida, perdés ${money(monto - siQueda)}. La inflación esperada para ese plazo es ${pctTxt(inflPlazo)}: el plazo fijo ${tna / 100 * dias / 365 >= inflPlazo ? 'le gana' : 'no le gana'}.</span>
+      <span class="small">${compra < venta ? `Por qué hace falta que suba: el dólar se compra a ${money(venta)} y se vende a ${money(compra)}. Solo por esa diferencia, si comprás y vendés enseguida, perdés ${money(monto - siQueda)}. ` : ''}La inflación esperada para ese plazo es ${pctTxt(inflPlazo)}: el plazo fijo ${tna / 100 * dias / 365 >= inflPlazo ? 'le gana' : 'no le gana'}.</span>
     </div>`);
   },
+
+  // ---------- ¿Dónde rinde más? ----------
+  openRinde(ctx) {
+    openModal('¿Dónde rinde más?', `<div class="field"><label for="rd-a">Si ponés</label><input id="rd-a" inputmode="decimal" value="1.000.000" data-input="calcRinde"></div>
+      <div class="tabs" role="tablist" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button data-action="rindeTab" data-v="billeteras" aria-pressed="${rindeTab === 'billeteras'}">Billeteras (día a día)</button><button data-action="rindeTab" data-v="pf" aria-pressed="${rindeTab === 'pf'}">Plazo fijo (30 días)</button></div>
+      <div id="rd-lista">${rindeLista(ctx.state, 1000000)}</div>
+      <button class="btn block" data-action="openYield" data-push="1">${icon('percent', 18)} ¿Te ofrecen otra tasa? Calculá cuánto ganás</button>`);
+  },
+  rindeTab(ctx, el) { rindeTab = el.dataset.v; document.querySelectorAll('#modal [data-action=rindeTab]').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); actions.calcRinde(ctx); },
+  calcRinde(ctx) { const a = amt(document.getElementById('rd-a')?.value) || 0; setModalBody('#rd-lista', rindeLista(ctx.state, a)); },
 
   openGoalCalc() {
     const now = new Date();
@@ -213,7 +278,7 @@ export const actions = {
     </div>`);
   },
 
-  openYield() {
+  openYield(ctx, el) {
     openModal('¿Cuánto rinde mi plata?', `<form class="form" data-submit="calcYield">
       <div class="field"><label for="y-a">Monto</label><input id="y-a" name="amount" inputmode="decimal" placeholder="Ej: 500.000" required></div>
       <div class="field-row">
@@ -221,7 +286,7 @@ export const actions = {
         <div class="field"><label for="y-d">Plazo (días)</label><input id="y-d" name="days" inputmode="numeric" placeholder="Ej: 30" required></div>
       </div>
       <button class="btn primary block" type="submit">Calcular</button>
-    </form><div id="y-result"></div>`);
+    </form><div id="y-result"></div>`, { push: !!(el && el.dataset && el.dataset.push) });
   },
   calcYield(ctx, d) {
     const amount = amt(d.amount);

@@ -71,13 +71,20 @@ function cardBlock(s, c) {
 export function render(s) {
   return `<section class="screen">
     ${screenHead('Tarjetas', '<button class="btn small" data-action="newCard">+ Tarjeta</button>', 'Resúmenes y cuotas')}
+    ${cuerpo(s)}
+  </section>`;
+}
+
+/** Tarjetas, resúmenes y cuotas (también en Por pagar → Tarjetas). */
+export function cuerpo(s) {
+  return `
     ${s.cards.length ? s.cards.map((c) => cardBlock(s, c)).join('') : `<div class="card">
       <strong>Sumá tu tarjeta de crédito</strong>
       <p class="text muted">Con el día de cierre y de vencimiento te muestro cuánto viene en cada resumen, las cuotas que te quedan y cuánto tenés comprometido a futuro.</p>
       <button class="btn green small" data-action="newCard">Agregar tarjeta</button>
     </div>`}
     ${s.cards.length ? '<p class="small muted" style="margin:0">Para que una compra entre acá, elegí la tarjeta en "Medio de pago" al anotarla, o escribí su nombre en la carga rápida (por ejemplo: "Zapatillas 180.000 en 6 cuotas visa").</p>' : ''}
-  </section>`;
+  `;
 }
 
 function cardForm(s, c = {}) {

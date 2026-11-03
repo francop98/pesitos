@@ -9,12 +9,16 @@ import { monthExpenses, monthIncome, fixedTotal } from './calculos.js';
 import { catById } from './categorias.js';
 import { merchantKey } from './interprete.js';
 import { avancePresupuesto, barra as barraTope } from './presupuestos.js';
-import { screenHead, icon, catIcon , abrirSelectorMes, closeModal } from './interfaz.js';
+import { screenHead, icon, catIcon , abrirSelectorMes, closeModal, ojoMontos } from './interfaz.js';
+import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { nombreCuenta, patrimonio } from './cuentas.js';
 import { descargarCSV, imprimirResumen, tablaMovimientos } from './exportar.js';
 
 const PALETA = ['#1F6F4A', '#9BD34A', '#F2B33D', '#3E8ED0', '#E0703C', '#8E6CC9', '#2BB3A3', '#D85A8C', '#7A8B99', '#B5892F'];
 let periodo = 'mes';
+let statsTab = 'gastos'; // 'gastos' | 'sueldo'
+/** Abrir Estadísticas en una pestaña (la ruta vieja #/sueldo llega acá). */
+export function renderVista(s, v) { statsTab = v; return render(s); }
 const PERIODOS = [['mes', 'Este mes'], ['anterior', 'Mes pasado'], ['3m', '3 meses'], ['6m', '6 meses'], ['anio', 'Este año']];
 
 function meses(p = periodo) {
@@ -89,9 +93,13 @@ export function render(s) {
   const comp = (v, a) => (a ? (v - a) / a : null);
   // subir es malo en gastos y bueno en ingresos
   const cambio = (x, bueno = false) => (x == null ? '' : `<span class="${Math.abs(x) <= 0.02 ? 'igual' : (x > 0) !== bueno ? 'sube' : 'baja'}" title="Contra el período anterior">${x > 0 ? '▲' : x < 0 ? '▼' : '='} ${Math.abs(Math.round(x * 100))}%</span>`);
-  const pat = patrimonio(s);
   return `<section class="screen">
-    ${screenHead('Estadísticas', `<span class="head-actions"><button class="icon-btn" data-action="statsCSV" aria-label="Exportar a Excel">${icon('download', 20)}</button><button class="btn small" data-action="statsPDF">PDF</button></span>`)}
+    ${screenHead('Estadísticas', statsTab === 'sueldo' ? ojoMontos('sueldo') : `<span class="head-actions"><button class="icon-btn" data-action="statsCSV" aria-label="Exportar a Excel">${icon('download', 20)}</button><button class="btn small" data-action="statsPDF">PDF</button></span>`)}
+    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <button role="tab" data-action="statsTab" data-v="gastos" aria-pressed="${statsTab === 'gastos'}">Gastos e ingresos</button>
+      <button role="tab" data-action="statsTab" data-v="sueldo" aria-pressed="${statsTab === 'sueldo'}">Tu sueldo</button>
+    </div>
+    ${statsTab === 'sueldo' ? sueldoCuerpo(s) : `
     <div class="chips periodo">${PERIODOS.map(([v, l]) => `<button class="chip toggle" data-action="statsPeriodo" data-v="${v}" aria-pressed="${periodo === v}">${l}</button>`).join('')}<button class="chip toggle" data-action="statsElegirMes" aria-pressed="${periodo.startsWith('mk:')}">${periodo.startsWith('mk:') ? `${MONTHS_LONG[Number(periodo.slice(8, 10)) - 1].replace(/^./, (c) => c.toUpperCase())} ${periodo.slice(3, 7)}` : 'Otro mes…'}</button></div>
     <div class="stat-grid three">
       <div class="stat three"><span class="k">Ingresos</span><span class="v pos">${money(r.ingresos)}</span>${cambio(comp(r.ingresos, prev.ingresos), true)}</div>
@@ -111,12 +119,13 @@ export function render(s) {
     ${r.comercios.length ? `<div class="card"><strong>Dónde más gastaste</strong>${r.comercios.slice(0, 6).map((c) => `<div class="split small"><span>${esc(c.nombre)} <span class="muted">· ${c.veces} vez${c.veces === 1 ? '' : 'es'}</span></span><b>${money(c.total)}</b></div>`).join('')}</div>` : ''}
     ${Object.keys(r.medios).length > 1 ? `<div class="card"><strong>Con qué pagaste</strong>${Object.entries(r.medios).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}
     ${Object.keys(r.tags).length ? `<div class="card"><strong>Por etiqueta</strong>${Object.entries(r.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span class="tag">#${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}
-    <a class="card" href="#/cuentas" style="text-decoration:none;color:inherit;flex-direction:row;align-items:center"><span class="cat-icon green">${icon('bank', 18)}</span><span class="grow" style="display:flex;flex-direction:column"><b>Patrimonio neto</b><span class="small muted">Lo que tenés menos lo que debés</span></span><b class="${pat.neto >= 0 ? 'pos' : 'neg'}">${money(pat.neto)}</b>${icon('chevron', 16)}</a>
+    `}
   </section>`;
 }
 
 export const actions = {
   statsPeriodo(ctx, el) { periodo = el.dataset.v; ctx.render(); },
+  statsTab(ctx, el) { statsTab = el.dataset.v; ctx.render(); },
   statsElegirMes(ctx) {
     const s = ctx.state; const hoy = monthKey();
     let min = hoy; for (const x of [...s.expenses, ...s.incomes]) if (x.date && x.date.slice(0, 7) < min) min = x.date.slice(0, 7);

@@ -1,7 +1,7 @@
 // =========================================================
 // Pesitos — tutorial y ayuda
 // Tutorial: unas pocas pantallas que se deslizan, la primera vez que entrás
-// (y cuando quieras desde Menú → Ayuda y tutorial). Ayuda: preguntas frecuentes por tema.
+// (y cuando quieras desde ? → Ayuda). Ayuda: preguntas frecuentes por tema.
 // =========================================================
 
 import { openModal, closeModal, icon, wordmark } from './interfaz.js';
@@ -11,9 +11,9 @@ const PASOS = [
   { ic: 'sprout', color: 'green', titulo: 'Hoy podés gastar', texto: 'Arriba de todo ves cuánto podés gastar hoy sin pasarte hasta el próximo cobro. Ya descuenta tus gastos fijos, tus tarjetas y lo que querés ahorrar.' },
   { ic: 'plus', color: 'lime', titulo: 'Anotá en segundos', texto: 'Escribí como hablás: "súper 48.000", "nafta 30 lucas ayer", "heladera 540.000 en 12 cuotas". La categoría la pongo yo. También podés sacarle una foto al ticket.' },
   { ic: 'calendar', color: 'amber', titulo: 'Nada se te pasa', texto: 'En Por pagar están tus vencimientos, los resúmenes de tus tarjetas y cuándo cobrás. Te aviso antes, aunque no abras la app.' },
-  { ic: 'target', color: 'green', titulo: 'Ahorrá sin pensarlo', texto: 'Elegí cómo ahorrar y ponete una meta. Te digo cuánto apartar y cuándo llegás. En Ahorro ves cuánto tenés, en qué moneda y cuánto rinde.' },
+  { ic: 'target', color: 'green', titulo: 'Ahorrá sin pensarlo', texto: 'Elegí cómo ahorrar y ponete una meta. Te digo cuánto apartar y cuándo llegás. En Mi plata ves cuánto tenés en cada cuenta, tus ahorros y cuánto rinden.' },
   { ic: 'ticket', color: 'lime', titulo: 'Descuentos para vos', texto: 'En Beneficios ves las promos de tus bancos, billeteras y tarjetas, día por día. Se actualizan solas.' },
-  { ic: 'lock', color: 'green', titulo: 'Tus datos son tuyos', texto: 'Todo se guarda cifrado: nadie más puede verlo. Si tenés dudas, en el menú ☰ está la Ayuda, y arriba a la derecha está tu asesor para consultarle.' },
+  { ic: 'lock', color: 'green', titulo: 'Tus datos son tuyos', texto: 'Tus datos se guardan protegidos en tu cuenta y entrás con tu PIN. Si tenés dudas, tocá el signo de pregunta arriba a la derecha: ahí está tu asesor, las lecciones y la ayuda.' },
 ];
 
 // ---------- tutorial ----------
@@ -96,25 +96,26 @@ const TEMAS = [
   { titulo: 'Tarjetas, pagos y cuentas', ic: 'calendar', preguntas: [
     ['¿Cómo cargo mi tarjeta de crédito?', 'Andá a Tarjetas → + Tarjeta y poné el día de cierre y de vencimiento. Las compras con esa tarjeta van solas al resumen que corresponde, con sus cuotas.'],
     ['¿Qué es Por pagar?', 'Todos tus vencimientos juntos: gastos fijos, resúmenes de tarjetas y pagos programados. Tocá "Pagué" cuando lo pagues.'],
-    ['¿Cómo veo cuánta plata tengo en cada cuenta?', 'En Inicio → Saldo cargá cuánto tenés hoy en cada cuenta. Después se actualiza solo con cada gasto, ingreso, pago y transferencia. Si la cuenta rinde (Mercado Pago, Ualá), también le sumo los intereses de cada día.'],
+    ['¿Cómo veo cuánta plata tengo en cada cuenta?', 'En Mi plata → Cuentas cargá cuánto tenés hoy en cada cuenta. Después se actualiza solo con cada gasto, ingreso, pago y transferencia. Si la cuenta rinde (Mercado Pago, Ualá), también le sumo los intereses de cada día.'],
     ['¿Cómo pongo un tope a una categoría?', 'En Estadísticas, tocá la categoría (por ejemplo, Delivery) y poné cuánto querés gastar como máximo por mes. Te aviso cuando llegás al 80% y al 100%.'],
   ] },
   { titulo: 'Ahorro y metas', ic: 'target', preguntas: [
     ['¿Cómo abro el menú?', 'Tocá ☰ arriba a la izquierda, o deslizá el dedo hacia la derecha desde la mitad izquierda de la pantalla. No empieces justo en el borde: ahí el celular usa el gesto de "atrás".'],
-    ['¿Cómo funciona la forma de ahorrar?', 'Elegís una (apartar un % al cobrar, un monto fijo, lo que sobre o redondear cada gasto) y te recuerdo hacerlo. La cambiás en Ahorro → Plan de ahorro.'],
-    ['¿Cómo cargo lo que tengo ahorrado?', 'En Ahorro → agregar. Puede ser en pesos, dólares, cripto u oro (en gramos). Lo paso a pesos con la cotización del día y, si rinde, sumo los intereses solo.'],
-    ['¿Cómo creo una meta?', 'En Ahorro → Metas. Poné cuánto necesitás y te digo cuánto apartar por mes y cuándo llegás.'],
+    ['¿Cómo funciona la forma de ahorrar?', 'Elegís una (apartar un % al cobrar, un monto fijo, lo que sobre o redondear cada gasto) y te recuerdo hacerlo. La cambiás en Mi plata → Plan de ahorro.'],
+    ['¿Cómo cargo lo que tengo ahorrado?', 'En Mi plata → Ahorros → Agregar dónde ahorrás. Puede ser en pesos, dólares, cripto u oro (en gramos). Lo paso a pesos con la cotización del día y, si rinde, sumo los intereses solo.'],
+    ['¿Cómo creo una meta?', 'En Mi plata → Plan de ahorro → Metas. Poné cuánto necesitás y te digo cuánto apartar por mes y cuándo llegás.'],
   ] },
   { titulo: 'Promos y beneficios', ic: 'ticket', preguntas: [
     ['¿De dónde salen las promos?', 'De una fuente pública que se actualiza todos los días. Te muestro solo las de tus medios de pago y tu zona.'],
-    ['No veo promos', 'Revisá que hayas elegido tus bancos, billeteras y tarjetas (Menú → Mis medios de pago) y tu provincia (Menú → Mis datos).'],
+    ['No veo promos', 'Revisá que hayas elegido tus bancos, billeteras y tarjetas (Menú → Mis medios de pago) y tu provincia (Menú → tocá tu nombre → Mis datos).'],
     ['¿Puedo filtrar?', 'Sí: en Beneficios elegí un medio de pago y un rubro.'],
   ] },
   { titulo: 'Cuenta, seguridad y privacidad', ic: 'lock', preguntas: [
-    ['¿Quién puede ver mis datos?', 'Solo vos. Se cifran en tu dispositivo antes de guardarse: ni Pesitos ni quien lo administra puede leerlos.'],
-    ['¿Qué es la clave de Pesitos?', 'Es la que abre tus datos cifrados. Te la pido solo cuando entrás desde un dispositivo nuevo. Puede ser la que quieras.'],
-    ['Me olvidé la clave de Pesitos', 'Entrá con tu código de recuperación (el de 24 letras y números). Si perdiste el código pero tenés la app abierta en algún dispositivo, generá uno nuevo desde Menú → tocá tu nombre (arriba) → Clave de Pesitos.'],
-    ['¿Puedo entrar con la huella?', 'Sí: Menú → Bloqueo con huella o PIN. Al abrir Pesitos te pide la huella o la cara del celular.'],
+    ['¿Quién puede ver mis datos?', 'Solo vos, desde tu cuenta. Viajan cifrados, se guardan cifrados en los servidores de Google (Firebase) y las reglas de la base no dejan que nadie más los lea desde la app. No se venden ni se comparten.'],
+    ['¿Para qué es el PIN de seguridad?', 'Te lo pido cada vez que iniciás sesión, en cualquier dispositivo. Si querés que también te lo pida al abrir la app, lo activás en Menú → PIN de seguridad y huella. En el celular podés usar tu huella o tu cara en lugar del PIN.'],
+    ['Me olvidé el PIN', 'En la pantalla del PIN tocá "Olvidé mi PIN": cerrás sesión, volvés a entrar con tu mail y contraseña (o con Google) y creás uno nuevo. Tus datos no se pierden.'],
+    ['¿Y la clave de Pesitos y el código de recuperación?', 'Ya no existen. Si los tenías, te pido la clave una última vez para pasar tus datos al formato nuevo y después no la necesitás más.'],
+    ['¿Puedo entrar con la huella?', 'Sí: Menú → PIN de seguridad y huella. En ese celular te pide la huella o la cara en lugar del PIN.'],
     ['¿Cómo instalo la app?', 'Menú → Instalar Pesitos como app. En iPhone: en Safari tocá Compartir → Agregar a inicio.'],
     ['¿Cómo activo los avisos?', 'Menú → Avisos en el celular → Activar. En iPhone, primero instalá la app.'],
     ['¿Cómo descargo o borro mis datos?', 'Descargar: Menú → Copia de seguridad. Borrar todo: Menú → tocá tu nombre (arriba) → Eliminar mi cuenta.'],

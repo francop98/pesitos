@@ -1,13 +1,15 @@
 // =========================================================
-// Pesitos — sincronización con Firestore (cifrada de extremo a extremo)
+// Pesitos — sincronización con Firestore
 // Estructura en la nube:
-//   usuarios/{uid}                    solo fechas y la llave envuelta (ver js/cifrado.js):
-//                                     ni tu nombre ni tu mail se guardan acá
+//   usuarios/{uid}                    fechas y el PIN de seguridad (solo su hash): ni nombre ni mail
 //   usuarios/{uid}/estado/general     tus datos (sueldo, metas, tarjetas, reglas…)
 //   usuarios/{uid}/estado/expenses-AAAA, incomes-AAAA, transfers-AAAA
 //                                     movimientos separados por año
-//   Cada documento guarda solo { c, iv }: el contenido cifrado con AES-GCM.
+//   Cada documento guarda { json }. Solo los puede leer y escribir su dueño (reglas de Firestore).
 //   Los documentos grandes se parten en pedazos (general~2, general~3…).
+// Versiones anteriores guardaban { c, iv } cifrado de extremo a extremo: si aparecen,
+// se descifran con la llave (del dispositivo o abierta con la clave de Pesitos) y se
+// vuelven a subir en el formato nuevo; después la llave se borra.
 // Estrategia (igual que DBTYCS):
 // - El dispositivo guarda siempre su copia rápida (js/almacenamiento.js).
 // - Con sesión iniciada, cada cambio también se envía a la nube, agrupado
@@ -22,14 +24,14 @@
 
 import { firebase } from './firebaseconfig.js';
 import { migrate, emptyState } from './almacenamiento.js';
-import { cifrar, descifrar } from './cifrado.js';
+import { descifrar } from './cifrado.js';
 import {
-  doc, getDoc, setDoc, deleteDoc, collection, getDocs, writeBatch, serverTimestamp,
+  doc, getDoc, setDoc, deleteDoc, collection, getDocs, writeBatch, serverTimestamp, deleteField,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const POR_ANIO = ['expenses', 'incomes', 'transfers'];               // listas que crecen: un documento por año
 const SOLO_LOCAL = ['rates', 'live', 'ipcAuto', 'liveFailedAt', 'rendimientos', 'feriados']; // datos públicos que se bajan solos
-const PEDAZO = 450000; // caracteres por documento (cifrado y en base64 queda por debajo de 1 MB)
+const PEDAZO = 300000; // caracteres por documento (con tildes y todo queda por debajo de 1 MB)
 const DEMORA = 1000;
 
 let uid = null;
@@ -38,7 +40,9 @@ let enviando = false;
 let firmas = {};      // { docId: firma de lo último confirmado por la nube }
 let ultimo = null;    // último estado recibido para guardar
 let alCambiarEstado = () => {};
-let llave = null;     // llave de datos (CryptoKey) de esta cuenta
+let llave = null;     // llave de la versión cifrada anterior (solo para migrar)
+let migrando = false; // hay datos cifrados viejos que se están pasando al formato nuevo
+let alMigrar = null;
 
 const kPend = () => `pesitos:pendientes:${uid}`;
 const kFirmas = () => `pesitos:firmas:${uid}`;
@@ -92,16 +96,26 @@ export function unir(partes) {
 
 const firma = (json) => { let h = 5381; for (let i = 0; i < json.length; i++) h = ((h << 5) + h + json.charCodeAt(i)) | 0; return `${json.length}:${h >>> 0}`; };
 
-let habiaSinCifrar = false;
+let habiaCifrado = false;
+/** ¿La nube tiene datos de la versión cifrada? (para pedir la clave una última vez) */
+export async function hayCifrado(u) {
+  const snap = await getDocs(collection(firebase().db, 'usuarios', u.uid, 'estado'));
+  let si = false; snap.forEach((d) => { const x = d.data(); if (typeof x.c === 'string') si = true; });
+  return si;
+}
 async function leerNube() {
   const snap = await getDocs(collection(firebase().db, 'usuarios', uid, 'estado'));
   const docs = {};
   const tareas = [];
-  habiaSinCifrar = false;
+  habiaCifrado = false;
   snap.forEach((d) => {
     const x = d.data();
-    if (typeof x.c === 'string' && typeof x.iv === 'string') tareas.push(descifrar(llave, x).then((json) => { docs[d.id] = json; }));
-    else if (typeof x.json === 'string') { docs[d.id] = x.json; habiaSinCifrar = true; } // versión anterior, sin cifrar
+    if (typeof x.json === 'string') docs[d.id] = x.json;
+    else if (typeof x.c === 'string' && typeof x.iv === 'string') {
+      habiaCifrado = true;
+      if (!llave) throw new Error('cifrado-sin-llave');
+      tareas.push(descifrar(llave, x).then((json) => { docs[d.id] = json; }));
+    }
   });
   await Promise.all(tareas); // si la llave no corresponde, esto falla y no se pisa nada
   return docs;
@@ -127,7 +141,7 @@ async function enviar() {
     const partes = partir(ultimo);
     const batch = writeBatch(firebase().db);
     for (const id of pend) {
-      if (id in partes) batch.set(refEstado(id), { ...(await cifrar(llave, partes[id])), actualizado: serverTimestamp() });
+      if (id in partes) batch.set(refEstado(id), { json: partes[id], actualizado: serverTimestamp() });
       else batch.delete(refEstado(id));
     }
     await batch.commit();
@@ -138,6 +152,8 @@ async function enviar() {
     const quedan = pendientes().filter((id) => !pend.includes(id) || (id in ahora ? firma(ahora[id]) !== firmas[id] : id in firmas));
     escribir(kPend(), quedan);
     alCambiarEstado(quedan.length ? 'pendiente' : 'ok');
+    // migración terminada: todo quedó en el formato nuevo, la llave vieja ya no hace falta
+    if (!quedan.length && migrando) { migrando = false; try { await setDoc(doc(firebase().db, 'usuarios', uid), { llave: deleteField() }, { merge: true }); } catch (e) { console.warn(e); } if (alMigrar) alMigrar(); }
   } catch (e) {
     console.warn('No se pudo guardar en la nube:', e);
     alCambiarEstado('pendiente');
@@ -153,15 +169,13 @@ function programar(ms = DEMORA) { clearTimeout(timer); timer = setTimeout(enviar
  * Arranca la sincronización de una cuenta y devuelve el estado con el que abrir la app.
  * local: copia del dispositivo para esta cuenta (o null); legacy: datos de antes de las cuentas.
  */
-export async function iniciar(user, { local, legacy, onStatus, key, perfil } = {}) {
+export async function iniciar(user, { local, legacy, onStatus, key, onMigrado } = {}) {
   uid = user.uid;
-  llave = key;
+  llave = key || null;
+  alMigrar = onMigrado || null;
   alCambiarEstado = onStatus || (() => {});
   firmas = leer(kFirmas(), {});
-
-  // perfil: solo fechas y la llave envuelta (se reescribe entero: así se borran datos viejos como nombre o mail)
-  // (si no tengo la llave envuelta a mano, no lo toco: nunca se pisa la llave guardada)
-  if (perfil && perfil.llave) { try { await escribirPerfil(perfil.llave, perfil.creado); } catch (e) { console.warn('Perfil sin sincronizar:', e); } }
+  try { await setDoc(doc(firebase().db, 'usuarios', uid), { ultimoIngreso: serverTimestamp() }, { merge: true }); } catch (e) { console.warn('Perfil sin sincronizar:', e); }
 
   // 1) cambios sin enviar en este dispositivo: mandan ellos
   if (local && pendientes().length) { ultimo = local; programar(0); return { state: local, origen: 'local' }; }
@@ -174,14 +188,15 @@ export async function iniciar(user, { local, legacy, onStatus, key, perfil } = {
     const state = migrate(unir(nube));
     if (local) for (const k of SOLO_LOCAL) if (local[k] !== undefined) state[k] = local[k];
     ultimo = state;
-    if (habiaSinCifrar) {
-      // datos de la versión anterior (sin cifrar): se vuelven a subir cifrados y se borran los viejos
-      firmas = Object.fromEntries(Object.keys(nube).map((id) => [id, 'sin-cifrar']));
+    if (habiaCifrado) {
+      // datos de la versión cifrada: se vuelven a subir en el formato nuevo (todos los documentos)
+      migrando = true;
+      firmas = Object.fromEntries(Object.keys(nube).map((id) => [id, 'cifrado']));
       escribir(kFirmas(), firmas);
       escribir(kPend(), []);
       guardar(state);
       programar(0);
-      return { state, origen: 'cifrado' };
+      return { state, origen: 'descifrado' };
     }
     firmas = Object.fromEntries(Object.entries(nube).map(([id, json]) => [id, firma(json)]));
     escribir(kFirmas(), firmas);
@@ -234,7 +249,7 @@ export async function detener({ borrarLocal = false } = {}) {
   const quedan = Boolean(uid && pendientes().length);
   // si quedó algo sin enviar (por ejemplo, sin internet), se conserva para el próximo ingreso
   if (borrarLocal && uid && !quedan) { try { localStorage.removeItem(kPend()); localStorage.removeItem(kFirmas()); } catch { /* nada */ } }
-  uid = null; ultimo = null; firmas = {}; llave = null;
+  uid = null; ultimo = null; firmas = {}; llave = null; migrando = false;
   return quedan;
 }
 
@@ -252,29 +267,28 @@ export async function borrarNube() {
   try { localStorage.removeItem(kPend()); localStorage.removeItem(kFirmas()); } catch { /* nada */ }
 }
 
-/** Lee el perfil de una cuenta: { llave, creado } (o vacío si es nueva). */
+/** Lee el perfil de una cuenta: { llave (solo versión anterior), pin, creado }. */
 export async function leerPerfil(u) {
   const s = await getDoc(doc(firebase().db, 'usuarios', u.uid));
   const d = s.exists() ? s.data() : {};
-  return { llave: d.llave || null, creado: d.creado || null };
+  if (!s.exists()) { try { await setDoc(doc(firebase().db, 'usuarios', u.uid), { creado: serverTimestamp(), ultimoIngreso: serverTimestamp() }, { merge: true }); } catch { /* después */ } }
+  return { llave: d.llave || null, pin: d.pin || null, creado: d.creado || null };
 }
 
-let creadoGuardado = null;
-async function escribirPerfil(llaveEnvuelta, creado) {
-  if (creado) creadoGuardado = creado;
-  const datos = { creado: creadoGuardado || serverTimestamp(), ultimoIngreso: serverTimestamp() };
-  if (llaveEnvuelta) datos.llave = llaveEnvuelta;
-  await setDoc(doc(firebase().db, 'usuarios', uid), datos);
+/** Sin clave ni código: borra los datos cifrados que ya no se pueden abrir (empezar de cero). */
+export async function borrarDatosViejos(u) {
+  const { db } = firebase();
+  const snap = await getDocs(collection(db, 'usuarios', u.uid, 'estado'));
+  const batch = writeBatch(db);
+  snap.forEach((d) => batch.delete(d.ref));
+  batch.set(doc(db, 'usuarios', u.uid), { llave: deleteField() }, { merge: true });
+  await batch.commit();
+  try { localStorage.removeItem(`pesitos:pendientes:${u.uid}`); localStorage.removeItem(`pesitos:firmas:${u.uid}`); localStorage.removeItem(`pesitos:v1:${u.uid}`); } catch { /* nada */ }
 }
 
-/** Guarda la llave envuelta (al crearla, cambiar la clave o el código). */
-export async function guardarLlave(u, llaveEnvuelta, creado) {
-  uid = uid || u.uid;
-  const ref = doc(firebase().db, 'usuarios', u.uid);
-  const prev = await getDoc(ref).catch(() => null);
-  const c = creado || (prev && prev.exists() && prev.data().creado) || serverTimestamp();
-  creadoGuardado = c;
-  await setDoc(ref, { creado: c, ultimoIngreso: serverTimestamp(), llave: llaveEnvuelta });
+/** Guarda el PIN de seguridad (solo su hash) en la cuenta: sirve en todos tus dispositivos. */
+export async function guardarPin(u, pin) {
+  await setDoc(doc(firebase().db, 'usuarios', u.uid), { pin }, { merge: true });
 }
 
 window.addEventListener('online', reintentar);

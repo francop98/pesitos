@@ -40,7 +40,7 @@ export function imprimirResumen(titulo, html) {
   let zona = document.getElementById('print-area');
   if (!zona) { zona = document.createElement('div'); zona.id = 'print-area'; document.body.appendChild(zona); }
   zona.innerHTML = `<div class="print-head"><b>pe$itos</b><span>${esc(titulo)}</span><span>Generado el ${new Date().toLocaleDateString('es-AR')}</span></div>${html}
-    <p class="print-pie">Resumen generado por Pesitos. Tus datos están cifrados y solo vos podés verlos.</p>`;
+    <p class="print-pie">Resumen generado por Pesitos. Tus datos son privados y solo vos podés verlos.</p>`;
   document.body.classList.add('imprimiendo');
   const fin = () => { document.body.classList.remove('imprimiendo'); zona.innerHTML = ''; window.removeEventListener('afterprint', fin); };
   window.addEventListener('afterprint', fin);

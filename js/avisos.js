@@ -1,9 +1,9 @@
 // =========================================================
 // Pesitos — avisos aunque la app esté cerrada (notificaciones push)
 // Para avisarte, el servidor necesita saber QUÉ DÍAS hay algo. Por eso, si
-// activás los avisos, se guarda sin cifrar solo esto, por día:
+// activás los avisos, el servidor guarda solo esto, por día:
 //   { hoy: cantidad de vencimientos, manana: cantidad, cierre, cobro, deuda }
-// Nunca montos, nombres ni comercios. Lo demás sigue cifrado.
+// Nunca montos, nombres ni comercios.
 //   usuarios/{uid}/push/{id}      la suscripción de este dispositivo
 //   usuarios/{uid}/avisos/agenda  { dias: { 'AAAA-MM-DD': {...} } } (próximos 40 días)
 // =========================================================

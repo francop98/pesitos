@@ -14,7 +14,7 @@ import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
 import { payOptions } from './pagos.js';
-import { nombreCuenta, saldoDeuda } from './cuentas.js';
+import { nombreCuenta, saldoDeuda, totalMeDeben, totalDebo } from './cuentas.js';
 import { cuerpo as deudasCuerpo } from './deudas.js';
 
 let filter = 'todo';
@@ -63,9 +63,10 @@ export function render(s) {
   const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
   const ahorroPesitos = (s.savedByApp || {})[mk] || 0;
   const nDeudas = (s.deudas || []).filter((d) => saldoDeuda(d) > 0.5).length;
+  const tm = totalMeDeben(s); const td = totalDebo(s);
 
   return `<section class="screen">
-    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
+    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/estadisticas" aria-label="Estadísticas">${icon('pie', 20)}</a><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
 
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
@@ -79,7 +80,10 @@ export function render(s) {
       <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
     </a>
-    ${ahorroPesitos || offset === 0 ? `<button class="card lime mov-ahorro" data-action="ahorroPesitosInfo"><span class="small"><b>Te ahorraste con Pesitos</b><br><span class="muted">${ahorroPesitos ? 'Promos y desafíos que aprovechaste' : 'Todavía nada este mes. Tocá para ver cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
+    <div class="mov-mini">
+      <button class="card lime mini" data-action="ahorroPesitosInfo"><span class="k">Te ahorraste con Pesitos</span><b>${money(ahorroPesitos)}</b><span class="small muted">${ahorroPesitos ? 'Promos y desafíos' : 'Tocá y mirá cómo se suma'}</span></button>
+      <button class="card mini ${vista === 'deudas' ? 'activa' : ''}" data-action="movVista" data-v="deudas"><span class="k">${icon('people', 15)} Deudas y préstamos</span>${tm || td ? `<b>${tm ? `<span class="pos">+${money(tm)}</span>` : ''}${tm && td ? ' · ' : ''}${td ? `−${money(td)}` : ''}</b><span class="small muted">${tm ? 'Te deben' : ''}${tm && td ? ' · ' : ''}${td ? 'Debés' : ''}</span>` : '<b>$0</b><span class="small muted">¿Prestaste plata? Anotalo</span>'}</button>
+    </div>
 
     <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
@@ -158,7 +162,7 @@ export const actions = {
   ahorroPesitosInfo(ctx) {
     openModal('Plata que te ahorraste', `<p class="text" style="margin:0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
       <div class="card"><span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
-      <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Ahorro → Plan de ahorro, se suma lo que no gastaste.</span></div>
+      <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Mi plata → Plan de ahorro, se suma lo que no gastaste.</span></div>
       <a class="btn primary block" href="#/beneficios">Ver las promos de hoy</a>`);
   },
   movElegirMes(ctx) {

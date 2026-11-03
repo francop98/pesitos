@@ -1,16 +1,17 @@
 // Asesor: lecciones (Aprendé) y consultas.
-// La forma de ahorrar, las reglas y los desafíos se muestran en Ahorro → Plan de ahorro
+// La forma de ahorrar, las reglas y los desafíos se muestran en Mi plata → Plan de ahorro
 // (planAhorroHtml), pero sus acciones siguen acá.
 
 import { money, esc, num, monthKey, todayISO } from './formato.js';
 import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES } from './categorias.js';
 import { challengeStatus, allChallenges, answer, DISCLAIMER } from './economista.js';
 import { LESSONS } from './aprender.js';
+import { ayudaHtml } from './ayuda.js';
 import { budget } from './calculos.js';
 import { sprout, icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 
-let tab = 'aprende'; // 'aprende' | 'consultas'
+let tab = 'consultas'; // 'consultas' | 'aprende' | 'ayuda'
 
 const MODE_LABEL = (s) => ({
   payFirst: `Apartás el ${s.rules.payFirst.pct}% apenas cobrás.`,
@@ -36,7 +37,7 @@ function customText(c) {
   return `El ${c.value}% de lo que gastás en ${catLabel(c.category).toLowerCase()}`;
 }
 
-/** Forma de ahorrar, reglas y desafíos (se muestra en Ahorro → Plan de ahorro). */
+/** Forma de ahorrar, reglas y desafíos (se muestra en Mi plata → Plan de ahorro). */
 export function planAhorroHtml(s, metasHtml = '') {
   const ch = challengeStatus(s);
   const b = budget(s);
@@ -82,10 +83,10 @@ export function planAhorroHtml(s, metasHtml = '') {
 export function render(s) {
   const chat = s.chat.slice(-8);
   return `<section class="screen">
-    ${screenHead('Tu asesor', '', 'Aprendé y consultá lo que quieras')}
+    ${screenHead('Asesor y ayuda', '', 'Consultá, aprendé o buscá cómo se usa')}
 
-    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      ${[['aprende', 'Aprendé'], ['consultas', 'Consultas']].map(([v, l]) => `<button role="tab" data-action="asesorTab" data-v="${v}" aria-pressed="${tab === v}">${l}</button>`).join('')}
+    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      ${[['consultas', 'Consultas'], ['aprende', 'Aprendé'], ['ayuda', 'Ayuda']].map(([v, l]) => `<button role="tab" data-action="asesorTab" data-v="${v}" aria-pressed="${tab === v}">${l}</button>`).join('')}
     </div>
 
 
@@ -113,6 +114,7 @@ export function render(s) {
     </form>
     <p class="small muted" style="margin:0">${DISCLAIMER}</p>
     ` : ''}
+    ${tab === 'ayuda' ? ayudaHtml() : ''}
   </section>`;
 }
 

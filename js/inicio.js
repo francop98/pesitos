@@ -7,13 +7,15 @@ import { insights } from './economista.js';
 import { renderQuestion, suggestions, renderSuggestion } from './guia.js';
 import { lessonCard } from './aprender.js';
 import { catLabel } from './categorias.js';
-import { alerts, dueLabel, closings } from './agenda.js';
+import { alerts, dueLabel, closings, agenda } from './agenda.js';
+import { promosForDay } from './economista.js';
+import { totalCuentas, cuentasConSaldo } from './cuentas.js';
 import { projection, coverage } from './flujo.js';
 import { reglaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
 import { mediosRapidos } from './acciones.js';
 import { instalada } from './menu.js';
-import { bioDisponible, bloqueoActivo, bloqueoActions } from './bloqueo.js';
+import { bioDisponible, bioActiva, bloqueoActions } from './bloqueo.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
 
 const MODE_TEXT = {
@@ -167,7 +169,6 @@ const ATAJOS = [
   ['#/pagos', 'calendar', 'Por pagar'],
   ['#/cuentas', 'wallet', 'Saldo'],
   ['#/beneficios', 'ticket', 'Beneficios'],
-  ['#/estadisticas', 'pie', 'Estadísticas'],
   ['#/tarjetas', 'card', 'Tarjetas'],
 ];
 const tile = ([a, ic, l]) => (a.startsWith('#')
@@ -199,6 +200,19 @@ function heroMensaje(b, payText) {
   return linea(`Por día, para llegar bien: ${payText}.`);
 }
 
+// "Tu día": el próximo pago, la promo de hoy y cuánto tenés en tus cuentas
+function tuDia(s) {
+  const prox = agenda(s, 31).find((i) => !i.paid && i.days >= -7);
+  const promo = promosForDay(s, new Date().getDay())[0];
+  const con = cuentasConSaldo(s).length;
+  const fila = (href, ic, k, v, sub) => `<a class="dia-fila" href="${href}"><span class="cat-icon">${icon(ic, 18)}</span><span class="grow"><span class="k">${k}${sub ? ` · ${sub}` : ''}</span><span class="v">${v}</span></span>${icon('chevron', 16)}</a>`;
+  return `<div class="card tight tu-dia"><span class="tu-dia-t">Tu día</span>
+    ${fila('#/pagos', 'calendar', 'Próximo pago', prox ? `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}` : 'Nada por pagar este mes', prox ? esc(dueLabel(prox)) : '')}
+    ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
+    ${fila('#/cuentas', 'wallet', 'En tus cuentas', con ? money(totalCuentas(s)) : 'Cargá tu saldo', '')}
+  </div>`;
+}
+
 export function render(s) {
   const b = budget(s);
   const g = mainGoal(s);
@@ -214,7 +228,7 @@ export function render(s) {
   return `<section class="screen">
     <div class="topbar">
       <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${wordmark(26)}</div>
-      <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><a class="icon-btn" href="#/asesor" aria-label="Asesor: aprendé y consultá">${icon('chat', 22)}</a></span>
+      <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><a class="icon-btn" href="#/asesor" aria-label="Asesor y ayuda">${icon('help', 22)}</a></span>
     </div>
 
     ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
@@ -230,10 +244,7 @@ export function render(s) {
 
     ${lista[0] || ''}
 
-    <div class="tiles">
-      ${ATAJOS.slice(0, 3).map(tile).join('')}
-      <button class="tile" data-action="openAtajos">${icon('grid', 22)}<span>Más</span></button>
-    </div>
+    ${tuDia(s)}
 
     ${g ? `<a class="card goal-row" href="#/ahorro" style="text-decoration:none;color:inherit;flex-direction:row">
       ${ring(goalPct(g), 56, 7, `${g.name}: ${Math.round(goalPct(g) * 100)}%`)}
@@ -253,10 +264,10 @@ bioDisponible().then((v) => { hayBio = v; });
 function huellaCard() {
   let no = false;
   try { no = localStorage.getItem(K_HUELLA) === '1'; } catch { /* nada */ }
-  if (no || !hayBio || bloqueoActivo()) return '';
+  if (no || !hayBio || bioActiva()) return '';
   return `<div class="card card-huella">
     <div class="tip-head"><span style="color:var(--green)">${icon('lock', 20)}</span><strong>Entrá con tu huella o tu cara</strong></div>
-    <span class="text">Cada vez que abras Pesitos te pide la huella (o la cara) del celular. Así nadie que lo agarre ve tu plata, y vos entrás al toque.</span>
+    <span class="text">Cuando inicies sesión en este celular, usá tu huella o tu cara en lugar de escribir el PIN.</span>
     <div class="btn-row"><button class="btn small ghost" data-action="huellaNo">Ahora no</button><button class="btn small primary" data-action="huellaSi">Activar</button></div>
   </div>`;
 }
@@ -289,7 +300,7 @@ export const actions = {
   },
   openAtajos() { openModal('Más secciones', `<div class="tiles">${ATAJOS.slice(3).map(tile).join('')}</div>`); },
   async huellaSi(ctx) { await bloqueoActions.bloqueoBio(); ctx.render(); },
-  huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → Bloqueo con huella o PIN'); },
+  huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → PIN de seguridad y huella'); },
   instalarNo(ctx) { try { localStorage.setItem(K_INSTALAR, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → La app'); },
   promoUsed(ctx, el) {
     const cap = num(el.dataset.id);

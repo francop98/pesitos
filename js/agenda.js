@@ -14,13 +14,30 @@ const monthDiffKeys = (a, b) => { const [y1, m1] = a.split('-').map(Number); con
 
 export const REPEATS = [
   { id: 'once', label: 'Una sola vez', months: 0 },
+  { id: 'weekly', label: 'Todas las semanas', days: 7 },
+  { id: 'biweekly', label: 'Cada 2 semanas', days: 14 },
   { id: 'monthly', label: 'Todos los meses', months: 1 },
   { id: 'bimonthly', label: 'Cada 2 meses', months: 2 },
   { id: 'quarterly', label: 'Cada 3 meses', months: 3 },
+  { id: 'fourmonthly', label: 'Cada 4 meses', months: 4 },
   { id: 'semiannual', label: 'Cada 6 meses', months: 6 },
   { id: 'yearly', label: 'Una vez por año', months: 12 },
+  { id: 'custom', label: 'Personalizado…' },
 ];
-export const repeatLabel = (id) => (REPEATS.find((r) => r.id === id) || REPEATS[0]).label;
+const UNIDADES = { dias: ['día', 'días'], semanas: ['semana', 'semanas'], meses: ['mes', 'meses'] };
+/** Cada cuánto se repite: { months } o { days } (0 = una sola vez). */
+export function pasoDe(x) {
+  if (x && x.repeat === 'custom' && x.every) {
+    const n = Math.max(1, parseInt(x.every.n, 10) || 1);
+    return x.every.unit === 'meses' ? { months: n } : { days: x.every.unit === 'semanas' ? n * 7 : n };
+  }
+  const r = REPEATS.find((y) => y.id === (x && x.repeat)) || REPEATS[0];
+  return r.days ? { days: r.days } : { months: r.months || 0 };
+}
+export const repeatLabel = (id, x = null) => {
+  if (id === 'custom' && x && x.every) { const n = Math.max(1, parseInt(x.every.n, 10) || 1); const u = UNIDADES[x.every.unit] || UNIDADES.dias; return n === 1 ? `Cada ${u[0]}` : `Cada ${n} ${u[1]}`; }
+  return (REPEATS.find((r) => r.id === id) || REPEATS[0]).label;
+};
 
 function dateWithDay(y, m, day) {
   const dim = new Date(y, m + 1, 0).getDate();
@@ -54,7 +71,15 @@ export function statementDates(card, mk) {
 function billOccurrences(bill, from, to) {
   const out = [];
   const first = parseISO(bill.date);
-  const step = (REPEATS.find((r) => r.id === bill.repeat) || REPEATS[0]).months;
+  const paso = pasoDe(bill);
+  if (paso.days) {
+    // cada N días o semanas
+    const d = new Date(first);
+    if (d < from) { const saltos = Math.floor((from - d) / 86400000 / paso.days); d.setDate(d.getDate() + saltos * paso.days); }
+    for (let i = 0; i < 800 && d <= to; i++) { if (d >= from) out.push(new Date(d)); d.setDate(d.getDate() + paso.days); }
+    return out;
+  }
+  const step = paso.months;
   if (!step) { if (first >= from && first <= to) out.push(first); return out; }
   const day = first.getDate();
   let mk = bill.date.slice(0, 7);
@@ -126,7 +151,7 @@ export function agendaBetween(s, from, to) {
   // pagos programados
   for (const b of s.bills || []) {
     for (const d of billOccurrences(b, from, to)) {
-      push({ key: `bill:${b.id}:${toISO(d)}`, kind: 'bill', refId: b.id, name: b.name, amount: b.amount || 0, dueDate: d, icon: 'calendar', sub: repeatLabel(b.repeat) + (b.variable ? ' · el monto varía' : '') + (b.autoDebit ? ' · débito automático' : ''), payWith: b.payWith || '', autoDebit: !!b.autoDebit, fromSavings: !!b.saveAhead, estimated: !!b.variable && !!b.amount, variable: !!b.variable || !b.amount });
+      push({ key: `bill:${b.id}:${toISO(d)}`, kind: 'bill', refId: b.id, name: b.name, amount: b.amount || 0, dueDate: d, icon: 'calendar', sub: repeatLabel(b.repeat, b) + (b.variable ? ' · el monto varía' : '') + (b.autoDebit ? ' · débito automático' : ''), payWith: b.payWith || '', autoDebit: !!b.autoDebit, fromSavings: !!b.saveAhead, estimated: !!b.variable && !!b.amount, variable: !!b.variable || !b.amount });
     }
   }
 
@@ -150,8 +175,7 @@ export function groups(items) {
     if (it.days < 0) g.overdue.push(it);
     else if (it.days === 0) g.today.push(it);
     else if (it.days <= 7) g.week.push(it);
-    else if (it.days <= 31) g.month.push(it);
-    else g.later.push(it);
+    else g.later.push(it); // todo lo que viene después de esta semana
   }
   return g;
 }
@@ -213,9 +237,9 @@ export function buildICS(s) {
     event(`card-${c.id}`, `Vence la tarjeta ${c.name}`, first, `FREQ=MONTHLY;BYMONTHDAY=${day > 28 ? -1 : day}`, 'Abrí Pesitos para ver el monto del resumen.');
   }
   for (const b of s.bills || []) {
-    const step = (REPEATS.find((r) => r.id === b.repeat) || REPEATS[0]).months;
-    const rr = !step ? '' : step === 12 ? 'FREQ=YEARLY' : `FREQ=MONTHLY;INTERVAL=${step}`;
-    event(`bill-${b.id}`, `Vence ${b.name}${b.amount ? ` (${b.variable ? '≈ ' : ''}${money(b.amount)})` : ''}`, parseISO(b.date), rr, `${repeatLabel(b.repeat)}. Cargado en Pesitos.`);
+    const paso = pasoDe(b); const step = paso.months;
+    const rr = paso.days ? (paso.days % 7 === 0 ? `FREQ=WEEKLY;INTERVAL=${paso.days / 7}` : `FREQ=DAILY;INTERVAL=${paso.days}`) : !step ? '' : step === 12 ? 'FREQ=YEARLY' : `FREQ=MONTHLY;INTERVAL=${step}`;
+    event(`bill-${b.id}`, `Vence ${b.name}${b.amount ? ` (${b.variable ? '≈ ' : ''}${money(b.amount)})` : ''}`, parseISO(b.date), rr, `${repeatLabel(b.repeat, b)}. Cargado en Pesitos.`);
   }
   lines.push('END:VCALENDAR');
   return lines.join('\r\n');

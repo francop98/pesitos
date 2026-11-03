@@ -7,6 +7,7 @@ import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizaciones.js';
 import { planAhorroHtml } from './asesor.js';
+import { cuerpo as cuerpoCuentas, patrimonioHtml } from './miscuentas.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
@@ -41,7 +42,10 @@ function quotes(s) {
   </div>`;
 }
 
-let vista = 'mis'; // 'mis' | 'plan'
+let vista = 'cuentas'; // 'cuentas' | 'mis' | 'plan'
+let patAbierto = false;
+/** Abrir Mi plata en una pestaña (las rutas viejas #/cuentas llegan acá). */
+export function renderVista(s, v) { vista = v; return render(s); }
 
 export function render(s) {
   const total = holdingsTotal(s);
@@ -59,12 +63,18 @@ export function render(s) {
 `;
 
   return `<section class="screen">
-    ${screenHead('Ahorro', ojoMontos('ahorro'))}
+    ${screenHead('Mi plata', ojoMontos('ahorro'))}
 
-    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <button role="tab" data-action="ahorroVista" data-v="mis" aria-pressed="${vista === 'mis'}">Mis ahorros</button>
+    ${taparMontos(patrimonioHtml(s, patAbierto), 'ahorro')}
+
+    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <button role="tab" data-action="ahorroVista" data-v="cuentas" aria-pressed="${vista === 'cuentas'}">Cuentas</button>
+      <button role="tab" data-action="ahorroVista" data-v="mis" aria-pressed="${vista === 'mis'}">Ahorros</button>
       <button role="tab" data-action="ahorroVista" data-v="plan" aria-pressed="${vista === 'plan'}">Plan de ahorro</button>
     </div>
+
+    ${vista === 'cuentas' ? `<div class="btn-row"><button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir entre cuentas</button></div>
+    ${taparMontos(cuerpoCuentas(s), 'ahorro')}` : ''}
 
     ${vista === 'mis' ? taparMontos(`<div class="card green" style="gap:12px;padding:20px">
       <span class="hero-label">Tenés ahorrado (en pesos)</span>
@@ -85,8 +95,8 @@ export function render(s) {
 
     ${tips.map(tipCard).join('')}
 
-    <button class="btn" data-action="showOptions">¿Dónde conviene poner mis ahorros?</button>
-    ` : planAhorroHtml(s, metasHtml)}
+    <div class="btn-row"><button class="btn" data-action="openRinde">${icon('percent', 18)} ¿Dónde rinde más hoy?</button><button class="btn" data-action="showOptions">¿Dónde conviene ahorrar?</button></div>
+    ` : vista === 'plan' ? planAhorroHtml(s, metasHtml) : ''}
   </section>`;
 }
 
@@ -165,6 +175,7 @@ function converterBody(s, d = { amount: 100, from: 'USD', to: 'ARS' }) {
 
 export const actions = {
   ahorroVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
+  patToggle(ctx) { patAbierto = !patAbierto; ctx.render(); },
   refreshQuotes(ctx) {
     toast('Actualizando cotizaciones…');
     refreshRates(ctx, true).then((ok) => toast(ok ? 'Cotizaciones actualizadas' : 'Sin conexión: uso las últimas guardadas'));
