@@ -77,7 +77,7 @@ export function render(s) {
       <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
     </a>
-    ${ahorroPesitos ? `<div class="card lime mov-ahorro"><span class="small"><b>Te ahorraste con Pesitos</b><br><span class="muted">Promos y consejos que aprovechaste</span></span><b class="v">${money(ahorroPesitos)}</b></div>` : ''}
+    ${ahorroPesitos || offset === 0 ? `<button class="card lime mov-ahorro" data-action="ahorroPesitosInfo"><span class="small"><b>Te ahorraste con Pesitos</b><br><span class="muted">${ahorroPesitos ? 'Promos y desafíos que aprovechaste' : 'Todavía nada este mes. Tocá para ver cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
 
     <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
@@ -117,9 +117,14 @@ function mesesHtml(s, anio) {
   const hoy = monthKey();
   const desde = primerMes(s);
   const actual = addMonthKey(hoy, -offset);
-  const anios = []; for (let y = Number(desde.slice(0, 4)); y <= Number(hoy.slice(0, 4)); y++) anios.push(y);
+  const yHoy = Number(hoy.slice(0, 4));
+  const yMin = Math.min(Number(desde.slice(0, 4)), yHoy - 5);
   const conDatos = new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7)));
-  return `<div data-meses>${anios.length > 1 ? `<div class="chips anios">${anios.map((y) => `<button class="chip toggle" data-action="movAnio" data-y="${y}" aria-pressed="${y === anio}">${y}</button>`).join('')}</div>` : ''}
+  return `<div data-meses><div class="month-nav anio-nav">
+      <button class="icon-btn" data-action="movAnio" data-y="${anio - 1}" aria-label="Año anterior" ${anio <= yMin ? 'disabled' : ''}>${icon('back', 18, 2.2)}</button>
+      <span>${anio}</span>
+      <button class="icon-btn" data-action="movAnio" data-y="${anio + 1}" aria-label="Año siguiente" ${anio >= yHoy ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
+    </div>
     <div class="meses-grid">${MONTHS_LONG.map((n, i) => {
       const k = `${anio}-${String(i + 1).padStart(2, '0')}`;
       const futuro = k > hoy;
@@ -164,6 +169,12 @@ export const actions = {
   movVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
   monthPrev(ctx) { offset += 1; ctx.render(); },
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
+  ahorroPesitosInfo(ctx) {
+    openModal('Plata que te ahorraste', `<p class="text" style="margin:0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
+      <div class="card"><span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
+      <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Asesor → Ahorro, se suma lo que no gastaste.</span></div>
+      <a class="btn primary block" href="#/beneficios">Ver las promos de hoy</a>`);
+  },
   movElegirMes(ctx) { openModal('Elegí el mes', mesesHtml(ctx.state, Number(addMonthKey(monthKey(), -offset).slice(0, 4)))); },
   movAnio(ctx, el) { const m = document.querySelector('#modal [data-meses]'); if (m) m.outerHTML = mesesHtml(ctx.state, Number(el.dataset.y)); },
   movIrMes(ctx, el) { offset = el.dataset.mk ? Math.max(0, monthDiff(el.dataset.mk, monthKey())) : 0; closeModal(); ctx.render(); },

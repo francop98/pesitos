@@ -4,7 +4,7 @@
 
 import { uid, emptyState, clear, migrate } from './almacenamiento.js';
 import { parseEntry, merchantKey } from './interprete.js';
-import { CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel, categoriasOrdenadas, soloEmoji } from './categorias.js';
+import { allWallets, CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel, categoriasOrdenadas, soloEmoji } from './categorias.js';
 import { money, esc, todayISO, num, monthKey, relDay, normalize, toISO, addDays, parseISO, MONTHS } from './formato.js';
 import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
@@ -38,6 +38,10 @@ export function mediosRapidos(s) {
     { v: '', label: nombreCuenta(s, ppal), principal: true },
     ...listaCuentas(s).filter((c) => c.id !== ppal).map((c) => ({ v: `acc:${c.id}`, label: c.name })),
     ...(s.cards || []).map((c) => ({ v: `card:${c.id}`, label: `Tarjeta ${c.name}`, tarjeta: true })),
+    // tarjetas elegidas en "Mis medios de pago" que todavía no cargaste en Tarjetas
+    ...allWallets().filter((w) => w.kind === 'Tarjetas' && (s.wallets || []).includes(w.id)
+      && !(s.cards || []).some((c) => normalize(c.name).includes(normalize(w.name)) || normalize(w.name).includes(normalize(c.name))))
+      .map((w) => ({ v: `falta:${w.id}`, label: w.name, tarjeta: true, falta: true })),
   ];
 }
 export const medioDe = (e) => (e.cardId ? `card:${e.cardId}` : e.accountId ? `acc:${e.accountId}` : '');
@@ -226,6 +230,11 @@ export const commonActions = {
   alternarMontos(ctx, el) { const o = alternarMontos(el.dataset.clave); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles'); },
   pickMedio(ctx, el) {
     const form = el.closest('form');
+    if (el.dataset.v.startsWith('falta:')) {
+      openModal(`Tarjeta ${el.textContent.replace(/^\+ /, "")}`, `<p class="text" style="margin:0">Para anotar gastos con esta tarjeta, cargala una vez en <b>Tarjetas</b> con su día de cierre y vencimiento. Así te digo cuánto vas a pagar en cada resumen y las cuotas que te quedan.</p>
+        <button class="btn primary block" data-action="newCard">Cargar la tarjeta</button>`);
+      return;
+    }
     form.querySelector('[name=medio]').value = el.dataset.v;
     form.querySelectorAll('[data-action=pickMedio]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });

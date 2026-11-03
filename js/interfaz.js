@@ -233,7 +233,7 @@ export function quickForm(id, s = null, medioHtml = '') {
     </div>
     ${Array.isArray(medioHtml) && medioHtml.length > 1 ? `<input type="hidden" name="medio" value="">
     <div class="medio-fila"><span class="medio-label" data-medio-label>Pagás con</span>
-      <div class="medio-row" role="radiogroup" aria-label="Con qué pagás">${medioHtml.map((m) => `<button type="button" class="medio-chip${m.tarjeta ? ' tarjeta' : ''}" role="radio" data-action="pickMedio" data-v="${esc(m.v)}" aria-checked="${m.v === ''}">${esc(m.label)}</button>`).join('')}</div></div>` : ''}
+      <div class="medio-row" role="radiogroup" aria-label="Con qué pagás">${medioHtml.map((m) => `<button type="button" class="medio-chip${m.tarjeta ? ' tarjeta' : ''}${m.falta ? ' falta' : ''}" role="radio" data-action="pickMedio" data-v="${esc(m.v)}" aria-checked="${m.v === ''}">${m.falta ? '+ ' : ''}${esc(m.label)}</button>`).join('')}</div></div>` : ''}
     <details class="quick-mas"><summary>Otra fecha o más detalle</summary>
     <div class="quick-opts">
       ${typeof medioHtml === 'string' && medioHtml ? `<label class="sr-only" for="${id}-medio">Con qué pagaste</label><select id="${id}-medio" name="medio" class="mini-select medio-select">${medioHtml}</select>` : '<label class="small muted quick-date-label" for="' + id + '-date">Fecha</label>'}

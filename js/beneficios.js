@@ -28,7 +28,8 @@ function dayBlock(s, offset) {
       <span class="promo-pct">${p.pct}%</span>
       <span class="grow"><span class="name" style="white-space:normal">${esc(p.merchant || catLabel(p.category))}</span>
         <span class="meta">${esc(p.name)} · ${esc(catLabel(p.category))}${p.cap ? ` · tope ${money(p.cap)}${p.capPeriod ? ` por ${esc(p.capPeriod)}` : ''}` : (p.capUnknown ? ' · tope sin publicar' : ' · sin tope')}${p.minPurchase ? ` · compra mínima ${money(p.minPurchase)}` : ''}${esc(zone(p))}</span>
-        ${p.cond ? `<span class="meta">${esc(p.cond)}</span>` : ''}</span>
+        ${p.cond ? `<span class="meta">${esc(p.cond)}</span>` : ''}
+        ${offset === 0 ? `<button class="chip promo-usada" data-action="promoUsed" data-id="${esc(String(p.cap || ''))}">Lo aproveché</button>` : ''}</span>
     </div>`).join('')}
     ${ps.length > PER_DAY ? `<button class="btn ghost small" data-action="promoMore" data-day="${day}">${open ? 'Ver menos' : `Ver ${ps.length - PER_DAY} más`}</button>` : ''}</div>`;
 }

@@ -704,3 +704,7 @@ body.bloqueado #drawer { visibility: hidden; }
 .quick-card.income .medio-chip.tarjeta { display: none; }
 .cuenta-rinde { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .montos-ocultos-nota { align-self: flex-start; }
+button.mov-ahorro { border: none; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.promo-usada { align-self: flex-start; margin-top: 6px; }
+.medio-chip.falta { border-style: dashed; color: var(--muted); }
+.anio-nav { background: var(--bg); }
