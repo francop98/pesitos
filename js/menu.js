@@ -79,6 +79,7 @@ function menuHtml(ctx) {
       <span class="meta sync">${icon(ic, 14)} ${s.demo ? 'Datos de ejemplo: no se guardan en tu cuenta' : esc(estado)}</span></span><span class="menu-cuenta-cta">Mi cuenta ${icon('chevron', 16)}</span></button>
 
     <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
+      ${item('irSueldo', 'trend', 'Tu sueldo', 'Si le ganás a la inflación (en Movimientos → Estadísticas)')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
     </div>
 

@@ -19,6 +19,7 @@ let periodo = 'mes';
 let statsTab = 'gastos'; // 'gastos' | 'sueldo'
 /** Abrir Estadísticas en una pestaña (la ruta vieja #/sueldo llega acá). */
 export function renderVista(s, v) { statsTab = v; return render(s); }
+export const usarPestana = (v) => { statsTab = v; };
 const PERIODOS = [['mes', 'Este mes'], ['anterior', 'Mes pasado'], ['3m', '3 meses'], ['6m', '6 meses'], ['anio', 'Este año']];
 
 function meses(p = periodo) {
@@ -83,6 +84,14 @@ function barrasMensuales(s) {
 }
 
 export function render(s) {
+  return `<section class="screen">
+    ${screenHead('Estadísticas')}
+    ${cuerpo(s)}
+  </section>`;
+}
+
+/** Estadísticas y tu sueldo (también en Movimientos → Estadísticas). */
+export function cuerpo(s) {
   const ms = meses();
   const r = resumen(s, ms);
   const prev = resumen(s, anteriores(ms));
@@ -93,11 +102,11 @@ export function render(s) {
   const comp = (v, a) => (a ? (v - a) / a : null);
   // subir es malo en gastos y bueno en ingresos
   const cambio = (x, bueno = false) => (x == null ? '' : `<span class="${Math.abs(x) <= 0.02 ? 'igual' : (x > 0) !== bueno ? 'sube' : 'baja'}" title="Contra el período anterior">${x > 0 ? '▲' : x < 0 ? '▼' : '='} ${Math.abs(Math.round(x * 100))}%</span>`);
-  return `<section class="screen">
-    ${screenHead('Estadísticas', statsTab === 'sueldo' ? ojoMontos('sueldo') : `<span class="head-actions"><button class="icon-btn" data-action="statsCSV" aria-label="Exportar a Excel">${icon('download', 20)}</button><button class="btn small" data-action="statsPDF">PDF</button></span>`)}
-    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+  return `
+    <div class="seg" role="tablist" aria-label="Qué ver">
       <button role="tab" data-action="statsTab" data-v="gastos" aria-pressed="${statsTab === 'gastos'}">Gastos e ingresos</button>
       <button role="tab" data-action="statsTab" data-v="sueldo" aria-pressed="${statsTab === 'sueldo'}">Tu sueldo</button>
+      <span class="seg-acc">${statsTab === 'sueldo' ? ojoMontos('sueldo') : `<button class="icon-btn" data-action="statsCSV" aria-label="Exportar a Excel">${icon('download', 20)}</button><button class="btn small" data-action="statsPDF">PDF</button>`}</span>
     </div>
     ${statsTab === 'sueldo' ? sueldoCuerpo(s) : `
     <div class="chips periodo">${PERIODOS.map(([v, l]) => `<button class="chip toggle" data-action="statsPeriodo" data-v="${v}" aria-pressed="${periodo === v}">${l}</button>`).join('')}<button class="chip toggle" data-action="statsElegirMes" aria-pressed="${periodo.startsWith('mk:')}">${periodo.startsWith('mk:') ? `${MONTHS_LONG[Number(periodo.slice(8, 10)) - 1].replace(/^./, (c) => c.toUpperCase())} ${periodo.slice(3, 7)}` : 'Otro mes…'}</button></div>
@@ -120,7 +129,7 @@ export function render(s) {
     ${Object.keys(r.medios).length > 1 ? `<div class="card"><strong>Con qué pagaste</strong>${Object.entries(r.medios).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}
     ${Object.keys(r.tags).length ? `<div class="card"><strong>Por etiqueta</strong>${Object.entries(r.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span class="tag">#${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}
     `}
-  </section>`;
+  `;
 }
 
 export const actions = {

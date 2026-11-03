@@ -10,10 +10,10 @@ import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
-import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales } from './calculos.js';
+import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget } from './calculos.js';
 import { demoState } from './ejemplo.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
-import { OPTIONS_TEXT, DISCLAIMER, promosStatus } from './economista.js';
+import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
 import { ratesAge, arsPer } from './cotizaciones.js';
 import { listaCuentas, cuentaPrincipal, nombreCuenta } from './cuentas.js';
 import { avancePresupuesto } from './presupuestos.js';
@@ -426,18 +426,66 @@ export const commonActions = {
   // ---------- ¿Me lo compro? ----------
   openBuy() {
     openModal('¿Me lo compro?', `<form class="form" data-submit="buyCheck">
-      <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="decimal" placeholder="Ej: 90.000" required></div>
-      <button class="btn primary block" type="submit">Ver impacto</button>
+      <div class="field"><label for="b-que">¿Qué querés comprar?</label><input id="b-que" name="que" placeholder="Ej: Zapatillas" autocomplete="off"></div>
+      <div class="field-row">
+        <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="decimal" placeholder="Ej: 90.000" required></div>
+        <div class="field"><label for="b-usos">¿Cuántas veces lo vas a usar?</label><input id="b-usos" name="usos" inputmode="numeric" placeholder="Opcional"></div>
+      </div>
+      <button class="btn primary block" type="submit">Analizar la compra</button>
     </form><div id="buy-result"></div>`);
   },
   buyCheck(ctx, d) {
+    const s = ctx.state;
     const amount = num(d.amount);
     if (!amount) return;
-    const r = buyImpact(ctx.state, amount);
-    const sal = lastSalary(ctx.state);
-    const workDays = sal ? amount / (sal.amount / 22) : 0;
-    setModalBody('#buy-result', `<div class="result ${r.level}"><strong>${esc(r.title)}</strong><span class="text">${esc(r.text)}</span>${r.extra ? `<span class="text">${esc(r.extra)}</span>` : ''}</div>
-      ${workDays ? `<div class="card"><span class="text">Equivale a <b>${workDays < 1 ? `${Math.max(1, Math.round(workDays * 8))} horas` : `${workDays.toFixed(1).replace('.', ',')} días`}</b> de tu trabajo. Antes de decidir, preguntate: ¿lo necesito o lo quiero? Si es un gusto, esperá 48 horas: si las ganas siguen, adelante.</span></div>` : ''}
+    const b = budget(s);
+    const r = buyImpact(s, amount);
+    const sal = lastSalary(s);
+    const g = mainGoal(s);
+    const que = String(d.que || '').trim();
+    const cat = que ? parseEntry(`${que} 1`, s.learned).category : null;
+    const usos = parseInt(d.usos, 10) || 0;
+    const lineas = [];
+    // 1. hoy
+    if (!b.noIncome) {
+      lineas.push(['sun', 'Hoy', amount <= b.todayLeft
+        ? `Hoy podés gastar ${money(b.todayLeft)}. Después de esta compra te quedarían <b>${money(b.todayLeft - amount)}</b>.`
+        : `Hoy podés gastar ${money(Math.max(0, b.todayLeft))}: esta compra se pasa por <b>${money(amount - Math.max(0, b.todayLeft))}</b>.`]);
+      // 2. hasta el cobro
+      lineas.push(['calendar', 'Hasta el cobro', amount <= b.free
+        ? `Es el <b>${Math.round((amount / Math.max(1, b.free)) * 100)}%</b> de lo que te queda libre hasta cobrar (${money(b.free)} en ${b.cycle.daysLeft} días).${amount > b.todayLeft ? ` ${esc(r.text)}` : ''}`
+        : `No te alcanza: te faltan <b>${money(amount - Math.max(0, b.free))}</b> de lo libre hasta el cobro.`]);
+    }
+    // 3. tu sueldo y tu tiempo
+    if (sal) {
+      const dias = amount / (sal.amount / 22);
+      lineas.push(['clock', 'Tu trabajo', `Es el ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de tu sueldo: <b>${dias < 1 ? (Math.round(dias * 8) <= 1 ? 'menos de 1 hora' : `${Math.round(dias * 8)} horas`) : `${dias.toFixed(1).replace('.', ',')} días`}</b> de trabajo.`]);
+    }
+    // 4. tu meta
+    if (g) {
+      // sale de lo que te iba a sobrar para ahorrar o, si no alcanza, de tus ahorros
+      const exceso = Math.max(0, amount - Math.max(0, b.todayLeft));
+      const deSobrante = Math.min(exceso, b.sobrante || 0);
+      const deAhorro = Math.max(0, amount - Math.max(0, b.free));
+      const atrasa = g.monthly > 0 ? Math.round((deSobrante + deAhorro) / (g.monthly / 30)) : 0;
+      lineas.push(['target', `Tu meta: ${esc(g.name)}`, atrasa >= 1 ? `Esta plata podría ir a tu meta: la atrasa unos <b>${atrasa} días</b>.` : 'No toca lo que apartaste para tu meta.']);
+    }
+    // 5. costo por uso
+    if (usos > 0) lineas.push(['repeat', 'Por cada uso', `Te sale <b>${money(amount / usos)}</b> cada vez que lo uses.${amount / usos > Math.max(1, b.dailyBase) ? ' Es más que lo que gastás en un día: pensalo.' : ''}`]);
+    // 6. promo para eso hoy
+    const promo = cat ? promosForDay(s, new Date().getDay()).find((p) => p.category === cat) : null;
+    if (promo) lineas.push(['ticket', 'Promo de hoy', `Tenés <b>${promo.pct}%</b> con ${esc(promo.name)}${promo.merchant ? ` en ${esc(promo.merchant)}` : ''}: te ahorrarías hasta ${money(Math.min(amount * promo.pct / 100, promo.cap || Infinity))}.`]);
+    // preguntas para estar seguro
+    const grande = amount > 3 * Math.max(1, b.dailyBase || 0);
+    const preguntas = [
+      '¿Lo necesitás o lo querés? Las dos están bien, pero sabelo.',
+      '¿Lo buscaste en otro lado? Comparar 2 o 3 precios suele ahorrar un 10% o más.',
+      grande ? 'Es una compra grande: esperá 48 horas. Si las ganas siguen, adelante.' : '¿Lo vas a usar en serio o es un impulso del momento?',
+      ...(grande ? ['¿Hay cuotas sin interés? Con inflación, pueden convenir más que pagar todo junto.'] : []),
+    ];
+    setModalBody('#buy-result', `<div class="result ${r.level}"><strong>${esc(r.level === 'ok' && amount <= b.todayLeft ? 'Te alcanza, pero mirá esto antes' : r.title)}</strong>
+      ${lineas.map(([ic, k, v]) => `<div class="buy-linea">${icon(ic, 16)}<span><b class="k">${k}</b><br>${v}</span></div>`).join('')}</div>
+      <div class="card"><strong>Para estar seguro</strong>${preguntas.map((q) => `<span class="small">• ${esc(q)}</span>`).join('')}</div>
       <button class="btn small" data-action="openInstallments" data-push="1">¿Y si lo pago en cuotas?</button>`);
   },
 

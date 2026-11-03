@@ -110,12 +110,11 @@ function rindeLista(s, monto) {
 function installmentsForm(s, d = {}) {
   const rc = resumenCuotas(s);
   return `<form class="form" data-submit="calcInstallments">
-    <div class="field"><label for="iq-p">Precio (de lista o en cuotas)</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 300.000" required></div>
+    <div class="field"><label for="iq-p">Precio pagando de contado</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 300.000" required><span class="hint">Lo que pagás en efectivo o transferencia, con el descuento si hay.</span></div>
     <div class="field-row">
-      <div class="field"><label for="iq-n">Cantidad de cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required></div>
+      <div class="field"><label for="iq-n">Cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required></div>
       <div class="field"><label for="iq-c">Valor de cada cuota</label><input id="iq-c" name="cuota" inputmode="decimal" value="${d.cuota || ''}" placeholder="Vacío = sin interés"></div>
     </div>
-    <div class="field"><label for="iq-d">Descuento si pagás de contado (%)</label><input id="iq-d" name="disc" inputmode="decimal" value="${d.disc || ''}" placeholder="Ej: 10 (vacío si no hay)"></div>
     <div class="field"><label for="iq-m">¿Cómo pagarías las cuotas?</label><select id="iq-m" name="modo">${opcionesPlata(s).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>
       <span class="hint">Si tenés la plata hoy, lo que rinde mientras pagás de a poco también cuenta.</span></div>
     <button class="btn primary block" type="submit">Comparar</button>
@@ -125,50 +124,59 @@ function installmentsForm(s, d = {}) {
     <span class="small muted">Uso la inflación real del INDEC para los meses publicados y la esperada para el resto. Tocá cualquier compra en cuotas en Movimientos para ver su detalle.</span></div>` : ''}`;
 }
 
+// tasa mensual que hace que las cuotas valgan lo mismo que el contado (lo que "te cobran" las cuotas)
+function tasaImplicita(cash, cuota, n) {
+  const vh = (r) => { let pv = 0; for (let k = 1; k <= n; k++) pv += cuota / Math.pow(1 + r, k); return pv; };
+  if (Math.abs(vh(0) - cash) < 0.5) return 0;
+  let lo = -0.5; let hi = 1.5;
+  for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; if (vh(m) > cash) lo = m; else hi = m; }
+  return (lo + hi) / 2;
+}
+
 // valor de hoy de una serie de cuotas, con la inflación mensual i
 const valorHoy = (cuota, n, i) => { let pv = 0; for (let k = 1; k <= n; k++) pv += cuota / Math.pow(1 + i, k); return pv; };
 
 export const actions = {
   openInstallments(ctx, el) { openModal('Cuotas o contado', installmentsForm(ctx.state), { push: !!(el && el.dataset.push) }); },
   calcInstallments(ctx, d) {
-    const price = amt(d.price);
+    const s = ctx.state;
+    const cash = amt(d.price);
     const n = Math.max(1, parseInt(d.n, 10) || 1);
-    if (!price) return;
-    const cuota = amt(d.cuota) || price / n;
-    const conInteres = !!amt(d.cuota) && cuota * n > price * 1.005;
-    const disc = parseFloat(String(d.disc || '0').replace(',', '.')) || 0;
-    const infl = expectedInflation(ctx.state);
-    const i = infl / 100;
+    if (!cash) return;
+    const cuota = amt(d.cuota) || cash / n;
     const total = cuota * n;
-    const cash = price * (1 - disc / 100);
-    const pv = valorHoy(cuota, n, i);
-    const recargo = total - cash; // lo que pagás de más en pesos (interés + descuento perdido)
-    const licua = total - pv; // lo que la inflación se "come" de las cuotas
-    let veredicto; let detalle; let gana;
+    const infl = expectedInflation(s); const i = infl / 100;
+    const r = tasaImplicita(cash, cuota, n); // por mes
+    const recargo = total - cash;
+    const resultado = (inf) => cash - valorHoy(cuota, n, inf); // >0: convienen las cuotas (en plata de hoy)
+    const gana = resultado(i);
+    let veredicto; let detalle;
     if (d.modo === 'sueldo' || !d.modo) {
-      gana = cash - pv; // >0: convienen las cuotas
       veredicto = gana >= 0 ? `Convienen las cuotas: ganás ${money(gana)}` : `Conviene pagar de contado: ahorrás ${money(-gana)}`;
-      detalle = `Las ${n} cuotas, llevadas a plata de hoy, valen <b>${money(pv)}</b>. De contado pagás <b>${money(cash)}</b>.`;
+      detalle = `Pagando con tu sueldo de cada mes, las ${n} cuotas de ${money(cuota)} valen hoy <b>${money(valorHoy(cuota, n, i))}</b>. De contado pagás <b>${money(cash)}</b>.`;
     } else {
       const tna = Number(String(d.modo).split(':')[1]) || 0;
-      const r = tna / 100 * 30 / 365;
-      let saldo = cash; // la plata que no gastaste de contado
-      for (let k = 1; k <= n; k++) saldo = saldo * (1 + r) - cuota;
-      const final = saldo; const finalHoy = saldo / Math.pow(1 + i, n);
-      gana = finalHoy;
-      veredicto = final >= 0 ? `Convienen las cuotas: te quedan ${money(final)}` : `Conviene pagar de contado: con cuotas te faltan ${money(-final)}`;
-      detalle = `Si en vez de pagar ${money(cash)} de contado dejás esa plata ${tna ? `rindiendo al ${tasaTxt(tna)}% anual` : 'guardada'} y vas sacando ${money(cuota)} por mes, al terminar ${final >= 0 ? `te sobran <b>${money(final)}</b> (≈ ${money(finalHoy)} en plata de hoy)` : `te faltan <b>${money(-final)}</b>`}.`;
+      const rr = tna / 100 * 30 / 365;
+      let saldo = cash; for (let k = 1; k <= n; k++) saldo = saldo * (1 + rr) - cuota;
+      veredicto = saldo >= 0 ? `Convienen las cuotas: te quedan ${money(saldo)}` : `Conviene pagar de contado: con cuotas te faltan ${money(-saldo)}`;
+      detalle = `Si en vez de pagar ${money(cash)} de contado dejás esa plata ${tna ? `rindiendo al ${tasaTxt(tna)}% anual` : 'guardada'} y vas sacando ${money(cuota)} por mes, al terminar ${saldo >= 0 ? `te sobran <b>${money(saldo)}</b> (≈ ${money(saldo / Math.pow(1 + i, n))} en plata de hoy)` : `te faltan <b>${money(-saldo)}</b>`}.`;
     }
+    // escenarios: ¿y si la inflación cambia?
+    const esc3 = [['Si la inflación baja a la mitad', i / 2], ['Con la inflación esperada', i], ['Si la inflación sube 50%', i * 1.5]].map(([l, inf]) => { const v = resultado(inf); return `<div class="split small"><span>${l} (${tasaTxt((inf * 100).toFixed(1))}%/mes)</span><b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? `Cuotas +${money(v)}` : `Contado +${money(-v)}`}</b></div>`; }).join('');
+    const sal = lastSalary(s);
+    const fin = (() => { const x = new Date(); x.setMonth(x.getMonth() + n); return `${MONTHS_LONG[x.getMonth()]}${x.getFullYear() !== new Date().getFullYear() ? ` ${x.getFullYear()}` : ''}`; })();
     setModalBody('#iq-result', `<div class="result ${gana >= 0 ? 'ok' : 'warn'}">
       <strong>${veredicto}</strong>
       <span class="text">${detalle}</span>
-      <div class="cuentas-cuotas">
-        <div class="split small"><span>Total en cuotas</span><b>${money(total)}</b></div>
-        <div class="split small"><span>${conInteres ? 'Interés' : 'Recargo'}${disc ? ' y descuento que perdés' : ''}</span><b>${recargo > 0.5 ? '+' + money(recargo) : '$0'}${recargo > 0.5 ? ` (${pctTxt(recargo / cash)})` : ''}</b></div>
-        <div class="split small"><span>Lo que la inflación se come de las cuotas</span><b class="pos">−${money(licua)}</b></div>
-      </div>
-      ${!conInteres && !disc ? '<span class="small">Sin interés y sin descuento por contado, las cuotas siempre convienen: pagás lo mismo, pero más adelante y con plata que vale menos.</span>' : ''}
-      <span class="small">Inflación esperada: ${tasaTxt(infl)}% por mes (promedio de los últimos 3 meses del INDEC, se actualiza sola). Si la inflación baja, las cuotas convienen menos.</span>
+      <span class="text">${r <= 0.0005 ? '<b>Las cuotas no tienen interés</b>' : `Las cuotas te cobran <b>${pctTxt(r)} por mes</b> (${pctTxt(Math.pow(1 + r, 12) - 1, 0)} anual)`}. La inflación esperada es ${tasaTxt(infl)}% por mes: ${r < i ? 'como es mayor, la inflación "paga" parte de las cuotas.' : 'como es menor, el interés le gana a la inflación.'}</span>
+    </div>
+    <div class="card"><strong>¿Y si la inflación cambia?</strong>${esc3}
+      <span class="small muted">${resultado(i / 2) >= 0 && resultado(i * 1.5) >= 0 ? 'Las cuotas convienen en los tres casos: es una decisión segura.' : resultado(i / 2) < 0 && resultado(i * 1.5) < 0 ? 'El contado conviene en los tres casos.' : 'Depende de qué pase con la inflación: si esperás que baje, mejor contado.'}</span></div>
+    <div class="card"><strong>En tu bolsillo</strong>
+      <div class="split small"><span>Total en cuotas</span><b>${money(total)}</b></div>
+      <div class="split small"><span>${recargo > 0.5 ? 'Pagás de más (interés o recargo)' : 'Recargo'}</span><b>${recargo > 0.5 ? `+${money(recargo)} (${pctTxt(recargo / cash)})` : '$0'}</b></div>
+      <div class="split small"><span>Cada mes, hasta ${fin}</span><b>${money(cuota)}${sal ? ` · ${Math.max(1, Math.round((cuota / sal.amount) * 100))}% de tu sueldo` : ''}</b></div>
+      ${sal && cuota / sal.amount > 0.15 ? '<span class="small">Ojo: la cuota es más del 15% de tu sueldo. Sumada a otras cuotas, puede apretarte el mes.</span>' : ''}
     </div>
     <button class="btn ghost small" data-action="openLesson" data-id="cuotas" data-push="1">¿Cómo se calcula?</button>`);
   },
@@ -252,10 +260,8 @@ export const actions = {
     const def = `${now.getFullYear() + 1}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     openModal('¿Cuánto ahorrar por mes?', `<form class="form" data-submit="calcGoal">
       <div class="field"><label for="gc-t">¿Cuánto necesitás?</label><input id="gc-t" name="target" inputmode="decimal" placeholder="Ej: 2.000.000" required></div>
-      <div class="field-row">
-        <div class="field"><label for="gc-d">¿Para cuándo?</label><input id="gc-d" name="when" type="month" value="${def}"></div>
-        <div class="field"><label for="gc-h">Ya tenés</label><input id="gc-h" name="have" inputmode="decimal" placeholder="Ej: 0"></div>
-      </div>
+      <div class="field"><label for="gc-d">¿Para cuándo?</label><input id="gc-d" name="when" type="month" value="${def}"></div>
+      <div class="field"><label for="gc-h">¿Cuánto ya tenés?</label><input id="gc-h" name="have" inputmode="decimal" placeholder="Ej: 0"></div>
       <label style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;min-height:44px"><input type="checkbox" name="adjust" checked style="width:20px;height:20px"> Ajustar el monto por inflación (si es algo que se compra en pesos)</label>
       <button class="btn primary block" type="submit">Calcular</button>
     </form><div id="gc-result"></div>`);

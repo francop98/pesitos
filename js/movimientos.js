@@ -15,10 +15,12 @@ import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
 import { payOptions } from './pagos.js';
 import { nombreCuenta, saldoDeuda, totalMeDeben, totalDebo } from './cuentas.js';
-import { cuerpo as deudasCuerpo } from './deudas.js';
+import { cuerpo as estadisticasCuerpo } from './estadisticas.js';
 
 let filter = 'todo';
-let vista = 'lista'; // 'lista' | 'fijos'
+let vista = 'lista'; // 'lista' | 'fijos' | 'estadisticas'
+/** Abrir Movimientos en una pestaña (las rutas viejas #/estadisticas y #/sueldo llegan acá). */
+export function renderVista(s, v) { vista = v; return render(s); }
 let offset = 0; // meses hacia atrás
 
 const tagsHtml = (t) => ((t && t.length) ? `<span class="tags">${t.map((x) => `<span class="tag">#${esc(x)}</span>`).join('')}</span>` : '');
@@ -66,7 +68,7 @@ export function render(s) {
   const tm = totalMeDeben(s); const td = totalDebo(s);
 
   return `<section class="screen">
-    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/estadisticas" aria-label="Estadísticas">${icon('pie', 20)}</a><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
+    ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
 
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
@@ -74,26 +76,21 @@ export function render(s) {
       <button class="icon-btn" data-action="monthNext" aria-label="Mes siguiente" ${offset === 0 ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
     </div>
 
-    <a class="card mov-resumen" href="#/estadisticas">
+    <button class="card mov-resumen" data-action="movVista" data-v="estadisticas">
       <span><span class="k">Entró</span><b class="pos">${money(inc)}</b></span>
       <span><span class="k">Salió</span><b>${money(gastos)}</b></span>
       <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
-    </a>
-    <div class="mov-mini">
-      <button class="card lime mini" data-action="ahorroPesitosInfo"><span class="k">Te ahorraste con Pesitos</span><b>${money(ahorroPesitos)}</b><span class="small muted">${ahorroPesitos ? 'Promos y desafíos' : 'Tocá y mirá cómo se suma'}</span></button>
-      <button class="card mini ${vista === 'deudas' ? 'activa' : ''}" data-action="movVista" data-v="deudas"><span class="k">${icon('people', 15)} Deudas y préstamos</span>${tm || td ? `<b>${tm ? `<span class="pos">+${money(tm)}</span>` : ''}${tm && td ? ' · ' : ''}${td ? `−${money(td)}` : ''}</b><span class="small muted">${tm ? 'Te deben' : ''}${tm && td ? ' · ' : ''}${td ? 'Debés' : ''}</span>` : '<b>$0</b><span class="small muted">¿Prestaste plata? Anotalo</span>'}</button>
-    </div>
+    </button>
+    ${vista !== 'estadisticas' && (ahorroPesitos || offset === 0) ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos</b><span class="small">${ahorroPesitos ? 'Promos y desafíos que aprovechaste' : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
 
     <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
       <button role="tab" data-action="movVista" data-v="fijos" aria-pressed="${vista === 'fijos'}">Fijos${nFijos ? ` (${nFijos})` : ''}</button>
-      <button role="tab" data-action="movVista" data-v="deudas" aria-pressed="${vista === 'deudas'}">Deudas${nDeudas ? ` (${nDeudas})` : ''}</button>
+      <button role="tab" data-action="movVista" data-v="estadisticas" aria-pressed="${vista === 'estadisticas'}">Estadísticas</button>
     </div>
 
-    ${vista === 'deudas' ? `<p class="small muted" style="margin:0">Plata que prestaste o que te prestaron: lo que tiene que entrar o salir más adelante.</p>
-      ${deudasCuerpo(s)}
-      <button class="btn primary block" data-action="nuevaDeuda">+ Anotar una deuda o un préstamo</button>` : vista === 'lista' ? `
+    ${vista === 'estadisticas' ? estadisticasCuerpo(s) : vista === 'lista' ? `
       ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
       <div class="chips">${[['todo', 'Todo'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']].map(([f, l]) => `<button class="chip toggle" data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${l}</button>`).join('')}</div>
       ${dias.length ? dias.map((d) => `<div class="dia-grupo"><span class="dia-t">${esc(relDay(d.date))}</span><div class="card tight">${d.items.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('')}</div></div>`).join('')
@@ -156,7 +153,7 @@ function fixedForm(s, f = {}) {
 export const actions = {
   setFilter(ctx, el) { filter = el.dataset.f; ctx.render(); },
   movVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
-  verDeudas(ctx) { vista = 'deudas'; ctx.go('movimientos'); },
+  verDeudas(ctx) { ctx.go('deudas'); },
   monthPrev(ctx) { offset += 1; ctx.render(); },
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
   ahorroPesitosInfo(ctx) {

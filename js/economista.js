@@ -3,10 +3,13 @@
 // de IA (por ejemplo desde una función de Vercel en api/) sin cambiar las pantallas.
 
 import { money, pct, normalize, monthKey, addMonthKey, toISO, todayISO, WEEKDAYS } from './formato.js';
-import { catLabel, CHALLENGES, walletName, provinceLabel } from './categorias.js';
+import { catLabel, CHALLENGES, walletName, provinceLabel, allCategories } from './categorias.js';
 import { PROMO_CATALOG } from './promosrespaldo.js';
-import { livePromos, liveAge, expectedInflation } from './datosvivos.js';
-import { budget, buyImpact, installmentsVsCash, monthExpenses, salaryStats, mainGoal, holdingsTotal } from './calculos.js';
+import { livePromos, liveAge, expectedInflation, lastIpc } from './datosvivos.js';
+import { budget, buyImpact, installmentsVsCash, monthExpenses, salaryStats, mainGoal, holdingsTotal, payCycle, cardSummary, goalEta } from './calculos.js';
+import { agenda } from './agenda.js';
+import { totalCuentas, cuentasConSaldo, saldoCuenta, deudasAbiertas, saldoDeuda, totalMeDeben, totalDebo } from './cuentas.js';
+import { todosLosPresupuestos } from './presupuestos.js';
 
 export const DISCLAIMER = 'Información educativa y general, no es asesoramiento financiero personalizado.';
 
@@ -121,72 +124,173 @@ function amountIn(text) {
   return Math.round(n);
 }
 
-export function answer(question, s) {
-  const q = normalize(question);
-  const b = budget(s);
+// ---------- consultas: entiende palabras clave y responde con tus números ----------
+// Cada tema tiene palabras que lo disparan. Gana el tema con más coincidencias;
+// a igualdad, el que está antes en la lista. Si nada coincide, sugiere preguntas.
+const DONDE = [
+  [/deuda|prest/, 'Las deudas y préstamos están en Por pagar → Deudas (barra de abajo). Si tenés alguna abierta, también la ves en Inicio, en "Tu día".'],
+  [/sueldo/, 'Tu sueldo está en Movimientos → Estadísticas → Tu sueldo. También tenés un atajo en el menú ☰ → Tu sueldo.'],
+  [/estadistic|grafic|en que (gasto|gaste)/, 'Las estadísticas están en Movimientos → Estadísticas (o tocando el resumen del mes).'],
+  [/tarjeta/, 'Tus tarjetas están en Por pagar → Tarjetas: ahí ves cada resumen, las cuotas y cuánto tenés comprometido.'],
+  [/meta|objetivo/, 'Las metas están en Mi plata → Plan de ahorro.'],
+  [/saldo|cuenta/, 'El saldo de cada cuenta está en Mi plata → Cuentas.'],
+  [/ahorro|inversion/, 'Tus ahorros están en Mi plata → Ahorros, y tu forma de ahorrar en Mi plata → Plan de ahorro.'],
+  [/promo|beneficio|descuento/, 'Las promos están en Inicio → "Tu día" → Promo de hoy, o en Beneficios.'],
+  [/fijo|alquiler|servicio/, 'Los gastos fijos están en Movimientos → Fijos.'],
+  [/pin|huella|contrasena|clave/, 'El PIN y la huella están en Menú ☰ → PIN de seguridad y huella. La contraseña, tocando tu nombre arriba del menú.'],
+  [/copia|backup|exportar|excel|pdf/, 'Para descargar tus datos: Menú ☰ → Copia de seguridad. Para un Excel o PDF del mes: Movimientos → Estadísticas.'],
+  [/tope|presupuesto|limite/, 'Los topes por categoría están en Movimientos → Estadísticas: tocá una categoría.'],
+  [/herramienta|calcul|conversor/, 'Las herramientas están en la barra de abajo: ¿Me lo compro?, Cuotas o contado, ¿Dónde rinde más?, Plazo fijo o dólar y más.'],
+];
 
-  if (/cuota/.test(q)) {
-    const n = Number((q.match(/(\d{1,2})\s*cuotas?/) || [])[1]) || 12;
-    const disc = Number((q.match(/(\d{1,2})\s*%/) || [])[1]) || 0;
-    const price = amountIn(q.replace(/(\d{1,2})\s*cuotas?/, '').replace(/(\d{1,2})\s*%/, '')) || 100000;
-    const infl = expectedInflation(s);
-    const r = installmentsVsCash(price, n, disc, infl);
-    const base = `Con una inflación esperada de ${String(infl).replace('.', ',')}% mensual (promedio de los últimos 3 meses del INDEC), ${n} cuotas sin interés de ${money(price)} equivalen hoy a ${money(r.pv)}.`;
-    const cash = disc ? ` De contado, con ${disc}% de descuento, pagás ${money(r.cash)}.` : ` De contado pagás ${money(r.cash)}.`;
-    const verdict = r.better === 'cuotas' ? `\n\nConvienen las cuotas: ahorrás unos ${money(r.diff)} en valor real.` : `\n\nConviene el contado: ahorrás unos ${money(r.diff)}.`;
-    const tip = disc ? '' : '\n\nSi el contado tiene descuento, indicalo (por ejemplo: "12 cuotas o contado con 10%, $300.000") y recalculo.';
-    return base + cash + verdict + tip + '\n\nVale solo si las cuotas no tienen interés y entran cómodas en tu mes.';
-  }
+const TEMAS = [
+  { id: 'donde', k: [/^(donde|como (encuentro|veo|llego))|donde (esta|estan|veo|encuentro|cargo|pongo el|agrego)/], r: (q) => { if (/donde (pongo|invierto|meto|guardo|conviene|rinde)/.test(q)) return null; const d = DONDE.find(([re]) => re.test(q)); return d ? d[1] : null; } },
+  { id: 'saludo', k: [/^(hola|buenas|buen dia|buenas tardes|buenas noches)\b/, /^gracias|^genial|^perfecto/], r: (q) => (/gracias|genial|perfecto/.test(q) ? '¡De nada! Si querés, preguntame otra cosa.' : '¡Hola! Preguntame lo que quieras de tu plata: cuánto podés gastar hoy, qué vence, cuánto gastaste en algo, si te conviene una compra o dónde rinde más tu plata.') },
+  { id: 'cuotas', k: [/cuota/, /contado/] },
+  { id: 'compra', k: [/me lo compro|me compro|comprarme|puedo comprar|conviene comprar|me alcanza para/] },
+  { id: 'hoy', k: [/cuanto (puedo|me queda)|puedo gastar|me queda|hoy puedo|diario|por dia/] },
+  { id: 'gaste', k: [/gaste|gasto|gastos|gastado|en que se (me )?fue/] },
+  { id: 'vence', k: [/vence|vencimiento|tengo que pagar|por pagar|proximo pago|pagos/] },
+  { id: 'tarjeta', k: [/tarjeta|resumen|visa|master|cierre/] },
+  { id: 'deudas', k: [/deuda|debo|me deben|preste|prestamo|presto/] },
+  { id: 'saldo', k: [/saldo|cuanto tengo|plata tengo|en mis cuentas|en la cuenta/] },
+  { id: 'cobro', k: [/cuando cobro|cobro|dia de pago|me pagan/] },
+  { id: 'metas', k: [/meta|objetivo|llego a/] },
+  { id: 'promos', k: [/promo|descuento|reintegro|beneficio/] },
+  { id: 'dolar', k: [/dolar|cotizacion|blue|mep|euro|real\b|bitcoin|cripto/] },
+  { id: 'rinde', k: [/rinde|tasa|interes|plazo fijo|billetera|mercado pago|uala|fci|money market/] },
+  { id: 'sueldo', k: [/sueldo|aumento|salario|le gane|poder de compra/] },
+  { id: 'inflacion', k: [/inflacion|ipc|indec|precios/] },
+  { id: 'extra', k: [/aguinaldo|bono|ingreso extra|me sobro/] },
+  { id: 'invertir', k: [/donde (pongo|invierto|ahorro|meto|guardo)|invertir|inversion/] },
+  { id: 'ahorro', k: [/ahorr/] },
+  { id: 'topes', k: [/tope|presupuesto|limite/] },
+];
 
-  if (/me lo compro|comprar|compro|me compro/.test(q)) {
-    const amount = amountIn(q);
-    if (!amount) return 'Indicame el monto, por ejemplo: "¿Me compro unas zapatillas de $90.000?"';
-    const r = buyImpact(s, amount);
-    return `${r.title}. ${r.text}${r.extra ? '\n\n' + r.extra : ''}`;
-  }
+const fecha = (iso) => { const d = new Date(iso + 'T00:00:00'); return `${d.getDate()}/${d.getMonth() + 1}`; };
+const dineroEn = (q) => amountIn(q.replace(/(\d{1,2})\s*cuotas?/, '').replace(/(\d{1,2})\s*%/, ''));
 
-  if (/promo|descuento|reintegro/.test(q)) {
-    if (!(s.wallets || []).length) return 'Cargá tus bancos, billeteras y tarjetas en Menú → Mis medios de pago y te digo qué descuentos tenés cada día.';
-    const lines = [];
-    for (let i = 0; i < 7; i++) {
-      const day = (new Date().getDay() + i) % 7;
-      const ps = promosForDay(s, day).slice(0, 2);
-      if (ps.length) lines.push(`• ${WEEKDAYS[day][0].toUpperCase() + WEEKDAYS[day].slice(1)}: ${ps.map((p) => `${p.pct}% ${p.merchant || catLabel(p.category).toLowerCase()} (${p.name})`).join(', ')}`);
+function responder(id, q, s, b) {
+  switch (id) {
+    case 'cuotas': {
+      const n = Number((q.match(/(\d{1,2})\s*cuotas?/) || [])[1]) || 12;
+      const disc = Number((q.match(/(\d{1,2})\s*%/) || [])[1]) || 0;
+      const price = dineroEn(q) || 100000;
+      const infl = expectedInflation(s);
+      const r = installmentsVsCash(price, n, disc, infl);
+      return `Con una inflación esperada de ${String(infl).replace('.', ',')}% mensual, ${n} cuotas sin interés de ${money(price)} equivalen hoy a ${money(r.pv)}.${disc ? ` De contado, con ${disc}% de descuento, pagás ${money(r.cash)}.` : ` De contado pagás ${money(r.cash)}.`}\n\n${r.better === 'cuotas' ? `Convienen las cuotas: ganás unos ${money(r.diff)} en valor real.` : `Conviene el contado: ahorrás unos ${money(r.diff)}.`}\n\nSi las cuotas tienen interés, usá Herramientas → Cuotas o contado: te digo cuánto interés te cobran y qué pasa si la inflación cambia.`;
     }
-    return lines.length ? 'Tus promos de la semana:\n' + lines.join('\n') : 'No encontré promos cargadas para tus medios de pago. Podés sumar las tuyas en Inicio → Beneficios → Promos que cargaste.';
+    case 'compra': {
+      const amount = dineroEn(q);
+      if (!amount) return 'Decime el monto, por ejemplo: "¿Me compro unas zapatillas de $90.000?". Para un análisis completo, usá Herramientas → ¿Me lo compro?';
+      const r = buyImpact(s, amount);
+      return `${r.title}. ${r.text}${r.extra ? '\n\n' + r.extra : ''}\n\nAntes de decidir: ¿lo necesitás o lo querés? Si es un gusto grande, esperá 48 horas.`;
+    }
+    case 'hoy':
+      if (b.noIncome) return 'Cargá tu sueldo y te digo cuánto podés gastar por día.';
+      return `Hoy podés gastar ${money(Math.max(0, b.todayLeft))}${b.todayLeft < 0 ? ` (hoy ya te pasaste ${money(-b.todayLeft)})` : ''}. Hasta el cobro (${b.cycle.daysLeft} días) te quedan ${money(Math.max(0, b.free))} libres, ya descontando fijos y ahorro.`;
+    case 'gaste': {
+      const mk = /mes pasado|anterior/.test(q) ? addMonthKey(monthKey(), -1) : monthKey();
+      const e = monthExpenses(s, mk);
+      const cat = allCategories().find((c) => q.includes(normalize(c.label)) || (c.short && q.includes(normalize(c.short))));
+      const cuando = mk === monthKey() ? 'este mes' : 'el mes pasado';
+      if (cat) return `En ${cat.label.toLowerCase()} gastaste ${money(e.byCat[cat.id] || 0)} ${cuando}${e.total ? ` (el ${Math.round(((e.byCat[cat.id] || 0) / e.total) * 100)}% de tus gastos variables)` : ''}.`;
+      const top = Object.entries(e.byCat).sort((a, x) => x[1] - a[1]).slice(0, 3);
+      return `${cuando[0].toUpperCase() + cuando.slice(1)} gastaste ${money(e.total)} en gastos variables${top.length ? `. Lo que más: ${top.map(([c, v]) => `${catLabel(c).toLowerCase()} ${money(v)}`).join(', ')}` : ''}.\n\nEl detalle está en Movimientos → Estadísticas.`;
+    }
+    case 'vence': {
+      const semana = /semana/.test(q); const hoy = /\bhoy\b/.test(q);
+      const prox = agenda(s, 31).filter((i) => !i.paid && i.days >= -7 && (!semana || i.days <= 7) && (!hoy || i.days <= 0)).slice(0, 6);
+      if (!prox.length) return `No tenés pagos pendientes ${hoy ? 'para hoy' : semana ? 'esta semana' : 'en los próximos 30 días'}. 🎉`;
+      return `Lo próximo que tenés que pagar:\n${prox.map((i) => `• ${i.name}: ${i.amount ? `${i.estimated ? '≈ ' : ''}${money(i.amount)}` : 'a confirmar'} (${i.days < 0 ? `venció el ${fecha(i.due)}` : i.days === 0 ? 'vence hoy' : `vence el ${fecha(i.due)}`})`).join('\n')}\n\nTodo está en Por pagar.`;
+    }
+    case 'tarjeta': {
+      if (!(s.cards || []).length) return 'Todavía no cargaste tarjetas. Hacelo en Por pagar → Tarjetas y te digo cuánto viene en cada resumen.';
+      return s.cards.map((c) => { const x = cardSummary(s, c); return `• ${c.name}: este resumen ${money(x.next)}; en total tenés comprometidos ${money(x.committed)}${c.limit ? ` (${Math.round(x.used * 100)}% del límite)` : ''}.`; }).join('\n') + '\n\nEl detalle está en Por pagar → Tarjetas.';
+    }
+    case 'deudas': {
+      const ab = deudasAbiertas(s);
+      if (!ab.length) return 'No tenés deudas ni préstamos abiertos. Si le prestás plata a alguien, anotalo en Por pagar → Deudas.';
+      return `${totalMeDeben(s) ? `Te deben ${money(totalMeDeben(s))}. ` : ''}${totalDebo(s) ? `Debés ${money(totalDebo(s))}.` : ''}\n${ab.slice(0, 5).map((d) => `• ${d.tipo === 'meDeben' ? `${d.persona} te debe` : `Le debés a ${d.persona}`} ${money(saldoDeuda(d))}${d.vence ? ` (vence el ${fecha(d.vence)})` : ''}`).join('\n')}`;
+    }
+    case 'saldo': {
+      const con = cuentasConSaldo(s);
+      if (!con.length) return 'Todavía no cargaste el saldo de tus cuentas. Hacelo en Mi plata → Cuentas: después se actualiza solo con cada gasto e ingreso.';
+      return `En tus cuentas tenés ${money(totalCuentas(s))}:\n${con.map((c) => `• ${c.name}: ${money(saldoCuenta(s, c.id))}`).join('\n')}${holdingsTotal(s) ? `\n\nY ahorrado: ${money(holdingsTotal(s))}.` : ''}`;
+    }
+    case 'cobro': {
+      const c = payCycle(s);
+      return `Tu próximo cobro es el ${fecha(c.nextISO)}: faltan ${c.daysLeft} día${c.daysLeft === 1 ? '' : 's'}.${b.noIncome ? '' : ` Hasta ese día te quedan ${money(Math.max(0, b.free))} libres.`}`;
+    }
+    case 'metas': {
+      if (!s.goals.length) return 'Todavía no tenés metas. Creá una en Mi plata → Plan de ahorro: te digo cuánto apartar y cuándo llegás.';
+      return s.goals.map((g) => `• ${g.name}: ${g.target ? `${money(g.saved)} de ${money(g.target)} (${Math.round((g.saved / g.target) * 100)}%)` : `${money(g.saved)} juntados`}. ${goalEta(g).text}.`).join('\n');
+    }
+    case 'promos': {
+      if (!(s.wallets || []).length) return 'Cargá tus bancos, billeteras y tarjetas en Menú → Mis medios de pago y te digo qué descuentos tenés cada día.';
+      const soloHoy = /hoy/.test(q);
+      const lines = [];
+      for (let i = 0; i < (soloHoy ? 1 : 7); i++) {
+        const day = (new Date().getDay() + i) % 7;
+        const ps = promosForDay(s, day).slice(0, soloHoy ? 5 : 2);
+        if (ps.length) lines.push(`• ${i === 0 ? 'Hoy' : WEEKDAYS[day][0].toUpperCase() + WEEKDAYS[day].slice(1)}: ${ps.map((p) => `${p.pct}% ${p.merchant || catLabel(p.category).toLowerCase()} (${p.name})`).join(', ')}`);
+      }
+      return lines.length ? `${soloHoy ? 'Tus promos de hoy' : 'Tus promos de la semana'}:\n${lines.join('\n')}` : 'No encontré promos para tus medios de pago. Podés sumar las tuyas en Beneficios → Promos que cargaste.';
+    }
+    case 'dolar': {
+      const r = s.rates || {}; const d = r.dolares || {};
+      const fila = (n, x) => (x && x.venta ? `• ${n}: ${money(x.compra)} / ${money(x.venta)}` : null);
+      const lines = [fila('Blue', d.blue || r.USD), fila('Oficial', d.oficial), fila('MEP', d.bolsa), fila('Tarjeta', d.tarjeta)].filter(Boolean);
+      if (/euro/.test(q) && r.EUR) lines.push(`• Euro: ${money(r.EUR.venta)}`);
+      if (/real\b/.test(q) && r.BRL) lines.push(`• Real: ${money(r.BRL.venta)}`);
+      return lines.length ? `Cotizaciones (compra / venta):\n${lines.join('\n')}\n\nSe actualizan solas cada 5 minutos.` : 'Todavía no pude traer las cotizaciones. Se cargan solas apenas haya conexión.';
+    }
+    case 'rinde': {
+      const t = (s.rendimientos && s.rendimientos.tasas) || {}; const pf = (s.rendimientos && s.rendimientos.plazoFijo) || {};
+      const bill = Object.entries(t).sort((a, x) => x[1].tna - a[1].tna).slice(0, 3);
+      const pfs = Object.entries(pf).sort((a, x) => x[1] - a[1]).slice(0, 2);
+      if (!bill.length && !pfs.length) return 'Todavía no pude traer las tasas. Se cargan solas apenas haya conexión.';
+      return `Hoy rinde más:\n${bill.map(([id, x]) => `• ${({ mercadopago: 'Mercado Pago', uala: 'Ualá', cocos: 'Cocos', fiwind: 'Fiwind', letsbit: 'Letsbit' })[id] || id}: ${String(x.tna).replace('.', ',')}% anual (día a día)`).join('\n')}${pfs.length ? `\n${pfs.map(([n, v]) => `• Plazo fijo ${n.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase())}: ${String(v).replace('.', ',')}% anual`).join('\n')}` : ''}\n\nLa comparación completa está en Herramientas → ¿Dónde rinde más?`;
+    }
+    case 'sueldo': {
+      const st = salaryStats(s);
+      if (!st) return 'Todavía no cargaste sueldos. Andá a Movimientos → Estadísticas → Tu sueldo y cargá los últimos meses.';
+      let t = `En los últimos ${st.span} meses tu sueldo subió ${pct(st.nomGrowth)} y la inflación fue ${pct(st.inflation)}: en términos reales ${st.realGrowth >= 0 ? 'ganaste' : 'perdiste'} ${pct(Math.abs(st.realGrowth), 1, false)}.`;
+      if (st.toRecover > 0) t += `\n\nPara volver a tu mejor mes necesitarías un aumento de ${pct(st.toRecover, 0, false)}. Es un buen número para llevar a una negociación.`;
+      return t;
+    }
+    case 'inflacion': {
+      const l = lastIpc(s);
+      return `${l ? `La última inflación del INDEC fue ${String(l.value).replace('.', ',')}% (${fecha(l.mk + '-01').slice(2)}). ` : ''}La que uso para tus cálculos es ${String(expectedInflation(s)).replace('.', ',')}% por mes: el promedio de los últimos 3 meses.`;
+    }
+    case 'extra': {
+      const emergency = s.goals.find((g) => /emergencia/i.test(g.name));
+      const lines = ['Una forma ordenada de usar un ingreso extra:'];
+      if (emergency && emergency.target && emergency.saved < emergency.target) lines.push(`• Primero completá tu fondo de emergencia (te faltan ${money(emergency.target - emergency.saved)}).`);
+      else lines.push('• Si no tenés fondo de emergencia, arrancá por ahí: de 3 a 6 meses de gastos fijos.');
+      lines.push('• Lo que sigue, a tus metas según el plazo de cada una.', '• Y reservá un 10% a 20% para darte un gusto sin culpa.');
+      return lines.join('\n');
+    }
+    case 'invertir': return OPTIONS_TEXT;
+    case 'ahorro': return `Tenés ${money(holdingsTotal(s))} ahorrados. Este ciclo tus reglas apartan ${money(b.saving)}.${s.goals.length ? ` Tu meta principal: ${mainGoal(s) ? mainGoal(s).name : s.goals[0].name}.` : ''}`;
+    case 'topes': {
+      const ts = todosLosPresupuestos(s);
+      if (!ts.length) return 'No tenés topes por categoría. Ponelos en Movimientos → Estadísticas, tocando una categoría.';
+      return ts.map((p) => `• ${catLabel(p.cat)}: ${money(p.gastado)} de ${money(p.limite)}${p.pct >= 1 ? ' (te pasaste)' : ''}`).join('\n');
+    }
+    default: return null;
   }
+}
 
-  if (/aguinaldo|bono|extra/.test(q)) {
-    const emergency = s.goals.find((g) => /emergencia/i.test(g.name));
-    const lines = ['Una forma ordenada de usar un ingreso extra:'];
-    if (emergency && emergency.target && emergency.saved < emergency.target) lines.push(`• Primero completá tu fondo de emergencia (te faltan ${money(emergency.target - emergency.saved)}).`);
-    else lines.push('• Si no tenés fondo de emergencia, arrancá por ahí: de 3 a 6 meses de gastos fijos.');
-    lines.push('• Lo que sigue, a tus metas según el plazo de cada una.');
-    lines.push('• Y reservá un 10% a 20% para darte un gusto sin culpa.');
-    return lines.join('\n');
+export function answer(question, s) {
+  const q = normalize(question).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const b = budget(s);
+  const puntaje = TEMAS.map((t, i) => ({ t, i, n: t.k.reduce((a, re) => a + (re.test(q) ? 1 : 0), 0) })).filter((x) => x.n).sort((a, x) => x.n - a.n || a.i - x.i);
+  for (const { t } of puntaje) {
+    const r = t.r ? t.r(q) : responder(t.id, q, s, b);
+    if (r) return r;
   }
-
-  if (/donde (pongo|invierto|ahorro|meto|guardo)|invertir|inversion|plazo fijo|fci|dolar/.test(q)) return OPTIONS_TEXT;
-
-  if (/cuanto (puedo|me queda)|puedo gastar|me queda/.test(q)) {
-    if (b.noIncome) return 'Cargá tu sueldo y te digo cuánto podés gastar por día.';
-    return `Hoy podés gastar ${money(Math.max(0, b.todayLeft))}. Hasta el cobro (${b.cycle.daysLeft} días) te quedan ${money(Math.max(0, b.free))} libres, ya descontando fijos y ahorro.`;
-  }
-
-  if (/sueldo|aumento|inflacion|salario/.test(q)) {
-    const st = salaryStats(s);
-    if (!st) return 'Todavía no cargaste sueldos. Andá a la pestaña Sueldo y cargá los últimos meses.';
-    let t = `En los últimos ${st.span} meses tu sueldo subió ${pct(st.nomGrowth)} y la inflación fue ${pct(st.inflation)}: en términos reales ${st.realGrowth >= 0 ? 'ganaste' : 'perdiste'} ${pct(Math.abs(st.realGrowth), 1, false)}.`;
-    if (st.toRecover > 0) t += `\n\nPara volver a tu mejor mes necesitarías un aumento de ${pct(st.toRecover, 0, false)}. Es un buen número para llevar a una negociación.`;
-    if (st.missing.length) t += `\n\nEl INDEC todavía no publicó ${st.missing.length === 1 ? 'el último mes' : `${st.missing.length} meses`}: por ahora uso una estimación y se corrige sola cuando sale el dato.`;
-    return t;
-  }
-
-  if (/ahorr/.test(q)) {
-    return `Tenés ${money(holdingsTotal(s))} ahorrados. Este ciclo tus reglas apartan ${money(b.saving)}.`;
-  }
-
-  return 'Todavía estoy aprendiendo. Probá con:\n• "¿12 cuotas o contado con 10%? $300.000"\n• "¿Me compro algo de $80.000?"\n• "¿Qué promos tengo esta semana?"\n• "¿Dónde pongo mis ahorros?"\n• "¿Le gané a la inflación?"';
+  return 'No te entendí del todo. Podés preguntarme, por ejemplo:\n• "¿Cuánto puedo gastar hoy?"\n• "¿Cuánto gasté en súper este mes?"\n• "¿Qué vence esta semana?"\n• "¿Cuánto tengo en mis cuentas?"\n• "¿Me compro algo de $80.000?"\n• "¿Dónde rinde más mi plata?"\n• "¿A cuánto está el dólar?"\n• "¿Dónde están mis deudas?"';
 }
 
 export const OPTIONS_TEXT = `Depende de cuándo vas a necesitar la plata:

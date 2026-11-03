@@ -48,8 +48,9 @@ import { setCustomCategories, setCustomWallets } from './js/categorias.js';
 
 // rutas viejas que ahora son pestañas de otra pantalla
 const vistaDe = (mod, v) => ({ render: (s) => mod.renderVista(s, v) });
-const views = { inicio, movimientos, ahorro, asesor, beneficios, herramientas, pagos, buscar, presupuestos, deudas, estadisticas,
-  cuentas: vistaDe(ahorro, 'cuentas'), tarjetas: vistaDe(pagos, 'tarjetas'), sueldo: vistaDe(estadisticas, 'sueldo') };
+const views = { inicio, movimientos, ahorro, asesor, beneficios, herramientas, pagos, buscar, presupuestos,
+  cuentas: vistaDe(ahorro, 'cuentas'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas: vistaDe(pagos, 'deudas'),
+  estadisticas: vistaDe(movimientos, 'estadisticas'), sueldo: { render: (s) => { estadisticas.usarPestana('sueldo'); return movimientos.renderVista(s, 'estadisticas'); } } };
 const NAV_ORDER = ['inicio', 'movimientos', 'pagos', 'ahorro', 'herramientas'];
 
 let state = emptyState();
@@ -115,7 +116,7 @@ function render() {
   goingBack = false;
   lastRoute = route;
 
-  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'movimientos', cuentas: 'ahorro', deudas: 'movimientos', estadisticas: 'movimientos', sueldo: 'movimientos', asesor: 'inicio' }[route] || route;
+  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'movimientos', cuentas: 'ahorro', deudas: 'pagos', estadisticas: 'movimientos', sueldo: 'movimientos', asesor: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });

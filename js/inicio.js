@@ -9,7 +9,7 @@ import { lessonCard } from './aprender.js';
 import { catLabel } from './categorias.js';
 import { alerts, dueLabel, closings, agenda } from './agenda.js';
 import { promosForDay } from './economista.js';
-import { totalCuentas, cuentasConSaldo } from './cuentas.js';
+import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo } from './cuentas.js';
 import { projection, coverage } from './flujo.js';
 import { reglaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
@@ -205,11 +205,13 @@ function tuDia(s) {
   const prox = agenda(s, 31).find((i) => !i.paid && i.days >= -7);
   const promo = promosForDay(s, new Date().getDay())[0];
   const con = cuentasConSaldo(s).length;
+  const tm = totalMeDeben(s); const td = totalDebo(s);
   const fila = (href, ic, k, v, sub) => `<a class="dia-fila" href="${href}"><span class="cat-icon">${icon(ic, 18)}</span><span class="grow"><span class="k">${k}${sub ? ` · ${sub}` : ''}</span><span class="v">${v}</span></span>${icon('chevron', 16)}</a>`;
   return `<div class="card tight tu-dia"><span class="tu-dia-t">Tu día</span>
     ${fila('#/pagos', 'calendar', 'Próximo pago', prox ? `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}` : 'Nada por pagar este mes', prox ? esc(dueLabel(prox)) : '')}
     ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
     ${fila('#/cuentas', 'wallet', 'En tus cuentas', con ? money(totalCuentas(s)) : 'Cargá tu saldo', '')}
+    ${tm || td ? fila('#/deudas', 'people', 'Deudas y préstamos', `${tm ? `Te deben ${money(tm)}` : ''}${tm && td ? ' · ' : ''}${td ? `Debés ${money(td)}` : ''}`, '') : ''}
   </div>`;
 }
 

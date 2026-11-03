@@ -102,10 +102,10 @@ export function render(s) {
     ${tab === 'consultas' ? `
     <div class="section-title"><span>Consultale a Pesitos</span>${s.chat.length ? '<button data-action="clearChat">Limpiar</button>' : ''}</div>
     <div class="chat">
-      ${chat.length ? chat.map((m) => `<div class="bubble ${m.from}">${esc(m.text)}</div>`).join('') : '<div class="bubble bot">Hola. Consultame si te conviene pagar en cuotas, si te podés comprar algo, qué promos tenés o si le ganaste a la inflación.</div>'}
+      ${chat.length ? chat.map((m) => `<div class="bubble ${m.from}">${esc(m.text)}</div>`).join('') : '<div class="bubble bot">Hola. Preguntame lo que quieras de tu plata, con tus palabras: cuánto podés gastar hoy, qué vence, cuánto gastaste en algo, si te conviene una compra, dónde rinde más o dónde está cada cosa en la app.</div>'}
     </div>
-    <div class="chips">
-      ${['¿12 cuotas o contado con 10%? $300.000', '¿Me compro algo de $80.000?', '¿Qué promos tengo esta semana?', '¿Le gané a la inflación?'].map((q) => `<button class="chip" data-action="ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}
+    <div class="chips chips-scroll">
+      ${['¿Cuánto puedo gastar hoy?', '¿Qué vence esta semana?', '¿Cuánto gasté este mes?', '¿Cuánto tengo en mis cuentas?', '¿Me compro algo de $80.000?', '¿6 cuotas o contado con 10%? $300.000', '¿Dónde rinde más mi plata?', '¿A cuánto está el dólar?', '¿Qué promos tengo hoy?', '¿Le gané a la inflación?', '¿Cómo van mis metas?', '¿Dónde están mis deudas?'].map((q) => `<button class="chip" data-action="ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}
     </div>
     <form class="quick" data-submit="askForm" autocomplete="off">
       <label for="ask" class="sr-only">Escribí tu consulta</label>
