@@ -1,10 +1,12 @@
 // Tarjetas de crédito: próximo resumen, cuotas pendientes y lo que ya
 // tenés comprometido en los próximos meses.
 
-import { money, esc, num, monthName } from './formato.js';
+import { money, esc, num, monthName, monthDiff } from './formato.js';
 import { cardSummary } from './calculos.js';
 import { icon, sprout, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
-import { agenda, dueLabel, bestBuyDay } from './agenda.js';
+import { agenda, dueLabel, bestBuyDay, statementDates, statementOf } from './agenda.js';
+import { currentPromos } from './economista.js';
+import { allWallets, walletName, catLabel } from './categorias.js';
 import { cardPlan } from './flujo.js';
 import { payOptions } from './pagos.js';
 import { uid } from './almacenamiento.js';
@@ -31,12 +33,57 @@ function planBlock(s, c) {
   </div>${best}`;
 }
 
+export const MARCAS = [['visa', 'Visa'], ['mastercard', 'Mastercard'], ['amex', 'American Express'], ['cabal', 'Cabal'], ['naranja', 'Naranja'], ['otra', 'Otra']];
+const dias = (a, b) => Math.round((b - a) / 86400000);
+const hoy0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+
+// Datos útiles de la tarjeta: días al cierre, disponible, dólares, cuotas que terminan, promos y costos.
+function datosTarjeta(s, c, sum) {
+  const { close, due } = statementDates(c, sum.current);
+  const h = hoy0();
+  const alCierre = dias(h, close); const alVto = dias(h, due);
+  // gastos en dólares de este resumen
+  const delResumen = s.expenses.filter((e) => !e.pending && e.cardId === c.id && statementOf(c, e.date) === sum.current);
+  const usd = delResumen.filter((e) => e.currency === 'USD').reduce((a, e) => a + (Number(e.original) || 0) / (e.installments > 1 ? e.installments : 1), 0);
+  // cuotas que terminan en este resumen: el mes que viene se liberan
+  const terminan = sum.pending.filter((p) => p.last === sum.current);
+  const libera = terminan.reduce((a, p) => a + p.each, 0);
+  // en qué se fue este resumen (compras nuevas + cuotas que caen acá)
+  const porCat = {};
+  for (const e of s.expenses) {
+    if (e.pending || e.cardId !== c.id) continue;
+    const n = e.installments > 1 ? e.installments : 1;
+    const k = monthDiff(statementOf(c, e.date), sum.current);
+    if (k >= 0 && k < n) porCat[e.category] = (porCat[e.category] || 0) + e.amount / n;
+  }
+  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  // promos de su banco o marca en los próximos 7 días
+  const ids = [c.banco, c.marca].filter(Boolean);
+  const promos = ids.length ? currentPromos(s).items.filter((p) => ids.includes(p.wallet)) : [];
+  const disponible = c.limit ? Math.max(0, c.limit - sum.committed) : null;
+  const dispCuotas = c.limitCuotas ? Math.max(0, c.limitCuotas - sum.pending.reduce((a, p) => a + p.remaining, 0)) : null;
+  const dato = (k, v, sub = '') => `<div class="t-dato"><span class="k">${k}</span><b>${v}</b>${sub ? `<span class="small muted">${sub}</span>` : ''}</div>`;
+  return `<div class="card t-datos">
+    <div class="t-grid">
+      ${dato('Cierra', alCierre === 0 ? 'Hoy' : alCierre === 1 ? 'Mañana' : `En ${alCierre} días`, `${close.getDate()}/${close.getMonth() + 1}`)}
+      ${dato('Vence', alVto === 0 ? 'Hoy' : alVto === 1 ? 'Mañana' : `En ${alVto} días`, `${due.getDate()}/${due.getMonth() + 1}`)}
+      ${disponible !== null ? dato('Disponible', money(disponible), `de ${money(c.limit)}`) : dato('Disponible', '—', '<button class="link-btn" data-action="editCard" data-id="' + esc(c.id) + '">Cargá el límite</button>')}
+      ${dispCuotas !== null ? dato('Para cuotas', money(dispCuotas), `de ${money(c.limitCuotas)}`) : dato('En cuotas', money(sum.pending.reduce((a, p) => a + p.remaining, 0)), `${sum.pending.length} compra${sum.pending.length === 1 ? '' : 's'}`)}
+    </div>
+    ${usd ? `<span class="small">💵 En este resumen tenés <b>US$ ${String(Math.round(usd * 100) / 100).replace('.', ',')}</b> en dólares. Si los pagás en dólares (comprados o de tu cuenta) evitás la percepción de impuestos que se cobra al pagarlos en pesos.</span>` : ''}
+    ${libera ? `<span class="small">✅ En este resumen terminan ${terminan.length === 1 ? `las cuotas de <b>${esc(terminan[0].e.note)}</b>` : `<b>${terminan.length} compras en cuotas</b>`}: desde el próximo pagás ${money(libera)} menos por mes.</span>` : ''}
+    ${cats.length ? `<span class="small muted">Este resumen se va en: ${cats.map(([k, v]) => `${esc(catLabel(k))} ${money(v)}`).join(' · ')}</span>` : ''}
+    ${promos.length ? `<a class="small" href="#/beneficios">🏷️ ${promos.length} promo${promos.length === 1 ? '' : 's'} vigente${promos.length === 1 ? '' : 's'} con ${esc(ids.map(walletName).join(' / '))}. Ver beneficios ›</a>` : ''}
+    ${c.comision ? `<span class="small">Mantenimiento: ${money(c.comision)} por mes (<b>${money(c.comision * 12)} por año</b>). Pedile al banco que te la bonifique, o evaluá una tarjeta sin costo de mantenimiento.</span>` : ''}
+  </div>`;
+}
+
 function cardBlock(s, c) {
   const sum = cardSummary(s, c);
   const max = Math.max(1, ...sum.months.map((m) => m.amount));
   return `<div class="card credit">
     <div class="credit-head">
-      <span class="credit-name">${icon('card', 20)} ${esc(c.name)}</span>
+      <span class="credit-name">${icon('card', 20)} ${esc(c.name)}${c.marca || c.banco ? `<span class="credit-sub">${esc([c.marca && c.marca !== 'otra' ? (MARCAS.find((m) => m[0] === c.marca) || [])[1] : '', c.banco ? walletName(c.banco) : ''].filter(Boolean).join(' · '))}</span>` : ''}</span>
       <span class="head-actions"><button class="chip" data-action="openImportar" data-medio="card:${c.id}">Importar</button>
       <button class="chip" data-action="editCard" data-id="${c.id}">Editar</button></span>
     </div>
@@ -47,6 +94,8 @@ function cardBlock(s, c) {
     ${c.limit ? `<div class="bar"><span style="width:${Math.min(100, Math.round(sum.used * 100))}%"></span></div>
       <div class="split on-green-muted"><span>Comprometido: ${money(sum.committed)}</span><span>Límite: ${money(c.limit)}</span></div>` : ''}
   </div>
+
+  ${datosTarjeta(s, c, sum)}
 
   ${planBlock(s, c)}
 
@@ -77,7 +126,15 @@ export function render(s) {
 
 /** Tarjetas, resúmenes y cuotas (también en Por pagar → Tarjetas). */
 export function cuerpo(s) {
+  const sums = s.cards.map((c) => ({ c, sum: cardSummary(s, c) }));
+  const total = sums.reduce((a, x) => a + x.sum.next, 0);
+  const comp = sums.reduce((a, x) => a + x.sum.committed, 0);
+  const lim = s.cards.reduce((a, c) => a + (c.limit || 0), 0);
   return `
+    ${s.cards.length > 1 ? `<div class="stat-grid">
+      <div class="stat"><span class="k">Próximos resúmenes</span><span class="v">${money(total)}</span><span class="small muted">${s.cards.length} tarjetas</span></div>
+      <div class="stat"><span class="k">Comprometido a futuro</span><span class="v">${money(comp)}</span><span class="small muted">${lim ? `disponible ${money(Math.max(0, lim - comp))}` : 'cuotas incluidas'}</span></div>
+    </div>` : ''}
     ${s.cards.length ? s.cards.map((c) => cardBlock(s, c)).join('') : `<div class="card">
       <strong>Sumá tu tarjeta de crédito</strong>
       <p class="text muted">Con el día de cierre y de vencimiento te muestro cuánto viene en cada resumen, las cuotas que te quedan y cuánto tenés comprometido a futuro.</p>
@@ -92,12 +149,20 @@ function cardForm(s, c = {}) {
     <input type="hidden" name="id" value="${esc(c.id || '')}">
     <div class="field"><label for="cd-n">Nombre</label><input id="cd-n" name="name" value="${esc(c.name || '')}" placeholder="Ej: Visa Galicia" required></div>
     <div class="field-row">
+      <div class="field"><label for="cd-m">Marca</label><select id="cd-m" name="marca"><option value="">Elegí</option>${MARCAS.map(([v, l]) => `<option value="${v}" ${c.marca === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label for="cd-b">Banco o emisor</label><select id="cd-b" name="banco"><option value="">Elegí</option>${['Bancos', 'Billeteras'].map((k) => `<optgroup label="${k}">${allWallets().filter((w) => w.kind === k).map((w) => `<option value="${esc(w.id)}" ${c.banco === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</optgroup>`).join('')}</select></div>
+    </div>
+    <div class="field-row">
       <div class="field"><label for="cd-c">Día de cierre</label><input id="cd-c" name="closeDay" inputmode="numeric" value="${c.closeDay || ''}" placeholder="Ej: 25" required></div>
       <div class="field"><label for="cd-v">Día de vencimiento</label><input id="cd-v" name="dueDay" inputmode="numeric" value="${c.dueDay || ''}" placeholder="Ej: 5" required></div>
     </div>
     <div class="field-row">
       <div class="field"><label for="cd-l">Límite de compra</label><input id="cd-l" name="limit" inputmode="decimal" value="${c.limit || ''}" placeholder="Opcional"></div>
+      <div class="field"><label for="cd-lc">Límite en cuotas</label><input id="cd-lc" name="limitCuotas" inputmode="decimal" value="${c.limitCuotas || ''}" placeholder="Si es distinto"></div>
+    </div>
+    <div class="field-row">
       <div class="field"><label for="cd-t">TNA de financiación (%)</label><input id="cd-t" name="tna" inputmode="decimal" value="${c.tna || ''}" placeholder="Figura en el resumen"></div>
+      <div class="field"><label for="cd-co">Mantenimiento por mes</label><input id="cd-co" name="comision" inputmode="decimal" value="${c.comision || ''}" placeholder="$ 0 si no cobra"></div>
     </div>
     <div class="field"><label for="cd-w">El resumen lo pagás con</label><select id="cd-w" name="payFrom">${payOptions(s, c.payFrom)}</select></div>
     <label class="check"><input type="checkbox" name="autoDebit" ${c.autoDebit ? 'checked' : ''}> <span>Débito automático del pago total<br><span class="small muted">Te aviso que tengas el saldo antes del vencimiento.</span></span></label>
@@ -110,7 +175,7 @@ export const actions = {
   newCard(ctx) { openModal('Nueva tarjeta', cardForm(ctx.state)); },
   editCard(ctx, el) { const c = ctx.state.cards.find((x) => x.id === el.dataset.id); if (c) openModal('Editar tarjeta', cardForm(ctx.state, c)); },
   saveCard(ctx, d) {
-    const data = { name: d.name.trim(), closeDay: Math.min(31, Math.max(1, parseInt(d.closeDay, 10) || 25)), dueDay: Math.min(31, Math.max(1, parseInt(d.dueDay, 10) || 5)), limit: num(d.limit), tna: parseFloat(String(d.tna || '').replace(',', '.')) || 0, payFrom: d.payFrom || '', autoDebit: !!d.autoDebit };
+    const data = { marca: d.marca || '', banco: d.banco || '', limitCuotas: num(d.limitCuotas), comision: num(d.comision), name: d.name.trim(), closeDay: Math.min(31, Math.max(1, parseInt(d.closeDay, 10) || 25)), dueDay: Math.min(31, Math.max(1, parseInt(d.dueDay, 10) || 5)), limit: num(d.limit), tna: parseFloat(String(d.tna || '').replace(',', '.')) || 0, payFrom: d.payFrom || '', autoDebit: !!d.autoDebit };
     ctx.commit((s) => {
       const c = s.cards.find((x) => x.id === d.id);
       if (c) Object.assign(c, data); else s.cards.push({ id: uid(), ...data });

@@ -4,6 +4,20 @@ import { esc, toISO } from './formato.js';
 import { allCategories, categoriasOrdenadas } from './categorias.js';
 
 const P = {
+  candy: '<path d="M7.5 7.5l9 9"/><rect x="7" y="7" width="10" height="10" rx="5" transform="rotate(45 12 12)"/><path d="M5 9L2.5 6.5 5 5 6.5 2.5 9 5M15 19l2.5 2.5L19 19l2.5-1.5L19 15"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
+  bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',
+  dumbbell: '<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/>',
+  laptop: '<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 20h20"/>',
+  baby: '<circle cx="12" cy="8" r="4"/><path d="M10.5 8h.01M13.5 8h.01M6 21a6 6 0 0 1 12 0"/>',
+  paw: '<circle cx="6" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="18" cy="10" r="1.8"/><path d="M8 17c0-3 2-5 4-5s4 2 4 5c0 2-2 3-4 2-2 1-4 0-4-2z"/>',
+  plane: '<path d="M10.5 13L3 10l1.5-1.5 8 1L17 5a2 2 0 0 1 3 3l-4.5 4.5 1 8L15 22l-3-7.5L8.5 18v3L7 22l-1.5-3.5L2 17l1-1.5h3z"/>',
+  doc: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
+  scale: '<path d="M12 3v18M7 21h10M5 7h14M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>',
+  coins: '<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v4c0 1.7 2.7 3 6 3s6-1.3 6-3V7M9 14v4c0 1.7 2.7 3 6 3s6-1.3 6-3v-4c0-1.7-2.7-3-6-3"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   moves: '<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
   trend: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
@@ -269,7 +283,7 @@ export function quickForm(id, s = null, medioHtml = '') {
     <input type="hidden" name="kind" value="expense">
     <div class="quick">
       <label for="${id}" class="sr-only">Anotá un movimiento</label>
-      <input id="${id}" name="q" placeholder="Ej: Supermercado 48.000" data-ph-expense="Ej: Supermercado 48.000" data-ph-income="Ej: Venta 85.000" enterkeyhint="done">
+      <input id="${id}" name="q" data-input="quickTexto" placeholder="Ej: Supermercado 48.000" data-ph-expense="Ej: Supermercado 48.000" data-ph-income="Ej: Venta 85.000" enterkeyhint="done">
       <button type="button" class="icon-btn" data-action="openPaste" aria-label="Cargar comprobante">${icon('receipt', 20)}</button>
       <button type="submit" class="icon-btn dark" aria-label="Anotar">${icon('plus', 20, 2.2)}</button>
     </div>
@@ -285,7 +299,7 @@ export function quickForm(id, s = null, medioHtml = '') {
     </div>
     ${Array.isArray(medioHtml) && medioHtml.length > 1 ? `<input type="hidden" name="medio" value="">
     <div class="medio-fila"><span class="medio-label" data-medio-label>Pagás con</span>
-      <div class="medio-row" role="radiogroup" aria-label="Con qué pagás">${medioHtml.map((m) => `<button type="button" class="medio-chip${m.tarjeta ? ' tarjeta' : ''}${m.falta ? ' falta' : ''}" role="radio" data-action="pickMedio" data-v="${esc(m.v)}" aria-checked="${m.v === ''}">${m.falta ? '+ ' : ''}${esc(m.label)}</button>`).join('')}</div></div>` : ''}
+      <div class="medio-row" role="radiogroup" aria-label="Con qué pagás">${medioHtml.filter((m) => m.top).map((m) => `<button type="button" class="medio-chip${m.tarjeta ? ' tarjeta' : ''}" role="radio" data-action="pickMedio" data-v="${esc(m.v)}" aria-checked="${m.v === ''}">${m.tarjeta ? icon('card', 14) : ''}${esc(m.tarjeta ? m.label.replace(/^Tarjeta /, '') : m.label)}</button>`).join('')}</div>${medioHtml.some((m) => !m.top) ? `<button type="button" class="medio-otro" data-action="medioOtro" aria-haspopup="dialog" aria-label="Otro medio de pago">Otro ${icon('chevron', 12, 2.6)}</button>` : ''}</div>` : ''}
   </form>`;
 }
 export function setModalBody(selector, html) {
@@ -399,4 +413,69 @@ document.addEventListener('focusin', (e) => {
   if (!el.closest || !el.closest('#modal') || !el.matches('input:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea')) return;
   const arriba = el.closest('.ciudad-picker, .banco-picker');
   setTimeout(() => el.scrollIntoView({ block: arriba ? 'start' : 'center', behavior: 'smooth' }), 280);
+});
+
+// ---------- listas que se ordenan arrastrando ----------
+// <div data-sortable="accion"> con filas [data-sort-id] y una manija [data-grip].
+// Al soltar, dispara la acción con data-ids="id1,id2,…" (el orden nuevo).
+let arr = null;
+function soltarOrden(lista, ids) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.hidden = true; b.dataset.action = lista.dataset.sortable; b.dataset.ids = ids.join(',');
+  lista.appendChild(b); b.click(); b.remove();
+}
+document.addEventListener('pointerdown', (e) => {
+  const h = e.target.closest && e.target.closest('[data-grip]');
+  if (!h || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  const fila = h.closest('[data-sort-id]'); const lista = fila && fila.closest('[data-sortable]');
+  if (!lista) return;
+  e.preventDefault();
+  const filas = [...lista.querySelectorAll('[data-sort-id]')];
+  const tops = filas.map((f) => f.getBoundingClientRect().top);
+  const paso = filas.length > 1 ? (tops[tops.length - 1] - tops[0]) / (filas.length - 1) : fila.offsetHeight;
+  const idx = filas.indexOf(fila);
+  arr = { fila, lista, filas, paso, idx, nuevo: idx, y0: e.clientY };
+  fila.classList.add('arrastrando');
+  try { h.setPointerCapture(e.pointerId); } catch { /* sin captura */ }
+});
+document.addEventListener('pointermove', (e) => {
+  if (!arr) return;
+  e.preventDefault();
+  const dy = e.clientY - arr.y0;
+  arr.fila.style.transform = `translateY(${dy}px)`;
+  const n = Math.max(0, Math.min(arr.filas.length - 1, arr.idx + Math.round(dy / arr.paso)));
+  arr.nuevo = n;
+  arr.filas.forEach((f, j) => {
+    if (j === arr.idx) return;
+    let t = '';
+    if (arr.idx < n && j > arr.idx && j <= n) t = `translateY(${-arr.paso}px)`;
+    else if (n < arr.idx && j >= n && j < arr.idx) t = `translateY(${arr.paso}px)`;
+    f.style.transform = t;
+  });
+}, { passive: false });
+function terminarArrastre() {
+  if (!arr) return;
+  const { filas, idx, nuevo, lista, fila } = arr; arr = null;
+  filas.forEach((f) => { f.style.transform = ''; });
+  fila.classList.remove('arrastrando');
+  if (nuevo === idx) return;
+  const ids = filas.map((f) => f.dataset.sortId);
+  const [m] = ids.splice(idx, 1); ids.splice(nuevo, 0, m);
+  soltarOrden(lista, ids);
+}
+document.addEventListener('pointerup', terminarArrastre);
+document.addEventListener('pointercancel', terminarArrastre);
+// con teclado: flechas arriba/abajo sobre la manija
+document.addEventListener('keydown', (e) => {
+  const h = e.target.closest && e.target.closest('[data-grip]');
+  if (!h || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+  const fila = h.closest('[data-sort-id]'); const lista = fila && fila.closest('[data-sortable]');
+  if (!lista) return;
+  e.preventDefault();
+  const ids = [...lista.querySelectorAll('[data-sort-id]')].map((f) => f.dataset.sortId);
+  const i = ids.indexOf(fila.dataset.sortId); const j = i + (e.key === 'ArrowUp' ? -1 : 1);
+  if (j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  soltarOrden(lista, ids);
+  requestAnimationFrame(() => { const g = document.querySelector(`[data-sortable] [data-sort-id="${CSS.escape(ids[j])}"] [data-grip]`); if (g) g.focus(); });
 });

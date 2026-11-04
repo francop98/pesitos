@@ -1,15 +1,15 @@
 // Inicio: cuánto podés gastar hoy, tu meta, lo que necesita tu atención
 // (sueldo del mes, ahorro, resumen semanal) y accesos rápidos.
 
-import { money, esc, monthKey, MONTHS_LONG, MONTHS, num, todayISO, monthName, parseISO } from './formato.js';
-import { budget, mainGoal, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary } from './calculos.js';
+import { money, esc, monthKey, MONTHS_LONG, MONTHS, num, todayISO, monthName, parseISO , addMonthKey } from './formato.js';
+import { budget, mainGoal, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary , monthIncome, monthExpenses, fixedTotal } from './calculos.js';
 import { insights } from './economista.js';
 import { renderQuestion, suggestions, renderSuggestion } from './guia.js';
 import { lessonCard } from './aprender.js';
 import { catLabel } from './categorias.js';
 import { alerts, dueLabel, closings, agenda } from './agenda.js';
 import { promosForDay } from './economista.js';
-import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo } from './cuentas.js';
+import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo, patrimonio } from './cuentas.js';
 import { projection, coverage } from './flujo.js';
 import { reglaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
@@ -200,6 +200,57 @@ function heroMensaje(b, payText) {
   return linea(`Por día, para llegar bien: ${payText}.`);
 }
 
+// Cartel principal: un widget que se desliza de costado con distintos datos.
+const K_WIDGET = 'pesitos_widget';
+const widgetGuardado = () => { try { return Number(localStorage.getItem(K_WIDGET)) || 0; } catch { return 0; } };
+function widget(s, b, payText) {
+  const mk = monthKey();
+  const entro = monthIncome(s, mk); const salio = monthExpenses(s, mk).total + fixedTotal(s, mk);
+  const prevMk = addMonthKey(mk, -1); const dia = new Date().getDate();
+  const salioAntes = s.expenses.filter((e) => !e.pending && e.date.slice(0, 7) === prevMk && Number(e.date.slice(8)) <= dia).reduce((a, e) => a + (e.installments > 1 ? e.amount / e.installments : e.amount), 0);
+  const varMes = monthExpenses(s, mk).total;
+  const pat = patrimonio(s);
+  const cyclePct = Math.min(1, Math.max(0, 1 - b.cycle.daysLeft / Math.max(1, Math.round((b.cycle.next - b.cycle.start) / 86400000))));
+  const slides = [
+    `<div class="card green hero slide">
+      <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}</span>
+      <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
+      <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
+      ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(b, payText)}
+    </div>`,
+    `<div class="card green hero slide">
+      <span class="hero-label">Hasta el cobro te quedan</span>
+      <span class="hero-number">${b.noIncome ? '—' : money(Math.max(0, b.free))}</span>
+      <div class="bar" role="img" aria-label="Pasó el ${Math.round(cyclePct * 100)}% del mes"><span style="width:${Math.round(cyclePct * 100)}%"></span></div>
+      <span class="small on-green-muted">${payText[0].toUpperCase() + payText.slice(1)} (${b.cycle.next.getDate()}/${b.cycle.next.getMonth() + 1}). Ya descontados tus gastos fijos${b.saving ? ` y ${money(b.saving)} de ahorro` : ''}.</span>
+    </div>`,
+    `<a class="card green hero slide" href="#/estadisticas" style="text-decoration:none">
+      <span class="hero-label">${MONTHS_LONG[new Date().getMonth()].replace(/^./, (c) => c.toUpperCase())}: te quedó</span>
+      <span class="hero-number">${money(entro - salio)}</span>
+      <span class="small on-green-muted">Entró ${money(entro)} · salió ${money(salio)}</span>
+      <span class="small on-green-muted">${salioAntes ? `En gastos del día a día vas ${varMes <= salioAntes ? `<b>${money(salioAntes - varMes)} abajo</b>` : `<b>${money(varMes - salioAntes)} arriba</b>`} del mes pasado a esta altura.` : 'Tocá para ver tus estadísticas.'}</span>
+    </a>`,
+    `<a class="card green hero slide" href="#/ahorro" style="text-decoration:none">
+      <span class="hero-label">Tu patrimonio neto</span>
+      <span class="hero-number">${money(pat.neto)}</span>
+      <span class="small on-green-muted">Cuentas ${money(pat.cuentas)} · ahorros ${money(pat.ahorros)}${pat.tarjetas + pat.creditos + pat.debo ? ` · deudas −${money(pat.tarjetas + pat.creditos + pat.debo)}` : ''}</span>
+      ${pat.conCuentas ? '' : '<span class="small on-green-muted">Cargá el saldo de tus cuentas en Mi plata para que sea exacto.</span>'}
+    </a>`,
+  ];
+  const i = Math.min(slides.length - 1, widgetGuardado());
+  requestAnimationFrame(() => { const c = document.querySelector('[data-widget]'); if (c && i) c.scrollLeft = c.clientWidth * i; });
+  return `<div class="hero-wrap"><div class="hero-carrusel" data-widget aria-roledescription="carrusel" aria-label="Resumen de tu plata">${slides.join('')}</div>
+    <div class="hero-puntos" role="tablist">${slides.map((_, n) => `<button role="tab" data-action="widgetIr" data-i="${n}" aria-label="Ver ${['hoy', 'hasta el cobro', 'el mes', 'tu patrimonio'][n]}" aria-selected="${n === i}"></button>`).join('')}</div></div>`;
+}
+// al deslizar el widget, se marca el puntito y se recuerda
+document.addEventListener('scroll', (e) => {
+  const c = e.target;
+  if (!c || !c.matches || !c.matches('[data-widget]')) return;
+  const i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth));
+  c.parentElement.querySelectorAll('.hero-puntos button').forEach((b, n) => b.setAttribute('aria-selected', String(n === i)));
+  try { localStorage.setItem(K_WIDGET, String(i)); } catch { /* nada */ }
+}, true);
+
 // "Tu día": el próximo pago, la promo de hoy y cuánto tenés en tus cuentas
 function tuDia(s) {
   const prox = agenda(s, 31).find((i) => !i.paid && i.days >= -7);
@@ -211,7 +262,6 @@ function tuDia(s) {
     ${fila('#/pagos', 'calendar', 'Próximo pago', prox ? `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}` : 'Nada por pagar este mes', prox ? esc(dueLabel(prox)) : '')}
     ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
     ${fila('#/cuentas', 'wallet', 'En tus cuentas', con ? money(totalCuentas(s)) : 'Cargá tu saldo', '')}
-    <button class="dia-fila ahorro-fila" data-action="ahorroPesitosInfo"><span class="cat-icon green">${icon('sprout', 18)}</span><span class="grow"><span class="k">Te ahorraste con Pesitos en ${MONTHS_LONG[new Date().getMonth()]}</span><span class="v pos">${money(savedThisMonth(s))}</span></span>${icon('chevron', 16)}</button>
     ${tm || td ? fila('#/deudas', 'people', 'Deudas y préstamos', `${tm ? `Te deben ${money(tm)}` : ''}${tm && td ? ' · ' : ''}${td ? `Debés ${money(td)}` : ''}`, '') : ''}
   </div>`;
 }
@@ -236,12 +286,7 @@ export function render(s) {
 
     ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
 
-    <div class="card green hero">
-      <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}</span>
-      <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
-      <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
-      ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(b, payText)}
-    </div>
+    ${widget(s, b, payText)}
 
     ${quickForm('q-home', s, mediosRapidos(s))}
 
@@ -301,6 +346,7 @@ export const actions = {
     ctx.commit((s) => { s.tipsNo = { ...(s.tipsNo || {}), [id]: hasta.toISOString().slice(0, 10) }; });
     toast(/^promo-/.test(id) ? 'Listo, no te la muestro más hoy' : 'Listo, lo oculto por un tiempo');
   },
+  widgetIr(ctx, el) { const c = document.querySelector('[data-widget]'); if (c) c.scrollTo({ left: c.clientWidth * Number(el.dataset.i), behavior: 'smooth' }); },
   openAtajos() { openModal('Más secciones', `<div class="tiles">${ATAJOS.slice(3).map(tile).join('')}</div>`); },
   async huellaSi(ctx) { await bloqueoActions.bloqueoBio(); ctx.render(); },
   huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → PIN de seguridad y huella'); },

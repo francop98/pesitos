@@ -178,14 +178,16 @@ function buscarEnAyuda(q) {
 // Cada tema tiene palabras que lo disparan. Gana el tema con más coincidencias;
 // a igualdad, el que está antes en la lista. Si nada coincide, sugiere preguntas.
 const DONDE = [
-  [/proyecto|obra|quincho/, 'Los proyectos están en Movimientos → Proyectos (o Menú ☰ → Proyectos). Creás uno, por ejemplo "Construcción del quincho", y al cargar cada gasto elegís el proyecto.'],
+  [/letras del tesoro|lecap|invert|inversion|\bbonos?\b|acciones|cedear|caucion|obligaciones? negociables|dolar mep/, 'En Herramientas → "Letras, bonos y acciones" tenés cada inversión explicada (riesgo, plazo, dónde se compra) y las tasas de las letras del Tesoro de hoy. Para comparar billeteras y plazos fijos: Herramientas → ¿Dónde rinde más?'],
+  [/tope|reintegro/, 'Para saber cuánto gastar y llegar justo al tope de un reintegro, usá Herramientas → "Descuento con tope". En "Cuotas o contado" también podés sumar el reintegro.'],
+  [/proyecto|obra|remodelacion/, 'Los proyectos se abren desde Movimientos (botón Proyectos) o Menú ☰ → Proyectos. Creás uno con su tipo (obra, viaje, evento, emprendimiento…), presupuesto y fecha objetivo, y al cargar cada gasto elegís el proyecto.'],
   [/tema|oscuro|modo noche|letra/, 'El tema (Auto, Claro u Oscuro) y el tamaño de letra están en Menú ☰ → La app.'],
   [/aviso|notificacion/, 'Los avisos en el celular están en Menú ☰ → La app → Avisos en el celular.'],
   [/instal/, 'Para instalar Pesitos: Menú ☰ → La app → Instalar Pesitos como app. En iPhone: en Safari tocá Compartir → Agregar a inicio.'],
   [/import|resumen|excel/, 'Para importar el resumen de la tarjeta (PDF) o el Excel del banco: en Movimientos tocá la flecha hacia arriba (arriba a la derecha), o en Por pagar → Tarjetas → Importar.'],
   [/categori/, 'Las categorías se crean, ordenan u ocultan desde la carga rápida de Inicio: tocá "Más" al final de la fila de categorías.'],
   [/medio|banco|billetera/, 'Tus bancos, billeteras y tarjetas se eligen en Menú ☰ → Mis medios de pago.'],
-  [/deuda|prest/, 'Las deudas y préstamos están en Por pagar → Deudas (barra de abajo). Si tenés alguna abierta, también la ves en Inicio, en "Tu día".'],
+  [/deuda|prest/, 'Las deudas y préstamos tienen su pantalla: tocá el botón "Deudas y préstamos" en Movimientos (o Menú ☰ → Deudas y préstamos). Si tenés alguna abierta, también la ves en Inicio, en "Tu día".'],
   [/sueldo/, 'Tu sueldo está en Movimientos → Estadísticas → Tu sueldo. También tenés un atajo en el menú ☰ → Tu sueldo.'],
   [/estadistic|grafic|en que (gasto|gaste)/, 'Las estadísticas están en Movimientos → Estadísticas (o tocando el resumen del mes).'],
   [/tarjeta/, 'Tus tarjetas están en Por pagar → Tarjetas: ahí ves cada resumen, las cuotas y cuánto tenés comprometido.'],
@@ -268,7 +270,7 @@ function responder(id, q, s, b) {
     }
     case 'deudas': {
       const ab = deudasAbiertas(s);
-      if (!ab.length) return 'No tenés deudas ni préstamos abiertos. Si le prestás plata a alguien, anotalo en Por pagar → Deudas.';
+      if (!ab.length) return 'No tenés deudas ni préstamos abiertos. Si le prestás plata a alguien, anotalo en Movimientos → Deudas y préstamos.';
       return `${totalMeDeben(s) ? `Te deben ${money(totalMeDeben(s))}. ` : ''}${totalDebo(s) ? `Debés ${money(totalDebo(s))}.` : ''}\n${ab.slice(0, 5).map((d) => `• ${d.tipo === 'meDeben' ? `${d.persona} te debe` : `Le debés a ${d.persona}`} ${money(saldoDeuda(d))}${d.vence ? ` (vence el ${fecha(d.vence)})` : ''}`).join('\n')}`;
     }
     case 'saldo': {
@@ -338,7 +340,7 @@ function responder(id, q, s, b) {
     }
     case 'proyectos': {
       const ps = s.proyectos || [];
-      if (!ps.length) return 'No tenés proyectos. Crealos en Movimientos → Proyectos: por ejemplo "Construcción del quincho", con un presupuesto, y le vas sumando los gastos.';
+      if (!ps.length) return 'No tenés proyectos. Crealos desde Movimientos → Proyectos: le ponés un presupuesto y una fecha objetivo, y le vas sumando los gastos.';
       return ps.map((p) => { const g = s.expenses.filter((e) => e.proyectoId === p.id).reduce((a, e) => a + e.amount, 0); return `• ${p.nombre}: ${money(g)} gastados${p.presupuesto ? ` de ${money(p.presupuesto)} (${Math.round((g / p.presupuesto) * 100)}%)` : ''}${p.cerrado ? ' · terminado' : ''}`; }).join('\n');
     }
     default: return null;
@@ -353,8 +355,8 @@ export function answer(question, s) {
   const concepto = /^(que (es|son|significa|quiere decir)|explica|como funciona|conviene|es bueno|sirve)/.test(q) ? GLOSARIO.find(([re]) => re.test(q)) : null;
   if (concepto) return concepto[1];
   // "¿cómo hago X en la app?": la ayuda primero
-  if (/^como (cargo|importo|instalo|activo|desactivo|cambio|borro|elimino|agrego|uso|hago|pongo|exporto|descargo|comparto|saco|veo|creo|anoto|marco|recupero)/.test(q)) {
-    const d = DONDE.find(([re]) => re.test(q)); if (d && /tema|oscuro|letra|import|resumen|instal|aviso|categori|medio|banco|billetera/.test(q)) return d[1];
+  if (/^(como|donde) (cargo|importo|instalo|activo|desactivo|cambio|borro|elimino|agrego|uso|hago|pongo|exporto|descargo|comparto|saco|veo|creo|anoto|marco|recupero|calculo|invierto|compro)/.test(q)) {
+    const d = DONDE.find(([re]) => re.test(q)); if (d && /tema|oscuro|letra|import|resumen|instal|aviso|categori|medio|banco|billetera|tope|reintegro|invert|bono|accion|cedear|lecap/.test(q)) return d[1];
     const a = buscarEnAyuda(q); if (a) return a;
   }
   for (const { t } of puntaje) {

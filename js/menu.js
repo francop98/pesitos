@@ -81,6 +81,7 @@ function menuHtml(ctx) {
     <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
       ${item('irEstadisticas', 'pie', 'Estadísticas', 'En qué se fue tu plata, mes a mes, y topes por categoría')}
       ${item('irProyectos', 'folder', 'Proyectos', 'Lo que gastás en una obra, un viaje o un evento, aparte')}
+      ${item('irDeudas', 'people', 'Deudas y préstamos', 'Lo que te deben y lo que debés')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
     </div>
 
@@ -144,7 +145,7 @@ export function cerrarMenu(rapido = false) {
 
 // deslizar con el dedo
 // zonas donde deslizar de costado ya hace otra cosa (filas que se desplazan, campos, gráficos)
-const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, select, .cat-row, .medio-row, .chips, #modal, .drawer, .banco-lista, .ciudad-lista'));
+const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, select, .cat-row, .medio-row, .chips, #modal, .drawer, .banco-lista, .ciudad-lista, .hero-carrusel'));
 (() => {
   let x0 = 0; let y0 = 0; let modo = null; let dx = 0; let decidido = false; let borde = false; let atrasDelSistema = 0;
   const ancho = () => panel().offsetWidth || 320;
@@ -209,6 +210,7 @@ export const menuActions = {
   irSueldo(ctx) { ctx.go('sueldo'); },
   irEstadisticas(ctx) { ctx.go('estadisticas'); },
   irProyectos(ctx) { ctx.go('proyectos'); },
+  irDeudas(ctx) { ctx.go('deudas'); },
 
   openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
   openAvisos(ctx) {

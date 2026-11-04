@@ -12,12 +12,16 @@ import { lessonCard } from './aprender.js';
 const GRUPOS = [
   ['Antes de comprar', [
     { action: 'openBuy', icon: 'cart', title: '¿Me lo compro?', text: 'Cómo impacta una compra en tu día, tu mes y tus metas.' },
-    { action: 'openInstallments', icon: 'card', title: 'Cuotas o contado', text: 'Con o sin interés, con la inflación: cuánto ganás o perdés de verdad.' },
+    { action: 'openInstallments', icon: 'card', title: 'Cuotas o contado', text: 'Con o sin interés, con reintegro y con la inflación: cuánto ganás o perdés de verdad.' },
+    { action: 'openTope', icon: 'ticket', title: 'Descuento con tope', text: 'Cuánto gastar para aprovechar todo el reintegro, y el descuento real.' },
   ]],
   ['Hacer rendir tu plata', [
     { action: 'openRinde', icon: 'percent', title: '¿Dónde rinde más?', text: 'Billeteras y plazos fijos ordenados por lo que pagan, y cuánto ganás con tu tasa.' },
     { action: 'openPfDolar', icon: 'trend', title: 'Plazo fijo o dólar', text: 'A cuánto tiene que estar el dólar para que convenga más que el plazo fijo.' },
-    { action: 'openGoalCalc', icon: 'sprout', title: '¿Cuánto ahorrar por mes?', text: 'Para llegar a un monto en una fecha.' },
+    { action: 'openGoalCalc', icon: 'sprout', title: '¿Cuánto ahorrar por mes?', text: 'Para una fecha, con lo que podés por mes, con rendimiento o en dólares.' },
+  ]],
+  ['Invertir', [
+    { action: 'openInversiones', icon: 'chart', title: 'Letras, bonos y acciones', text: 'Qué es cada inversión, su riesgo y dónde se compra. Con las tasas de las letras de hoy.' },
   ]],
   ['Monedas', [
     { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Dólar, euro, real, bitcoin y oro, con cotización del día.' },
@@ -45,11 +49,13 @@ const tasaTxt = (v) => String(v).replace('.', ',');
 function opcionesPlata(s) {
   const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
   const pf = mejorPlazoFijo(s);
+  // las 3 billeteras que más pagan, el mejor plazo fijo y "sin que rinda": nada de listas eternas
+  const bill = BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id] && tasas[b.id].tna).sort((a, b) => tasas[b.id].tna - tasas[a.id].tna).slice(0, 3)
+    .map((b) => [`tna:${tasas[b.id].tna}`, `${b.nombre} (${tasaTxt(tasas[b.id].tna)}% anual)`, `${b.nombre} ${tasaTxt(tasas[b.id].tna)}%`]);
   return [
-    ['sueldo', 'Pago cada cuota con mi sueldo del mes'],
-    ...BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id]).map((b) => [`tna:${tasas[b.id].tna}`, `Tengo la plata y la dejo en ${b.nombre} (${tasaTxt(tasas[b.id].tna)}% anual)`]),
-    ...(pf ? [[`tna:${pf.tna}`, `Tengo la plata y la pongo en plazo fijo (${tasaTxt(pf.tna)}% anual)`]] : []),
-    ['tna:0', 'Tengo la plata y la dejo guardada sin que rinda'],
+    ...bill,
+    ...(pf ? [[`tna:${pf.tna}`, `Plazo fijo (${tasaTxt(pf.tna)}% anual)`, `Plazo fijo ${tasaTxt(pf.tna)}%`]] : []),
+    ['tna:0', 'Guardada sin que rinda', 'Sin que rinda'],
   ];
 }
 function mejorPlazoFijo(s) {
@@ -110,16 +116,29 @@ function installmentsForm(s, d = {}) {
   return `<form class="form" data-submit="calcInstallments" data-input-form="cuotas">
     <div class="field"><label for="iq-p">Precio de contado</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 270.000" required data-input="cuotaVivo"><span class="hint">Lo que pagás en efectivo o transferencia (con el descuento, si hay).</span></div>
     <div class="field-row">
-      <div class="field"><label for="iq-t">Precio con tarjeta</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Igual al contado" data-input="cuotaVivo"></div>
+      <div class="field"><label for="iq-t">Precio con tarjeta</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Valor total" data-input="cuotaVivo"></div>
       <div class="field"><label for="iq-n">Cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required data-input="cuotaVivo"></div>
     </div>
     <div class="field-row">
       <div class="field"><label for="iq-i">¿Tiene interés?</label><select id="iq-i" name="interes" data-change="cuotaVivo"><option value="no">Sin interés</option><option value="si">Con interés</option></select></div>
       <div class="field" data-iq-pct hidden><label for="iq-x">Interés total (%)</label><input id="iq-x" name="pct" inputmode="decimal" placeholder="Ej: 15" data-input="cuotaVivo"></div>
     </div>
+    <div class="field-row">
+      <div class="field"><label for="iq-r">¿Hay reintegro?</label><select id="iq-r" name="reint" data-change="cuotaVivo"><option value="no">No</option><option value="cuotas">Sí, en cuotas</option><option value="contado">Sí, de contado</option></select></div>
+      <div class="field" data-iq-rein hidden><label for="iq-rp">Reintegro (%)</label><input id="iq-rp" name="rpct" inputmode="decimal" placeholder="Ej: 20" data-input="cuotaVivo"></div>
+    </div>
+    <div class="field" data-iq-rein hidden><label for="iq-rt">Tope del reintegro</label><input id="iq-rt" name="rtope" inputmode="decimal" placeholder="Sin tope" data-input="cuotaVivo"></div>
     <p class="cuota-vivo" data-cuota-vivo>Completá los precios y las cuotas y te muestro cuánto es cada una.</p>
-    <div class="field"><label for="iq-m">¿Cómo pagarías las cuotas?</label><select id="iq-m" name="modo">${opcionesPlata(s).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>
-      <span class="hint">Si tenés la plata hoy, lo que rinde mientras pagás de a poco también cuenta.</span></div>
+    <input type="hidden" name="modo" value="sueldo">
+    <div class="field"><span class="label-like">¿Tenés la plata hoy?</span>
+      <div class="seg" role="radiogroup" aria-label="¿Tenés la plata hoy?">
+        <button type="button" role="radio" data-action="iqTengo" data-v="no" aria-checked="true">No, pago con el sueldo</button>
+        <button type="button" role="radio" data-action="iqTengo" data-v="si" aria-checked="false">Sí, la tengo</button>
+      </div>
+      <div class="iq-donde" data-iq-donde hidden><span class="small" style="font-weight:700">Mientras pagás las cuotas, la dejarías en:</span>
+        <div class="medio-row iq-chips" role="radiogroup" aria-label="Dónde dejarías la plata">${opcionesPlata(s).map(([v, l, corto], i) => `<button type="button" class="medio-chip" role="radio" data-action="iqDonde" data-v="${esc(v)}" aria-checked="${i === 0}">${esc(corto)}</button>`).join('')}</div>
+      </div>
+      <span class="hint">Si tenés la plata, lo que rinde mientras pagás de a poco también cuenta.</span></div>
     <button class="btn primary block" type="submit">Comparar</button>
   </form><div id="iq-result"></div>
   ${rc.compras ? `<div class="card lime"><strong>Tus compras en cuotas</strong>
@@ -134,7 +153,11 @@ function datosCuotas(d) {
   const n = Math.max(1, parseInt(d.n, 10) || 0);
   const pctI = d.interes === 'si' ? (parseFloat(String(d.pct || '0').replace(',', '.')) || 0) : 0;
   const total = lista * (1 + pctI / 100);
-  return { cash, lista, n, pctI, total, cuota: n ? total / n : 0 };
+  const rpct = d.reint && d.reint !== 'no' ? (parseFloat(String(d.rpct || '0').replace(',', '.')) || 0) : 0;
+  const rtope = amt(d.rtope);
+  const base = d.reint === 'contado' ? cash : total;
+  const rein = rpct ? Math.min(base * rpct / 100, rtope || Infinity) : 0;
+  return { cash, lista, n, pctI, total, cuota: n ? total / n : 0, rein, reinQ: d.reint === 'cuotas' ? rein : 0, reinC: d.reint === 'contado' ? rein : 0, rpct, rtope, topeEn: rpct && rtope ? rtope / (rpct / 100) : 0 };
 }
 
 // tasa mensual que hace que las cuotas valgan lo mismo que el contado (lo que "te cobran" las cuotas)
@@ -153,21 +176,22 @@ export const actions = {
   openInstallments(ctx, el) { openModal('Cuotas o contado', installmentsForm(ctx.state), { push: !!(el && el.dataset.push) }); },
   calcInstallments(ctx, d) {
     const s = ctx.state;
-    const { cash, n, total, cuota } = datosCuotas(d);
+    const { cash, n, total, cuota, rein, reinQ, reinC, rpct, topeEn } = datosCuotas(d);
     if (!cash || !parseInt(d.n, 10)) return;
     const infl = expectedInflation(s); const i = infl / 100;
     const r = tasaImplicita(cash, cuota, n); // por mes
     const recargo = total - cash;
-    const resultado = (inf) => cash - valorHoy(cuota, n, inf); // >0: convienen las cuotas (en plata de hoy)
+    // el reintegro suele llegar con el resumen siguiente: lo tomo a un mes
+    const resultado = (inf) => (cash - reinC / (1 + inf)) - (valorHoy(cuota, n, inf) - reinQ / (1 + inf)); // >0: convienen las cuotas (en plata de hoy)
     const gana = resultado(i);
     let veredicto; let detalle;
     if (d.modo === 'sueldo' || !d.modo) {
       veredicto = gana >= 0 ? `Convienen las cuotas: ganás ${money(gana)}` : `Conviene pagar de contado: ahorrás ${money(-gana)}`;
-      detalle = `Pagando con tu sueldo de cada mes, las ${n} cuotas de ${money(cuota)} valen hoy <b>${money(valorHoy(cuota, n, i))}</b>. De contado pagás <b>${money(cash)}</b>.`;
+      detalle = `Pagando con tu sueldo de cada mes, las ${n} cuotas de ${money(cuota)} valen hoy <b>${money(valorHoy(cuota, n, i) - reinQ / (1 + i))}</b>${reinQ ? ' (ya descontado el reintegro)' : ''}. De contado pagás <b>${money(cash - reinC / (1 + i))}</b>${reinC ? ' (con el reintegro)' : ''}.`;
     } else {
       const tna = Number(String(d.modo).split(':')[1]) || 0;
       const rr = tna / 100 * 30 / 365;
-      let saldo = cash; for (let k = 1; k <= n; k++) saldo = saldo * (1 + rr) - cuota;
+      let saldo = cash; for (let k = 1; k <= n; k++) saldo = saldo * (1 + rr) - cuota + (k === 1 ? reinQ - reinC : 0);
       veredicto = saldo >= 0 ? `Convienen las cuotas: te quedan ${money(saldo)}` : `Conviene pagar de contado: con cuotas te faltan ${money(-saldo)}`;
       detalle = `Si en vez de pagar ${money(cash)} de contado dejás esa plata ${tna ? `rindiendo al ${tasaTxt(tna)}% anual` : 'guardada'} y vas sacando ${money(cuota)} por mes, al terminar ${saldo >= 0 ? `te sobran <b>${money(saldo)}</b> (≈ ${money(saldo / Math.pow(1 + i, n))} en plata de hoy)` : `te faltan <b>${money(-saldo)}</b>`}.`;
     }
@@ -185,6 +209,8 @@ export const actions = {
     <div class="card"><strong>En tu bolsillo</strong>
       <div class="split small"><span>Total en cuotas</span><b>${money(total)}</b></div>
       <div class="split small"><span>${recargo > 0.5 ? 'Pagás de más (interés o recargo)' : 'Recargo'}</span><b>${recargo > 0.5 ? `+${money(recargo)} (${pctTxt(recargo / cash)})` : '$0'}</b></div>
+      ${rein ? `<div class="split small"><span>Reintegro ${reinQ ? 'en cuotas' : 'de contado'} (${tasaTxt(rpct)}%)</span><b class="pos">−${money(rein)}</b></div>
+      <span class="small muted">${topeEn && (reinQ ? total : cash) > topeEn ? `Llegaste al tope: el reintegro máximo se alcanza con ${money(topeEn)}; lo que gastes de más no tiene reintegro.` : topeEn ? `El tope se alcanza con compras de ${money(topeEn)}.` : 'Sin tope.'} Suele acreditarse en el resumen o el mes siguiente.</span>` : ''}
       <div class="split small"><span>Cada mes, hasta ${fin}</span><b>${money(cuota)}${sal ? ` · ${Math.max(1, Math.round((cuota / sal.amount) * 100))}% de tu sueldo` : ''}</b></div>
       ${sal && cuota / sal.amount > 0.15 ? '<span class="small">Ojo: la cuota es más del 15% de tu sueldo. Sumada a otras cuotas, puede apretarte el mes.</span>' : ''}
     </div>
@@ -214,9 +240,23 @@ export const actions = {
     const f = el.closest('form'); if (!f) return;
     const d = Object.fromEntries(new FormData(f));
     f.querySelector('[data-iq-pct]').hidden = d.interes !== 'si';
+    f.querySelectorAll('[data-iq-rein]').forEach((n) => { n.hidden = !d.reint || d.reint === 'no'; });
     const x = datosCuotas(d);
     const p = f.querySelector('[data-cuota-vivo]');
-    if (p) p.innerHTML = x.n > 1 && x.total ? `<b>${x.n} cuotas de ${money(x.cuota)}</b> · total ${money(x.total)}${x.cash && x.total > x.cash + 0.5 ? ` (${money(x.total - x.cash)} más que de contado)` : ''}` : 'Completá los precios y las cuotas y te muestro cuánto es cada una.';
+    if (p) p.innerHTML = x.n > 1 && x.total ? `<b>${x.n} cuotas de ${money(x.cuota)}</b> · total ${money(x.total)}${x.cash && x.total > x.cash + 0.5 ? ` (${money(x.total - x.cash)} más que de contado)` : ''}${x.rein ? `<br>Reintegro: <b>${money(x.rein)}</b>${x.topeEn ? ` (el tope se alcanza con ${money(x.topeEn)})` : ''}` : ''}` : 'Completá los precios y las cuotas y te muestro cuánto es cada una.';
+  },
+  iqTengo(ctx, el) {
+    const f = el.closest('form'); if (!f) return;
+    f.querySelectorAll('[data-action=iqTengo]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
+    const si = el.dataset.v === 'si';
+    f.querySelector('[data-iq-donde]').hidden = !si;
+    const on = f.querySelector('[data-action=iqDonde][aria-checked=true]');
+    f.modo.value = si ? (on ? on.dataset.v : 'tna:0') : 'sueldo';
+  },
+  iqDonde(ctx, el) {
+    const f = el.closest('form'); if (!f) return;
+    f.querySelectorAll('[data-action=iqDonde]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
+    f.modo.value = el.dataset.v;
   },
   pfTipoDolar(ctx, el) {
     const x = tiposDolar(ctx.state).find((t) => t.id === el.value);
@@ -273,32 +313,114 @@ export const actions = {
   rindeTab(ctx, el) { rindeTab = el.dataset.v; document.querySelectorAll('#modal [data-action=rindeTab]').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); actions.calcRinde(ctx); },
   calcRinde(ctx) { const a = amt(document.getElementById('rd-a')?.value) || 0; setModalBody('#rd-lista', rindeLista(ctx.state, a)); },
 
-  openGoalCalc() {
+  // ---------- Descuento con tope ----------
+  openTope() {
+    openModal('Descuento con tope', `<form class="form" data-submit="calcTope" autocomplete="off">
+      <div class="field-row">
+        <div class="field"><label for="tp-p">Descuento o reintegro (%)</label><input id="tp-p" name="pct" inputmode="decimal" placeholder="Ej: 30" required data-input="calcTopeVivo"></div>
+        <div class="field"><label for="tp-t">Tope de reintegro</label><input id="tp-t" name="tope" inputmode="decimal" placeholder="Ej: 10.000" required data-input="calcTopeVivo"></div>
+      </div>
+      <div class="field"><label for="tp-g">¿Cuánto pensás gastar? (opcional)</label><input id="tp-g" name="gasto" inputmode="decimal" placeholder="Ej: 50.000" data-input="calcTopeVivo"></div>
+    </form><div id="tp-result"><p class="small muted">Completá el % y el tope.</p></div>`);
+  },
+  calcTope(ctx) { actions.calcTopeVivo(ctx, document.getElementById('tp-p')); },
+  calcTopeVivo(ctx, el) {
+    const f = el && el.closest('form'); if (!f) return;
+    const p = (parseFloat(String(f.pct.value).replace(',', '.')) || 0) / 100;
+    const tope = amt(f.tope.value); const gasto = amt(f.gasto.value);
+    if (!p || !tope) { setModalBody('#tp-result', '<p class="small muted">Completá el % y el tope.</p>'); return; }
+    const ideal = tope / p;
+    const fila = (g) => { const r = Math.min(g * p, tope); return `<div class="split small"><span>Gastando ${money(g)}</span><b>${money(r)} · ${pctTxt(r / g, 0)} real</b></div>`; };
+    const reint = gasto ? Math.min(gasto * p, tope) : 0;
+    setModalBody('#tp-result', `<div class="result ok">
+      <strong>Para aprovechar todo el tope, gastá ${money(ideal)}</strong>
+      <span class="text">Con ${pctTxt(p, 0)} de reintegro, el tope de ${money(tope)} se alcanza con una compra de <b>${money(ideal)}</b>. Lo que gastes de más ya no tiene descuento.</span>
+      ${gasto ? `<span class="text">Con ${money(gasto)}: te reintegran <b>${money(reint)}</b> y pagás en realidad <b>${money(gasto - reint)}</b>. ${gasto > ideal ? `El descuento real baja a <b>${pctTxt(reint / gasto, 1)}</b>: ${money(gasto - ideal)} van sin descuento. Si podés, dividí la compra con otro medio de pago o en otra semana.` : gasto < ideal * 0.99 ? `Te quedan ${money(tope - reint)} de reintegro sin usar: podrías sumar ${money(ideal - gasto)} más de compras.` : 'Justo en el tope.'}</span>` : ''}
+    </div>
+    <div class="card"><strong>Cuánto te devuelven según lo que gastes</strong>${[0.5, 1, 1.5, 2, 3].map((k) => fila(Math.round(ideal * k))).join('')}
+      <span class="small muted">El % real es lo que te devuelven sobre lo que gastaste. Revisá si el tope es por compra, por semana o por mes, y cuándo se acredita.</span></div>`);
+  },
+
+  // ---------- ¿Cuánto ahorrar por mes? ----------
+  openGoalCalc(ctx) {
+    const s = ctx.state;
     const now = new Date();
     const def = `${now.getFullYear() + 1}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    openModal('¿Cuánto ahorrar por mes?', `<form class="form" data-submit="calcGoal">
-      <div class="field"><label for="gc-t">¿Cuánto necesitás?</label><input id="gc-t" name="target" inputmode="decimal" placeholder="Ej: 2.000.000" required></div>
-      <div class="field"><label for="gc-d">¿Para cuándo?</label><input id="gc-d" name="when" type="month" value="${def}"></div>
-      <div class="field"><label for="gc-h">¿Cuánto ya tenés?</label><input id="gc-h" name="have" inputmode="decimal" placeholder="Ej: 0"></div>
-      <label style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;min-height:44px"><input type="checkbox" name="adjust" checked style="width:20px;height:20px"> Ajustar el monto por inflación (si es algo que se compra en pesos)</label>
+    const mejor = opcionesPlata(s)[0];
+    const venta = ((s.rates || {}).dolares || {}).bolsa?.venta || ((s.rates || {}).USD || {}).venta || 0;
+    openModal('¿Cuánto ahorrar por mes?', `<form class="form" data-submit="calcGoal" autocomplete="off">
+      <input type="hidden" name="modo" value="fecha">
+      <div class="seg" role="radiogroup" aria-label="Qué querés calcular">
+        <button type="button" role="radio" data-action="goalModo" data-v="fecha" aria-checked="true">Para una fecha</button>
+        <button type="button" role="radio" data-action="goalModo" data-v="cuanto" aria-checked="false">Con lo que puedo</button>
+        <button type="button" role="radio" data-action="goalModo" data-v="dolares" aria-checked="false">En dólares</button>
+      </div>
+      <div class="field"><label for="gc-t" data-gc-lt>¿Cuánto necesitás? (en pesos)</label><input id="gc-t" name="target" inputmode="decimal" placeholder="Ej: 2.000.000" required></div>
+      <div class="field" data-gc="fecha dolares"><label for="gc-d">¿Para cuándo?</label><input id="gc-d" name="when" type="month" value="${def}"></div>
+      <div class="field" data-gc="cuanto" hidden><label for="gc-m">¿Cuánto podés ahorrar por mes?</label><input id="gc-m" name="monthly" inputmode="decimal" placeholder="Ej: 150.000"></div>
+      <div class="field"><label for="gc-h" data-gc-lh>¿Cuánto ya tenés? (en pesos)</label><input id="gc-h" name="have" inputmode="decimal" placeholder="Ej: 0"></div>
+      <div class="field" data-gc="dolares" hidden><label for="gc-v">Precio del dólar (MEP)</label><input id="gc-v" name="venta" inputmode="decimal" value="${venta ? Math.round(venta) : ''}" placeholder="Ej: 1.200"><span class="hint">Se actualiza solo. Comprar un poco cada mes promedia el precio.</span></div>
+      <label class="check" data-gc="fecha cuanto"><input type="checkbox" name="adjust" checked> <span>Ajustar el monto por inflación<br><span class="small muted">Si es algo que se compra en pesos y va a aumentar.</span></span></label>
+      ${mejor && mejor[0] !== 'tna:0' ? `<label class="check" data-gc="fecha cuanto"><input type="checkbox" name="rinde" value="${esc(mejor[0])}" checked> <span>Ponerlo a rendir en ${esc(mejor[1])}<br><span class="small muted">El interés compuesto hace que necesites ahorrar menos.</span></span></label>` : ''}
       <button class="btn primary block" type="submit">Calcular</button>
     </form><div id="gc-result"></div>`);
   },
+  goalModo(ctx, el) {
+    const f = el.closest('form'); const v = el.dataset.v;
+    f.modo.value = v;
+    f.querySelectorAll('[data-action=goalModo]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
+    f.querySelectorAll('[data-gc]').forEach((n) => { n.hidden = !n.dataset.gc.split(' ').includes(v); });
+    f.querySelector('[data-gc-lt]').textContent = v === 'dolares' ? '¿Cuántos dólares necesitás?' : '¿Cuánto necesitás? (en pesos)';
+    f.querySelector('[data-gc-lh]').textContent = v === 'dolares' ? '¿Cuántos dólares ya tenés?' : '¿Cuánto ya tenés? (en pesos)';
+    f.target.placeholder = v === 'dolares' ? 'Ej: 3.000' : 'Ej: 2.000.000';
+    setModalBody('#gc-result', '');
+  },
   calcGoal(ctx, d) {
     const target = amt(d.target); const have = amt(d.have);
-    if (!target || !d.when) return;
-    const [y, m] = d.when.split('-').map(Number);
+    if (!target) return;
+    const s = ctx.state;
     const now = new Date();
-    const months = Math.max(1, (y - now.getFullYear()) * 12 + (m - 1 - now.getMonth()));
-    const infl = expectedInflation(ctx.state) / 100;
+    const infl = expectedInflation(s) / 100;
+    const sal = lastSalary(s);
+    const r = d.rinde ? (Number(String(d.rinde).split(':')[1]) || 0) / 100 * 30 / 365 : 0;
+    const mesesHasta = () => { const [y, m] = String(d.when || '').split('-').map(Number); return y ? Math.max(1, (y - now.getFullYear()) * 12 + (m - 1 - now.getMonth())) : 12; };
+    const fechaDe = (k) => { const x = new Date(now.getFullYear(), now.getMonth() + k, 1); return `${MONTHS_LONG[x.getMonth()]} ${x.getFullYear()}`; };
+    const pctSueldo = (v) => (sal ? `<span class="text">Es el ${Math.max(1, Math.round((v / sal.amount) * 100))}% de tu sueldo.</span>` : '');
+    if (d.modo === 'cuanto') {
+      const P = amt(d.monthly); if (!P) return;
+      let saldo = have; let k = 0;
+      while (k < 600) { const meta = d.adjust ? target * Math.pow(1 + infl, k) : target; if (saldo >= meta) break; saldo = saldo * (1 + r) + P; k++; }
+      if (k >= 600) { setModalBody('#gc-result', '<div class="result warn"><strong>Con ese monto no llegás</strong><span class="text">La inflación hace crecer la meta más rápido que tu ahorro. Probá con un monto mayor o poniéndolo a rendir.</span></div>'); return; }
+      const sinR = (() => { let sv = have; let j = 0; while (j < 600) { const meta = d.adjust ? target * Math.pow(1 + infl, j) : target; if (sv >= meta) break; sv += P; j++; } return j; })();
+      setModalBody('#gc-result', `<div class="result ok">
+        <strong>Llegás en ${k} ${k === 1 ? 'mes' : 'meses'}: ${fechaDe(k)}</strong>
+        <span class="text">Ahorrando ${money(P)} por mes${r ? ' y poniéndolo a rendir' : ''} juntás ${money(saldo)}${d.adjust ? ` (lo que va a costar en ese momento, con la inflación esperada)` : ''}.</span>
+        ${r && sinR > k && sinR < 600 ? `<span class="text">Sin ponerlo a rendir tardarías <b>${sinR} meses</b>: el rendimiento te ahorra ${sinR - k} ${sinR - k === 1 ? 'mes' : 'meses'}.</span>` : ''}
+        ${pctSueldo(P)}
+      </div>`);
+      return;
+    }
+    if (d.modo === 'dolares') {
+      const venta = amt(d.venta); const months = mesesHasta();
+      const usdMes = Math.max(0, (target - have) / months);
+      setModalBody('#gc-result', `<div class="result ok">
+        <strong>US$ ${(Math.round(usdMes * 100) / 100).toLocaleString('es-AR')} por mes durante ${months} ${months === 1 ? 'mes' : 'meses'}</strong>
+        ${venta ? `<span class="text">Al precio de hoy (${money(venta)}) son <b>${money(usdMes * venta)} por mes</b>. Si el dólar sube, vas a necesitar más pesos para el mismo monto.</span>${pctSueldo(usdMes * venta)}` : '<span class="text">Cargá el precio del dólar para ver cuántos pesos son.</span>'}
+        <span class="small">Los dólares quietos no rinden: podés tenerlos en una cuenta remunerada en dólares o en obligaciones negociables (mirá "Letras, bonos y acciones").</span>
+      </div>`);
+      return;
+    }
+    const months = mesesHasta();
     const future = d.adjust ? target * Math.pow(1 + infl, months) : target;
-    const monthly = Math.max(0, (future - have) / months);
-    const sal = lastSalary(ctx.state);
+    const g = Math.pow(1 + r, months);
+    const monthly = Math.max(0, r ? (future - have * g) * r / (g - 1) : (future - have) / months);
+    const sinRendir = Math.max(0, (future - have) / months);
+    const [y, m] = String(d.when).split('-').map(Number);
     setModalBody('#gc-result', `<div class="result ok">
       <strong>${money(monthly)} por mes durante ${months} ${months === 1 ? 'mes' : 'meses'}</strong>
       ${d.adjust ? `<span class="text">Con la inflación esperada, en ${MONTHS_LONG[m - 1]} ${y} eso costaría cerca de ${money(future)}.</span>` : ''}
-      ${sal ? `<span class="text">Es el ${Math.round((monthly / sal.amount) * 100)}% de tu sueldo.</span>` : ''}
-      <span class="small">Si lo ahorrás en algo que rinda al menos como la inflación, te alcanza con menos.</span>
+      ${r && sinRendir > monthly + 1 ? `<span class="text">Poniéndolo a rendir ahorrás ${money(sinRendir - monthly)} por mes (sin rendir serían ${money(sinRendir)}).</span>` : ''}
+      ${pctSueldo(monthly)}
     </div>`);
   },
 

@@ -44,13 +44,14 @@ import * as cuentas from './js/miscuentas.js';
 import * as deudas from './js/deudas.js';
 import * as estadisticas from './js/estadisticas.js';
 import * as proyectos from './js/proyectos.js';
+import { actions as inversionesActions } from './js/inversiones.js';
 import { notifyDue } from './js/agenda.js';
 import { setCustomCategories, setCustomWallets } from './js/categorias.js';
 
 // rutas viejas que ahora son pestañas de otra pantalla
 const vistaDe = (mod, v) => ({ render: (s) => mod.renderVista(s, v) });
 const views = { inicio, movimientos, ahorro, asesor, beneficios, herramientas, pagos, buscar, presupuestos,
-  cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas: vistaDe(movimientos, 'deudas'), proyectos: vistaDe(movimientos, 'proyectos'), estadisticas };
+  cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas, proyectos, estadisticas };
 const NAV_ORDER = ['inicio', 'movimientos', 'pagos', 'ahorro', 'herramientas'];
 
 let state = emptyState();
@@ -124,7 +125,7 @@ function render() {
   if (route === 'inicio') tutorialPendiente(ctx);
 }
 
-const actions = Object.assign({ recargar: () => location.reload() }, commonActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, proyectos.actions, {
+const actions = Object.assign({ recargar: () => location.reload() }, commonActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, proyectos.actions, inversionesActions, {
   goBack() {
     trail.pop();
     const prev = trail.pop() || 'inicio';

@@ -15,13 +15,12 @@ import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
 import { payOptions } from './pagos.js';
 import { nombreCuenta, saldoDeuda, totalMeDeben, totalDebo } from './cuentas.js';
-import { cuerpo as deudasCuerpo } from './deudas.js';
-import { cuerpo as proyectosCuerpo, proyectoDe } from './proyectos.js';
+import { proyectoDe } from './proyectos.js';
 
 let filter = 'todo';
-let vista = 'lista'; // 'lista' | 'fijos' | 'deudas' | 'proyectos'
+let vista = 'lista'; // 'lista' | 'fijos'
 /** Abrir Movimientos en una pestaña (la ruta #/deudas llega acá). */
-export function renderVista(s, v) { vista = v; return render(s); }
+export function renderVista(s, v) { vista = v === 'fijos' ? 'fijos' : 'lista'; return render(s); }
 let offset = 0; // meses hacia atrás
 
 const tagsHtml = (t) => ((t && t.length) ? `<span class="tags">${t.map((x) => `<span class="tag">#${esc(x)}</span>`).join('')}</span>` : '');
@@ -65,7 +64,7 @@ export function render(s) {
   for (const x of list) { const d = dias[dias.length - 1]; if (d && d.date === x.date) d.items.push(x); else dias.push({ date: x.date, items: [x] }); }
   const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
   const ahorroPesitos = (s.savedByApp || {})[mk] || 0;
-  const nDeudas = (s.deudas || []).filter((d) => saldoDeuda(d) > 0.5).length;
+  const nProy = (s.proyectos || []).filter((p) => !p.cerrado).length;
   const tm = totalMeDeben(s); const td = totalDebo(s);
 
   return `<section class="screen">
@@ -83,22 +82,24 @@ export function render(s) {
       <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
     </a>
-    <button class="card deudas-card ${tm || td ? 'activa' : ''}" data-action="movVista" data-v="deudas" aria-pressed="${vista === 'deudas'}">
-      <span class="cat-icon ${tm || td ? 'amber' : 'green'}">${icon('people', 20)}</span>
-      <span class="grow"><b class="t">Deudas y préstamos</b><span class="small">${tm || td ? `${tm ? `Te deben <b class="pos">${money(tm)}</b>` : ''}${tm && td ? ' · ' : ''}${td ? `Debés <b>${money(td)}</b>` : ''}` : '¿Le prestaste plata a alguien? ¿Te prestaron? Anotalo acá'}</span></span>
-      <span class="deudas-cta">${tm || td ? 'Ver' : '+ Anotar'}</span>
-    </button>
-
-    <div class="tabs tabs-4" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(4,minmax(0,1fr))">
-      <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
-      <button role="tab" data-action="movVista" data-v="fijos" aria-pressed="${vista === 'fijos'}">Fijos${nFijos ? ` (${nFijos})` : ''}</button>
-      <button role="tab" data-action="movVista" data-v="deudas" aria-pressed="${vista === 'deudas'}">Deudas${nDeudas ? ` (${nDeudas})` : ''}</button>
-      <button role="tab" data-action="movVista" data-v="proyectos" aria-pressed="${vista === 'proyectos'}">Proyectos</button>
+    ${ahorroPesitos || offset === 0 ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos en ${monthLabel(mk).split(' ')[0]}</b><span class="small">${ahorroPesitos ? 'Promos y desafíos que aprovechaste' : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
+    <div class="mov-accesos">
+      <a class="card mov-acceso ${tm || td ? 'activa' : ''}" href="#/deudas">
+        <span class="cat-icon ${tm || td ? 'amber' : 'green'}">${icon('people', 19)}</span>
+        <span class="grow"><b class="t">Deudas y préstamos</b><span class="small">${tm || td ? `${tm ? `Te deben <b class="pos">${money(tm)}</b>` : ''}${tm && td ? '<br>' : ''}${td ? `Debés <b>${money(td)}</b>` : ''}` : 'Prestaste o te prestaron'}</span></span>
+      </a>
+      <a class="card mov-acceso" href="#/proyectos">
+        <span class="cat-icon green">${icon('folder', 19)}</span>
+        <span class="grow"><b class="t">Proyectos</b><span class="small">${nProy ? `${nProy} en curso` : 'Obras, viajes, eventos'}</span></span>
+      </a>
     </div>
 
-    ${vista === 'proyectos' ? proyectosCuerpo(s) : vista === 'deudas' ? `<p class="small muted" style="margin:0">Lo que prestaste o te prestaron: plata que tiene que volver o que tenés que devolver.</p>
-      ${deudasCuerpo(s)}
-      <button class="btn primary block" data-action="nuevaDeuda">+ Anotar una deuda o un préstamo</button>` : vista === 'lista' ? `
+    <div class="tabs" role="tablist" aria-label="Sección">
+      <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
+      <button role="tab" data-action="movVista" data-v="fijos" aria-pressed="${vista === 'fijos'}">Gastos fijos${nFijos ? ` (${nFijos})` : ''}</button>
+    </div>
+
+    ${vista === 'lista' ? `
       ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
       <div class="chips">${[['todo', 'Todo'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']].map(([f, l]) => `<button class="chip toggle" data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${l}</button>`).join('')}</div>
       ${dias.length ? dias.map((d) => `<div class="dia-grupo"><span class="dia-t">${esc(relDay(d.date))}</span><div class="card tight">${d.items.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('')}</div></div>`).join('')

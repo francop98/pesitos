@@ -5,7 +5,7 @@
 // =========================================================
 
 import { money, esc, monthKey, addMonthKey, monthName, todayISO, pct , MONTHS_LONG} from './formato.js';
-import { monthExpenses, monthIncome, fixedTotal } from './calculos.js';
+import { monthExpenses, monthIncome, fixedTotal, cardSummary } from './calculos.js';
 import { catById } from './categorias.js';
 import { merchantKey } from './interprete.js';
 import { avancePresupuesto, barra as barraTope } from './presupuestos.js';
@@ -82,6 +82,72 @@ function barrasMensuales(s) {
     <div class="legend"><span><i class="swatch" style="background:var(--green-mid)"></i>Ingresos</span><span><i class="swatch" style="background:#F2B33D"></i>Gastos</span></div>`;
 }
 
+
+// ---------- más datos: proyección, día de la semana, hormiga, ticket, necesidades vs gustos ----------
+const NECESIDADES = new Set(['super', 'vivienda', 'servicios', 'salud', 'transporte', 'educacion', 'impuestos', 'chicos', 'bancarios', 'hogar', 'mascotas']);
+const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DIAS_LARGOS = ['los domingos', 'los lunes', 'los martes', 'los miércoles', 'los jueves', 'los viernes', 'los sábados'];
+const parte = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);
+function masDatos(s, r, ms, p) {
+  const out = [];
+  const lista = r.gastosLista.filter((e) => !e.fromPayment && !e.fromSavings);
+  // proyección a fin de mes
+  if (p === 'mes') {
+    const hoy = new Date(); const dia = hoy.getDate(); const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+    if (dia >= 3 && dia < fin) {
+      // ritmo de los últimos 30 días (más estable que solo los días de este mes)
+      const desde30 = new Date(); desde30.setDate(desde30.getDate() - 30); const d30 = desde30.toISOString().slice(0, 10);
+      const ritmo = s.expenses.filter((e) => !e.pending && !e.fromPayment && !e.fromSavings && e.date >= d30).reduce((a, e) => a + parte(e), 0) / 30;
+      const proy = r.variables + ritmo * (fin - dia) + r.fijos;
+      const queda = r.ingresos - proy;
+      out.push(`<div class="card"><strong>Si seguís a este ritmo</strong>
+        <span class="text">Terminás ${MONTHS_LONG[hoy.getMonth()]} gastando cerca de <b>${money(proy)}</b>${r.ingresos ? ` y te ${queda >= 0 ? `quedarían <b class="pos">${money(queda)}</b>` : `faltarían <b class="neg">${money(-queda)}</b>`}` : ''}.</span>
+        <span class="small muted">Lo que llevás gastado, más ${money(ritmo)} por día (tu promedio de los últimos 30 días) hasta fin de mes, más tus gastos fijos.</span></div>`);
+    }
+  }
+  if (lista.length >= 5) {
+    // por día de la semana (promedio por cada día de ese tipo en el período)
+    const tot = [0, 0, 0, 0, 0, 0, 0]; const cuenta = [0, 0, 0, 0, 0, 0, 0];
+    const desde = new Date(`${ms[0]}-01T00:00`); const hasta = new Date(Math.min(Date.now(), new Date(`${addMonthKey(ms[ms.length - 1], 1)}-01T00:00`) - 1));
+    for (let d = new Date(desde); d <= hasta; d.setDate(d.getDate() + 1)) cuenta[d.getDay()]++;
+    for (const e of lista) tot[new Date(e.date + 'T00:00').getDay()] += parte(e);
+    const prom = tot.map((t, i) => (cuenta[i] ? t / cuenta[i] : 0));
+    const max = Math.max(1, ...prom); const iMax = prom.indexOf(Math.max(...prom));
+    const orden = [1, 2, 3, 4, 5, 6, 0];
+    out.push(`<div class="card"><strong>Qué día gastás más</strong>
+      <div class="barras dias7" role="img" aria-label="Gasto promedio por día de la semana">${orden.map((i) => `<div class="barra-mes"><div class="barra-par"><span class="b-gas${i === iMax ? ' top' : ''}" style="height:${Math.round((prom[i] / max) * 100)}%" title="${money(prom[i])}"></span></div><span class="b-lbl">${DIAS[i]}</span></div>`).join('')}</div>
+      <span class="small">${DIAS_LARGOS[iMax][0].toUpperCase() + DIAS_LARGOS[iMax].slice(1)} gastás en promedio <b>${money(prom[iMax])}</b>${prom.filter((x) => x > 0).length > 1 ? `, ${Math.round(prom[iMax] / (prom.reduce((a, x) => a + x, 0) / 7) * 10) / 10}× tu promedio diario` : ''}.</span></div>`);
+    // ticket promedio y gastos hormiga
+    const ingMes = r.ingresos / ms.length;
+    const umbral = Math.max(3000, Math.round((ingMes ? ingMes * 0.01 : 10000) / 1000) * 1000);
+    const chicos = lista.filter((e) => parte(e) <= umbral);
+    const sumChicos = chicos.reduce((a, e) => a + parte(e), 0);
+    const tick = lista.reduce((a, e) => a + parte(e), 0) / lista.length;
+    out.push(`<div class="stat-grid">
+      <div class="stat"><span class="k">Compras</span><span class="v">${lista.length}</span><span class="small muted">ticket promedio ${money(tick)}</span></div>
+      <div class="stat"><span class="k">Gastos hormiga</span><span class="v">${money(sumChicos)}</span><span class="small muted">${chicos.length} compras de hasta ${money(umbral)}${r.variables ? ` · ${Math.round((sumChicos / r.variables) * 100)}% de lo variable` : ''}</span></div>
+    </div>`);
+  }
+  // necesidades vs gustos (regla 50/30/20)
+  if (r.ingresos && r.gastos) {
+    let nec = r.fijos; let gus = 0;
+    for (const [c, v] of Object.entries(r.byCat)) { if (NECESIDADES.has(c)) nec += v; else gus += v; }
+    const pn = nec / r.ingresos; const pg = gus / r.ingresos; const pa = Math.max(0, r.ahorro) / r.ingresos;
+    const fila = (k, v, meta, ok) => `<div class="regla-fila"><span>${k}</span><div class="regla-barra"><span style="width:${Math.min(100, Math.round(v * 100))}%" class="${ok ? 'ok' : 'mal'}"></span><i style="left:${meta * 100}%"></i></div><b>${Math.round(v * 100)}%</b></div>`;
+    out.push(`<div class="card"><strong>Necesidades, gustos y ahorro</strong>
+      ${fila('Necesidades', pn, 0.5, pn <= 0.5)}${fila('Gustos', pg, 0.3, pg <= 0.3)}${fila('Ahorro', pa, 0.2, pa >= 0.2)}
+      <span class="small muted">Sobre lo que entró. La rayita marca la regla 50/30/20 (50% necesidades, 30% gustos, 20% ahorro). Necesidades: fijos, súper, vivienda, servicios, salud, transporte, educación e impuestos.</span></div>`);
+  }
+  // suscripciones y cuotas comprometidas
+  const subs = (r.byCat.suscripciones || 0) / ms.length;
+  const comp = (s.cards || []).reduce((a, c) => a + cardSummary(s, c).committed, 0);
+  if (subs || comp) out.push(`<div class="stat-grid">
+    ${subs ? `<div class="stat"><span class="k">Suscripciones</span><span class="v">${money(subs)}</span><span class="small muted">por mes · ${money(subs * 12)} al año</span></div>` : ''}
+    ${comp ? `<div class="stat"><span class="k">Cuotas a futuro</span><span class="v">${money(comp)}</span><span class="small muted">ya comprometido en tarjetas</span></div>` : ''}
+  </div>`);
+  return out.join('');
+}
+
 export function render(s) {
   return `<section class="screen">
     ${screenHead('Estadísticas')}
@@ -119,6 +185,7 @@ export function cuerpo(s) {
     ${cats.length ? `<div class="section-title"><span>Por categoría</span><span class="small muted">Tocá una para ponerle un tope</span></div>
     <div class="card tight">${cats.map((x) => { const a = prev.byCat[x.c] || 0; const c = catById(x.c); const tope = periodo === 'mes' ? avancePresupuesto(s, x.c) : null; return `<button class="row" data-action="editPresupuesto" data-cat="${esc(x.c)}"><span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${tope ? `${barraTope(tope)}<span class="meta">Tope ${money(tope.limite)} · ${tope.pct >= 1 ? `te pasaste ${money(-tope.queda)}` : `quedan ${money(tope.queda)}`}</span>` : `<span class="meta">Antes: ${money(a)}</span>`}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(x.v)}</span>${cambio(comp(x.v, a))}</span></button>`; }).join('')}</div>
     ${topesSinGasto(s, cats, periodo)}` : ''}
+    ${masDatos(s, r, ms, periodo)}
     <div class="card"><strong>Ingresos y gastos, mes a mes</strong>${barrasMensuales(s)}</div>
     ${r.comercios.length ? `<div class="card"><strong>Dónde más gastaste</strong>${r.comercios.slice(0, 6).map((c) => `<div class="split small"><span>${esc(c.nombre)} <span class="muted">· ${c.veces} vez${c.veces === 1 ? '' : 'es'}</span></span><b>${money(c.total)}</b></div>`).join('')}</div>` : ''}
     ${Object.keys(r.medios).length > 1 ? `<div class="card"><strong>Con qué pagaste</strong>${Object.entries(r.medios).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}

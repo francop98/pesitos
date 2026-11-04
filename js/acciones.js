@@ -33,17 +33,42 @@ export function medioOptions(s, sel, { conTarjetas = true, auto = false } = {}) 
     ${conTarjetas && s.cards.length ? `<optgroup label="Tarjetas de crédito">${s.cards.map((c) => `<option value="card:${esc(c.id)}" ${sel === 'card:' + c.id ? 'selected' : ''}>Tarjeta ${esc(c.name)}</option>`).join('')}</optgroup>` : ''}`;
 }
 /** Medios para elegir con un toque en la carga rápida (el primero es la cuenta principal). */
+let formMedio = null;
+// Marca un medio en el formulario rápido. Si no está entre los chips visibles, ocupa el lugar del último.
+function elegirMedio(ctx, form, v, manual, sugerido = false) {
+  const input = form.querySelector('[name=medio]'); if (!input) return;
+  input.value = v;
+  if (manual) form.dataset.medioManual = '1';
+  let chip = form.querySelector(`[data-action=pickMedio][data-v="${CSS.escape(v)}"]`);
+  if (!chip) {
+    const m = mediosRapidos(ctx.state).find((x) => x.v === v); if (!m) return;
+    chip = form.querySelector('[data-action=pickMedio].extra');
+    if (!chip) { chip = document.createElement('button'); chip.type = 'button'; chip.setAttribute('role', 'radio'); chip.dataset.action = 'pickMedio'; form.querySelector('.medio-row').prepend(chip); }
+    chip.className = `medio-chip extra${m.tarjeta ? ' tarjeta' : ''}`; chip.dataset.v = v; chip.innerHTML = `${m.tarjeta ? icon('card', 14) : ''}${esc(m.tarjeta ? m.label.replace(/^Tarjeta /, '') : m.label)}`;
+  }
+  form.querySelectorAll('[data-action=pickMedio]').forEach((b) => { b.setAttribute('aria-checked', String(b === chip)); b.classList.toggle('sugerido', b === chip && sugerido); });
+  chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
 export function mediosRapidos(s) {
   const ppal = cuentaPrincipal(s);
-  return [
-    { v: '', label: nombreCuenta(s, ppal), principal: true },
-    ...listaCuentas(s).filter((c) => c.id !== ppal).map((c) => ({ v: `acc:${c.id}`, label: c.name })),
-    ...(s.cards || []).map((c) => ({ v: `card:${c.id}`, label: `Tarjeta ${c.name}`, tarjeta: true })),
+  const todos = [
+    { v: '', label: nombreCuenta(s, ppal), principal: true, grupo: 'Cuentas y billeteras' },
+    ...listaCuentas(s).filter((c) => c.id !== ppal).map((c) => ({ v: `acc:${c.id}`, label: c.name, grupo: 'Cuentas y billeteras' })),
+    ...(s.cards || []).map((c) => ({ v: `card:${c.id}`, label: `Tarjeta ${c.name}`, tarjeta: true, grupo: 'Tarjetas de crédito' })),
     // tarjetas elegidas en "Mis medios de pago" que todavía no cargaste en Tarjetas
     ...allWallets().filter((w) => w.kind === 'Tarjetas' && (s.wallets || []).includes(w.id)
       && !(s.cards || []).some((c) => normalize(c.name).includes(normalize(w.name)) || normalize(w.name).includes(normalize(c.name))))
-      .map((w) => ({ v: `falta:${w.id}`, label: w.name, tarjeta: true, falta: true })),
+      .map((w) => ({ v: `falta:${w.id}`, label: w.name, tarjeta: true, falta: true, grupo: 'Tarjetas sin cargar' })),
   ];
+  // los que más usaste en los últimos 2 meses van primero (la cuenta principal siempre está)
+  const desde = toISO(addDays(new Date(), -60));
+  const usos = {};
+  for (const e of s.expenses || []) if (e.date >= desde) { const m = medioDe(e); const k = m === `acc:${ppal}` ? '' : m; usos[k] = (usos[k] || 0) + 1; }
+  todos.forEach((m, i) => { m.usos = usos[m.v] || 0; m.i = i; });
+  const top = todos.filter((m) => !m.falta).sort((a, b) => b.usos - a.usos || a.i - b.i).slice(0, 3);
+  if (!top.some((m) => m.principal)) top[top.length - 1] = todos[0];
+  top.forEach((m) => { m.top = true; });
+  return [...top.sort((a, b) => b.usos - a.usos || a.i - b.i), ...todos.filter((m) => !m.top)];
 }
 export const medioDe = (e) => (e.cardId ? `card:${e.cardId}` : e.accountId ? `acc:${e.accountId}` : '');
 
@@ -143,18 +168,18 @@ function categoriesBody(s) {
       <strong style="font-size:15px">Crear categoría</strong>
       <div class="field-row cat-new">
         <div class="field"><label for="cat-e">Emoji (opcional)</label><input id="cat-e" name="emoji" class="emoji-input" maxlength="8" placeholder="🙂" aria-describedby="cat-e-h"></div>
-        <div class="field"><label for="cat-n">Nombre</label><input id="cat-n" name="label" placeholder="Ej: Mascotas" required maxlength="30"></div>
+        <div class="field"><label for="cat-n">Nombre</label><input id="cat-n" name="label" placeholder="Ej: Fútbol de los jueves" required maxlength="30"></div>
       </div>
       <span class="hint" id="cat-e-h">Para el emoji, tocá el campo y elegilo desde el teclado del celular (en la compu: Windows + punto).</span>
       <button class="btn primary block" type="submit">Crear categoría</button>
     </form>
     <div class="field"><span class="small" style="font-weight:700">Ordenar por</span>
       <div class="tabs">${[['frecuentes', 'Más usadas'], ['personalizado', 'A mi gusto'], ['alfabetico', 'A-Z']].map(([v, l]) => `<button type="button" data-action="catOrden" data-v="${v}" aria-pressed="${orden === v}">${l}</button>`).join('')}</div>
-      <span class="hint">${orden === 'frecuentes' ? 'Primero las que más usaste en los últimos 3 meses.' : orden === 'personalizado' ? 'Usá las flechas para acomodarlas como quieras.' : 'Por orden alfabético.'} El ojo oculta una categoría de la carga rápida (no se borra).</span></div>
-    <div class="card tight">${lista.map((c, i) => `<div class="row cat-admin ${ocultas.has(c.id) ? 'oculta' : ''}">
+      <span class="hint">${orden === 'frecuentes' ? 'Primero las que más usaste en los últimos 3 meses.' : orden === 'personalizado' ? 'En el orden que elegiste.' : 'Por orden alfabético.'} Para acomodarlas a tu gusto, arrastrá cada una desde ${icon('grip', 13)}. El ojo oculta las que no usás.</span></div>
+    <div class="card tight cat-lista" data-sortable="catOrdenar">${lista.map((c) => `<div class="row cat-admin ${ocultas.has(c.id) ? 'oculta' : ''}" data-sort-id="${esc(c.id)}">
+        <button type="button" class="grip" data-grip aria-label="Mover ${esc(c.label)} (flechas arriba y abajo)">${icon('grip', 18)}</button>
         <span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${c.custom ? '<span class="meta">Creada por vos</span>' : ''}</span>
-        ${orden === 'personalizado' ? `<button class="icon-btn mini" data-action="catMover" data-id="${esc(c.id)}" data-dir="-1" aria-label="Subir ${esc(c.label)}" ${i === 0 ? 'disabled' : ''}>↑</button><button class="icon-btn mini" data-action="catMover" data-id="${esc(c.id)}" data-dir="1" aria-label="Bajar ${esc(c.label)}" ${i === lista.length - 1 ? 'disabled' : ''}>↓</button>` : ''}
-        <button class="icon-btn mini" data-action="catOcultar" data-id="${esc(c.id)}" aria-label="${ocultas.has(c.id) ? 'Mostrar' : 'Ocultar'} ${esc(c.label)}" aria-pressed="${!ocultas.has(c.id)}">${ocultas.has(c.id) ? '🙈' : icon('eye', 18)}</button>
+        <button class="icon-btn mini" data-action="catOcultar" data-id="${esc(c.id)}" aria-label="${ocultas.has(c.id) ? 'Mostrar' : 'Ocultar'} ${esc(c.label)}" aria-pressed="${!ocultas.has(c.id)}">${icon(ocultas.has(c.id) ? 'eyeOff' : 'eye', 17)}</button>
         ${c.custom ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Borrar ${esc(c.label)}">${icon('close', 16)}</button>` : ''}
       </div>`).join('')}</div>`;
 }
@@ -168,6 +193,124 @@ function weekDetail(w) {
     ${w.income ? `<span class="small muted">Ingresos de la semana: ${money(w.income)}</span>` : ''}
     <p class="small muted">El resumen se arma solo cada lunes a las 00:00 con lo que anotaste. Si querés que también cuente lo que no anotaste (efectivo, gastos chicos), ajustalo con tu saldo real.</p>
     <button class="btn block" data-action="openClose" data-push="1">Ajustar con mi saldo real</button>`;
+}
+
+// ---------- ¿Me lo compro? Guía de decisión ----------
+let guiaCompra = null; // { amount, resp: { tipo, compare, promo, pensado, pago } }
+
+function numerosCompra(s, amount) {
+  const b = budget(s);
+  const r = buyImpact(s, amount);
+  const sal = lastSalary(s);
+  const g = mainGoal(s);
+    const lineas = [];
+    if (!b.noIncome) {
+      lineas.push(['sun', 'Hoy', amount <= b.todayLeft
+        ? `Hoy podés gastar ${money(b.todayLeft)}. Después de esta compra te quedarían <b>${money(b.todayLeft - amount)}</b>.`
+        : `Hoy podés gastar ${money(Math.max(0, b.todayLeft))}: esta compra se pasa por <b>${money(amount - Math.max(0, b.todayLeft))}</b>.`]);
+      lineas.push(['calendar', 'Hasta el cobro', amount <= b.free
+        ? `Es el <b>${Math.round((amount / Math.max(1, b.free)) * 100)}%</b> de lo que te queda libre hasta cobrar (${money(b.free)} en ${b.cycle.daysLeft} días).${amount > b.todayLeft ? ` ${esc(r.text)}` : ''}`
+        : `No te alcanza: te faltan <b>${money(amount - Math.max(0, b.free))}</b> de lo libre hasta el cobro.`]);
+    }
+    // contra tu gasto de todos los días (promedio de los últimos 30 días)
+    const desde = toISO(addDays(new Date(), -30));
+    const variable30 = s.expenses.filter((e) => !e.pending && e.date >= desde && !e.fromPayment).reduce((a, e) => a + (e.installments > 1 ? e.amount / e.installments : e.amount), 0);
+    const porDia = variable30 / 30;
+    if (porDia > 0) lineas.push(['chart', 'Tu gasto de siempre', `Es como <b>${(amount / porDia).toFixed(1).replace('.', ',')} días</b> de lo que gastás normalmente (${money(porDia)} por día en promedio).`]);
+    if (sal) {
+      const dias = amount / (sal.amount / 22);
+      lineas.push(['clock', 'Tu trabajo', `Es el ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de tu sueldo: <b>${dias < 1 ? (Math.round(dias * 8) <= 1 ? 'menos de 1 hora' : `${Math.round(dias * 8)} horas`) : `${dias.toFixed(1).replace('.', ',')} días`}</b> de trabajo.`]);
+    }
+    if (g) {
+      const exceso = Math.max(0, amount - Math.max(0, b.todayLeft));
+      const deSobrante = Math.min(exceso, b.sobrante || 0);
+      const deAhorro = Math.max(0, amount - Math.max(0, b.free));
+      const atrasa = g.monthly > 0 ? Math.round((deSobrante + deAhorro) / (g.monthly / 30)) : 0;
+      lineas.push(['target', `Tu meta: ${esc(g.name)}`, atrasa >= 1 ? `Esta plata podría ir a tu meta: la atrasa unos <b>${atrasa} días</b>.` : 'No toca lo que apartaste para tu meta.']);
+    }
+    // tus ahorros y el fondo de emergencia
+    const ahorrado = holdingsTotal(s);
+    const fijos = (s.fixed || []).reduce((a, f) => a + (Number(f.amount) || 0), 0);
+    if (ahorrado > 0) lineas.push(['wallet', 'Tus ahorros', `Es el <b>${Math.max(1, Math.round((amount / ahorrado) * 100))}%</b> de lo que tenés ahorrado (${money(ahorrado)}).${fijos && ahorrado < fijos * 3 ? ' Ojo: todavía no llegás a 3 meses de gastos fijos de fondo de emergencia.' : ''}`]);
+    else lineas.push(['wallet', 'Tus ahorros', 'No tenés ahorros cargados. Si es un gusto, conviene primero armar un fondo para imprevistos.']);
+    // con tarjeta: cuándo lo pagás
+    const card = (s.cards || [])[0];
+    if (card) {
+      const due = statementDates(card, statementOf(card, todayISO())).due;
+      lineas.push(['card', `Con la tarjeta ${esc(card.name)}`, `Si lo pagás hoy en 1 pago, lo pagás recién el <b>${due.getDate()}/${due.getMonth() + 1}</b> (con el resumen). Asegurate de tener la plata ese día.`]);
+    }
+    // en cuotas sin interés
+    const infl = expectedInflation(s) / 100;
+    const vh = (n) => { let pv = 0; for (let k = 1; k <= n; k++) pv += amount / n / Math.pow(1 + infl, k); return pv; };
+    lineas.push(['repeat', 'Si hay cuotas sin interés', [3, 6, 12].map((n) => `${n} de <b>${money(amount / n)}</b>${sal ? ` (${Math.max(1, Math.round((amount / n / sal.amount) * 100))}% del sueldo)` : ''}`).join(' · ') + `. En 6 cuotas, con la inflación, en plata de hoy pagarías ${money(vh(6))}: ${money(amount - vh(6))} menos.`]);
+  return { b, r, sal, lineas, ahorrado, fijos };
+}
+
+const PREGUNTAS_COMPRA = (amount, b, promosHoy) => [
+  { k: 'tipo', q: '¿Es algo que necesitás o un gusto?', ops: [['necesito', 'Lo necesito'], ['gusto', 'Es un gusto']], ayuda: 'Las dos están bien. Cambia cuánto conviene esperar.' },
+  { k: 'compare', q: '¿Comparaste el precio en otro lado?', ops: [['si', 'Sí'], ['no', 'Todavía no']], ayuda: 'Comparar 2 o 3 lugares suele ahorrar un 10% o más.' },
+  { k: 'promo', q: '¿Hay promo o reintegro con tus medios de pago?', ops: [['si', 'Sí, la voy a usar'], ['no', 'No hay'], ['nose', 'No sé']], ayuda: promosHoy ? `Hoy tenés ${promosHoy} promo${promosHoy === 1 ? '' : 's'} con tus medios de pago.` : 'Fijate en Beneficios antes de pagar.' },
+  ...(amount > 3 * Math.max(1, b.dailyBase || 0) ? [{ k: 'pensado', q: '¿Lo venís pensando hace más de 2 días?', ops: [['si', 'Sí, lo pensé'], ['no', 'Lo vi y lo quiero']], ayuda: 'En compras grandes, esperar 48 horas evita la mayoría de los arrepentimientos.' }] : []),
+  { k: 'pago', q: '¿Cómo lo pagarías?', ops: [['contado', 'Contado o débito'], ['tarjeta', 'Tarjeta en 1 pago'], ['cuotas', 'En cuotas']] },
+];
+
+function pintarGuiaCompra(s) {
+  const { amount, resp } = guiaCompra;
+  const n = numerosCompra(s, amount);
+  const promosHoy = promosForDay(s, new Date().getDay()).length;
+  const pregs = PREGUNTAS_COMPRA(amount, n.b, promosHoy);
+  const pend = pregs.find((p) => !(p.k in resp));
+  const hechas = pregs.filter((p) => p.k in resp).length;
+  const progreso = `<div class="guia-prog" aria-label="Paso ${Math.min(hechas + 1, pregs.length + 1)} de ${pregs.length + 1}">${pregs.map((p, i) => `<span class="${i < hechas ? 'ok' : i === hechas ? 'on' : ''}"></span>`).join('')}<span class="${pend ? '' : 'on'}"></span></div>`;
+  if (pend) {
+    setModalBody('#buy-result', `<div class="card guia-paso">${progreso}
+      <strong class="guia-q">${pend.q}</strong>
+      <div class="guia-ops">${pend.ops.map(([v, l]) => `<button type="button" class="btn" data-action="buyResp" data-k="${pend.k}" data-v="${v}">${l}</button>`).join('')}</div>
+      ${pend.ayuda ? `<span class="small muted">${pend.ayuda}</span>` : ''}
+      ${hechas ? '<button type="button" class="link-btn" data-action="buyAtras" style="align-self:flex-start">‹ Volver a la anterior</button>' : ''}
+    </div>`);
+    return;
+  }
+  // ---- conclusión ----
+  const { b, sal } = n;
+  const gusto = resp.tipo === 'gusto';
+  const impulso = resp.pensado === 'no';
+  let nivel; let titulo; const razones = []; const hacer = [];
+  const plata = b.noIncome ? 'sin-datos' : amount <= Math.max(0, b.todayLeft) ? 'holgado' : amount <= Math.max(0, b.free) ? 'ajustado' : amount <= Math.max(0, b.free) + n.ahorrado ? 'ahorros' : 'no-alcanza';
+  if (plata === 'holgado') razones.push(`Entra en lo que podés gastar hoy (${money(b.todayLeft)}).`);
+  if (plata === 'ajustado') { const nuevo = (b.free - amount) / Math.max(1, b.cycle.daysLeft - 1); razones.push(`Te alcanza, pero usa plata de los próximos días: quedarías con <b>${money(Math.max(0, nuevo))} por día</b> hasta el cobro (en vez de ${money(b.dailyBase)}).`); }
+  if (plata === 'ahorros') razones.push(`No te alcanza con la plata del mes: <b>${money(amount - Math.max(0, b.free))}</b> saldrían de tus ahorros.`);
+  if (plata === 'no-alcanza') razones.push(`Hoy no te alcanza: ni con la plata del mes ni con tus ahorros cargados (te faltan ${money(amount - Math.max(0, b.free) - n.ahorrado)}).`);
+  if (plata === 'sin-datos') razones.push('Todavía no sé cuánto cobrás, así que no puedo medirlo contra tu mes.');
+  if (sal) razones.push(`Equivale a ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de tu sueldo.`);
+  if (plata === 'no-alcanza') { nivel = 'bad'; titulo = gusto ? 'No ahora' : 'Hoy no te alcanza'; hacer.push(gusto ? 'Armá una meta de ahorro para comprarlo más adelante.' : 'Si es imprescindible, buscá cuotas sin interés o una alternativa más barata.'); }
+  else if (plata === 'ahorros') {
+    nivel = 'warn'; titulo = gusto ? 'Esperá: se come tus ahorros' : 'Podés, usando ahorros';
+    hacer.push(gusto ? 'Si lo querés igual, juntalo en una meta durante los próximos meses.' : 'Usá ahorros y reponelos en los próximos meses.');
+    if (n.fijos && n.ahorrado - (amount - Math.max(0, b.free)) < n.fijos * 3) razones.push('Después de la compra tu fondo de emergencia quedaría por debajo de 3 meses de gastos fijos.');
+  } else if (plata === 'ajustado') {
+    nivel = gusto && impulso ? 'warn' : 'ok';
+    titulo = gusto && impulso ? 'Esperá 48 horas' : 'Sí, pero ajustá los próximos días';
+  } else { nivel = 'ok'; titulo = gusto && impulso ? 'Podés, pero pensalo un día más' : 'Adelante'; }
+  if (gusto && impulso) razones.push('Es una compra por impulso: si en 2 días lo seguís queriendo, es buena señal.');
+  if (resp.compare === 'no') hacer.push('Antes de pagar, compará el precio en 2 o 3 lugares.');
+  if (resp.promo === 'nose') hacer.push(promosHoy ? `Revisá Beneficios: hoy tenés ${promosHoy} promo${promosHoy === 1 ? '' : 's'}.` : 'Revisá Beneficios por si hay alguna promo.');
+  if (resp.pago === 'tarjeta') {
+    const card = (s.cards || [])[0];
+    if (card) { const due = statementDates(card, statementOf(card, todayISO())).due; hacer.push(`Con ${esc(card.name)} en 1 pago lo pagás el <b>${due.getDate()}/${due.getMonth() + 1}</b>: tené la plata ese día.`); }
+    else hacer.push('En 1 pago con tarjeta lo pagás con el resumen: tené la plata para el vencimiento.');
+  }
+  if (resp.pago === 'cuotas') hacer.push('Fijate si te conviene en cuotas o de contado con la herramienta de abajo.');
+  if (!hacer.length && nivel === 'ok') hacer.push('Anotalo cuando lo compres así tu "Hoy podés gastar" queda al día.');
+  setModalBody('#buy-result', `<div class="result ${nivel} guia-fin">${progreso}
+      <span class="small" style="font-weight:700;opacity:.8">Conclusión para ${money(amount)}</span>
+      <strong style="font-size:20px">${titulo}</strong>
+      ${razones.map((x) => `<span class="text">• ${x}</span>`).join('')}
+      ${hacer.length ? `<span class="small" style="font-weight:800;margin-top:4px">Qué hacer</span>${hacer.map((x) => `<span class="text">→ ${x}</span>`).join('')}` : ''}
+    </div>
+    <details class="card guia-num"><summary><strong>Ver los números</strong></summary>
+      ${n.lineas.map(([ic, k, v]) => `<div class="buy-linea">${icon(ic, 16)}<span><b class="k">${k}</b><br>${v}</span></div>`).join('')}</details>
+    <div class="btn-row"><button class="btn small" data-action="buyAtras">‹ Cambiar respuestas</button>${resp.pago === 'cuotas' ? '<button class="btn small green" data-action="openInstallments" data-push="1">Cuotas o contado</button>' : ''}<a class="btn small" href="#/beneficios">Ver promos</a></div>`);
 }
 
 export const commonActions = {
@@ -216,6 +359,9 @@ export const commonActions = {
       else {
         s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
         if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
+        // recuerdo con qué pagaste en ese comercio, para proponértelo la próxima vez
+        const kMedio = merchantKey(note);
+        if (kMedio && data.medio !== undefined) { s.medioAprendido = s.medioAprendido || {}; s.medioAprendido[kMedio] = String(data.medio || ''); }
       }
     });
     const when = date !== todayISO() ? ` (${relDay(date).toLowerCase()})` : '';
@@ -238,6 +384,39 @@ export const commonActions = {
     const d = parseISO(el.value || todayISO()); const r = relDay(el.value || todayISO());
     t.textContent = r === 'Hoy' || r === 'Ayer' ? r : `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`;
   },
+  // "Otro…": todos los medios agrupados en una hoja
+  medioOtro(ctx, el) {
+    formMedio = el.closest('form');
+    const actual = formMedio.querySelector('[name=medio]').value;
+    const kind = formMedio.querySelector('[name=kind]').value;
+    const lista = mediosRapidos(ctx.state).filter((m) => kind !== 'income' || !m.tarjeta);
+    const grupos = [...new Set(lista.map((m) => m.grupo))];
+    openModal(kind === 'income' ? '¿Dónde entra la plata?' : '¿Con qué pagás?', `${grupos.map((g) => `<span class="small" style="font-weight:700">${g}</span>
+      <div class="medio-hoja">${lista.filter((m) => m.grupo === g).map((m) => `<button type="button" class="medio-op${m.v === actual ? ' on' : ''}" data-action="medioElegido" data-v="${esc(m.v)}">
+        <span class="cat-icon">${icon(m.tarjeta ? 'card' : 'wallet', 18)}</span><span class="grow"><span class="name">${m.falta ? '+ ' : ''}${esc(m.label)}</span>${m.principal ? '<span class="meta">Tu cuenta principal</span>' : m.falta ? '<span class="meta">Cargala para anotar con ella</span>' : m.usos ? `<span class="meta">${m.usos} ${m.usos === 1 ? 'vez' : 'veces'} en los últimos 2 meses</span>` : ''}</span>
+        ${m.v === actual ? icon('check', 18, 2.6) : ''}</button>`).join('')}</div>`).join('')}
+      <button class="btn ghost block" data-action="openWallets">Agregar un banco, billetera o tarjeta</button>`);
+  },
+  medioElegido(ctx, el) {
+    const v = el.dataset.v;
+    if (v.startsWith('falta:')) { closeModal(); const b = formMedio && formMedio.querySelector(`[data-action=pickMedio][data-v="${CSS.escape(v)}"]`); commonActions.pickMedio(ctx, b || el); return; }
+    closeModal();
+    if (formMedio && document.body.contains(formMedio)) elegirMedio(ctx, formMedio, v, true);
+  },
+  // mientras escribís: la categoría que detecto y el medio que usaste la última vez en ese comercio
+  quickTexto(ctx, el) {
+    const form = el.closest('form'); if (!form) return;
+    const texto = extraerEtiquetas(el.value).texto;
+    const auto = form.querySelector('[data-action=pickCat][data-id=auto] span:last-child');
+    if (auto) {
+      const p = texto.trim() ? parseEntry(texto, ctx.state.learned) : null;
+      auto.textContent = p && p.category !== 'otros' && form.querySelector('[name=kind]').value !== 'income' ? `Auto: ${(allCategories().find((c) => c.id === p.category) || {}).short || catLabel(p.category)}` : 'Automática';
+    }
+    if (form.dataset.medioManual) return;
+    const key = merchantKey(parseEntry(texto, ctx.state.learned).note || '');
+    const m = key && (ctx.state.medioAprendido || {})[key];
+    if (m !== undefined && m !== null && form.querySelector('[name=medio]') && mediosRapidos(ctx.state).some((x) => x.v === m)) elegirMedio(ctx, form, m, false, true);
+  },
   pickMedio(ctx, el) {
     const form = el.closest('form');
     if (el.dataset.v.startsWith('falta:')) {
@@ -245,9 +424,7 @@ export const commonActions = {
         <button class="btn primary block" data-action="newCard">Cargar la tarjeta</button>`);
       return;
     }
-    form.querySelector('[name=medio]').value = el.dataset.v;
-    form.querySelectorAll('[data-action=pickMedio]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    elegirMedio(ctx, form, el.dataset.v, true);
   },
   // del formulario rápido al completo, con lo que ya escribiste
   cargaDetallada(ctx, el) {
@@ -283,6 +460,11 @@ export const commonActions = {
       [ids[i], ids[j]] = [ids[j], ids[i]];
       s.catPrefs = { ...(s.catPrefs || {}), orden: 'personalizado', lista: ids };
     });
+    setModalBody('#cats-body', categoriesBody(ctx.state)); ctx.render();
+  },
+  catOrdenar(ctx, el) {
+    const ids = el.dataset.ids.split(',');
+    ctx.update((s) => { s.catPrefs = { ...(s.catPrefs || {}), orden: 'personalizado', lista: ids }; });
     setModalBody('#cats-body', categoriesBody(ctx.state)); ctx.render();
   },
   catOcultar(ctx, el) {
@@ -429,70 +611,28 @@ export const commonActions = {
 
   // ---------- ¿Me lo compro? ----------
   openBuy() {
+    guiaCompra = null;
     openModal('¿Me lo compro?', `<form class="form" data-submit="buyCheck">
       <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="decimal" placeholder="Ej: 90.000" required></div>
-      <button class="btn primary block" type="submit">Analizar la compra</button>
+      <button class="btn primary block" type="submit">Empezar</button>
+      <span class="hint">Te hago unas preguntas cortas y te doy una conclusión, con los números de tu plata.</span>
     </form><div id="buy-result"></div>`);
   },
   buyCheck(ctx, d) {
-    const s = ctx.state;
     const amount = num(d.amount);
     if (!amount) return;
-    const b = budget(s);
-    const r = buyImpact(s, amount);
-    const sal = lastSalary(s);
-    const g = mainGoal(s);
-    const lineas = [];
-    if (!b.noIncome) {
-      lineas.push(['sun', 'Hoy', amount <= b.todayLeft
-        ? `Hoy podés gastar ${money(b.todayLeft)}. Después de esta compra te quedarían <b>${money(b.todayLeft - amount)}</b>.`
-        : `Hoy podés gastar ${money(Math.max(0, b.todayLeft))}: esta compra se pasa por <b>${money(amount - Math.max(0, b.todayLeft))}</b>.`]);
-      lineas.push(['calendar', 'Hasta el cobro', amount <= b.free
-        ? `Es el <b>${Math.round((amount / Math.max(1, b.free)) * 100)}%</b> de lo que te queda libre hasta cobrar (${money(b.free)} en ${b.cycle.daysLeft} días).${amount > b.todayLeft ? ` ${esc(r.text)}` : ''}`
-        : `No te alcanza: te faltan <b>${money(amount - Math.max(0, b.free))}</b> de lo libre hasta el cobro.`]);
-    }
-    // contra tu gasto de todos los días (promedio de los últimos 30 días)
-    const desde = toISO(addDays(new Date(), -30));
-    const variable30 = s.expenses.filter((e) => !e.pending && e.date >= desde && !e.fromPayment).reduce((a, e) => a + (e.installments > 1 ? e.amount / e.installments : e.amount), 0);
-    const porDia = variable30 / 30;
-    if (porDia > 0) lineas.push(['chart', 'Tu gasto de siempre', `Es como <b>${(amount / porDia).toFixed(1).replace('.', ',')} días</b> de lo que gastás normalmente (${money(porDia)} por día en promedio).`]);
-    if (sal) {
-      const dias = amount / (sal.amount / 22);
-      lineas.push(['clock', 'Tu trabajo', `Es el ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de tu sueldo: <b>${dias < 1 ? (Math.round(dias * 8) <= 1 ? 'menos de 1 hora' : `${Math.round(dias * 8)} horas`) : `${dias.toFixed(1).replace('.', ',')} días`}</b> de trabajo.`]);
-    }
-    if (g) {
-      const exceso = Math.max(0, amount - Math.max(0, b.todayLeft));
-      const deSobrante = Math.min(exceso, b.sobrante || 0);
-      const deAhorro = Math.max(0, amount - Math.max(0, b.free));
-      const atrasa = g.monthly > 0 ? Math.round((deSobrante + deAhorro) / (g.monthly / 30)) : 0;
-      lineas.push(['target', `Tu meta: ${esc(g.name)}`, atrasa >= 1 ? `Esta plata podría ir a tu meta: la atrasa unos <b>${atrasa} días</b>.` : 'No toca lo que apartaste para tu meta.']);
-    }
-    // tus ahorros y el fondo de emergencia
-    const ahorrado = holdingsTotal(s);
-    const fijos = (s.fixed || []).reduce((a, f) => a + (Number(f.amount) || 0), 0);
-    if (ahorrado > 0) lineas.push(['wallet', 'Tus ahorros', `Es el <b>${Math.max(1, Math.round((amount / ahorrado) * 100))}%</b> de lo que tenés ahorrado (${money(ahorrado)}).${fijos && ahorrado < fijos * 3 ? ' Ojo: todavía no llegás a 3 meses de gastos fijos de fondo de emergencia.' : ''}`]);
-    else lineas.push(['wallet', 'Tus ahorros', 'No tenés ahorros cargados. Si es un gusto, conviene primero armar un fondo para imprevistos.']);
-    // con tarjeta: cuándo lo pagás
-    const card = (s.cards || [])[0];
-    if (card) {
-      const due = statementDates(card, statementOf(card, todayISO())).due;
-      lineas.push(['card', `Con la tarjeta ${esc(card.name)}`, `Si lo pagás hoy en 1 pago, lo pagás recién el <b>${due.getDate()}/${due.getMonth() + 1}</b> (con el resumen). Asegurate de tener la plata ese día.`]);
-    }
-    // en cuotas sin interés
-    const infl = expectedInflation(s) / 100;
-    const vh = (n) => { let pv = 0; for (let k = 1; k <= n; k++) pv += amount / n / Math.pow(1 + infl, k); return pv; };
-    lineas.push(['repeat', 'Si hay cuotas sin interés', [3, 6, 12].map((n) => `${n} de <b>${money(amount / n)}</b>${sal ? ` (${Math.max(1, Math.round((amount / n / sal.amount) * 100))}% del sueldo)` : ''}`).join(' · ') + `. En 6 cuotas, con la inflación, en plata de hoy pagarías ${money(vh(6))}: ${money(amount - vh(6))} menos.`]);
-    const grande = amount > 3 * Math.max(1, b.dailyBase || 0);
-    const preguntas = [
-      '¿Lo necesitás o lo querés? Las dos están bien, pero sabelo.',
-      '¿Lo buscaste en otro lado? Comparar 2 o 3 precios suele ahorrar un 10% o más.',
-      '¿Hay promo con alguno de tus medios de pago? Fijate en Beneficios antes de pagar.',
-      grande ? 'Es una compra grande: esperá 48 horas. Si las ganas siguen, adelante.' : '¿Lo vas a usar en serio o es un impulso del momento?',
-    ];
-    setModalBody('#buy-result', `<div class="result ${r.level}"><strong>${esc(r.level === 'ok' && amount <= b.todayLeft ? 'Te alcanza, pero mirá esto antes' : r.title)}</strong>
-      ${lineas.map(([ic, k, v]) => `<div class="buy-linea">${icon(ic, 16)}<span><b class="k">${k}</b><br>${v}</span></div>`).join('')}</div>
-      <div class="card"><strong>Para estar seguro</strong>${preguntas.map((q) => `<span class="small">• ${esc(q)}</span>`).join('')}</div>
-      <div class="btn-row"><button class="btn small" data-action="openInstallments" data-push="1">Comparar cuotas o contado</button><a class="btn small" href="#/beneficios">Ver promos</a></div>`);
+    guiaCompra = { amount, resp: {} };
+    pintarGuiaCompra(ctx.state);
+  },
+  buyResp(ctx, el) {
+    if (!guiaCompra) return;
+    guiaCompra.resp[el.dataset.k] = el.dataset.v;
+    pintarGuiaCompra(ctx.state);
+  },
+  buyAtras(ctx) {
+    if (!guiaCompra) return;
+    const ks = Object.keys(guiaCompra.resp); delete guiaCompra.resp[ks[ks.length - 1]];
+    pintarGuiaCompra(ctx.state);
   },
 
   // ---------- comprobantes ----------

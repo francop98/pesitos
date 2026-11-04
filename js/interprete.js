@@ -28,16 +28,29 @@ export function merchantKey(note) {
 }
 
 export function guessCategory(text, learned = {}) {
-  const t = normalize(text);
-  const words = t.split(/[^a-z0-9]+/).filter(Boolean);
+  const t = ' ' + normalize(text).replace(/[^a-z0-9&+]+/g, ' ').trim() + ' ';
+  const words = t.trim().split(' ').filter(Boolean);
   for (const w of words) if (learned[w]) return learned[w];
+  // singular simple: "remeras" → "remera", "panaderías" → "panaderia"
+  const sing = new Set(words.map((w) => (w.length > 4 && w.endsWith('es') ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)));
+  const exactas = new Set(words);
+  let mejor = 'otros'; let puntos = 0;
   for (const c of allCategories()) {
-    if (c.custom) { const l = normalize(c.label); if (l && t.includes(l)) return c.id; continue; }
+    if (c.custom) {
+      const l = normalize(c.label);
+      if (l && t.includes(' ' + l)) { const p = l.length + 20; if (p > puntos) { puntos = p; mejor = c.id; } }
+      continue;
+    }
     for (const w of c.words) {
-      if (words.includes(w) || (w.length >= 5 && t.includes(w))) return c.id;
+      let p = 0;
+      if (w.includes(' ')) { if (t.includes(' ' + w + ' ')) p = w.length + 10; }
+      else if (exactas.has(w)) p = w.length + 5;
+      else if (sing.has(w)) p = w.length + 3;
+      else if (w.length >= 5 && t.includes(w)) p = w.length;
+      if (p > puntos) { puntos = p; mejor = c.id; }
     }
   }
-  return 'otros';
+  return mejor;
 }
 
 export function parseEntry(input, learned = {}) {

@@ -170,10 +170,15 @@ export { billOccurrences, mkDate, dateWithDay };
 
 export function groups(items) {
   const g = { overdue: [], today: [], week: [], month: [], later: [], paid: [] };
-  for (const it of items) {
+  // de lo que se repite (fijos, pagos semanales o mensuales) se muestra solo el vencimiento más próximo
+  const vistos = new Set();
+  for (const it of [...items].sort((a, b) => a.days - b.days)) {
     if (it.paid) { if (it.days >= -31) g.paid.push(it); continue; }
-    if (it.days < 0) g.overdue.push(it);
-    else if (it.days === 0) g.today.push(it);
+    if (it.days < 0) { g.overdue.push(it); continue; }
+    const origen = it.refId ? `${it.kind}:${it.refId}` : it.key;
+    if (vistos.has(origen)) continue;
+    vistos.add(origen);
+    if (it.days === 0) g.today.push(it);
     else if (it.days <= 7) g.week.push(it);
     else g.later.push(it); // todo lo que viene después de esta semana
   }

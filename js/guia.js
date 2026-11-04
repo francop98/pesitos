@@ -190,8 +190,8 @@ function apply(ctx, qid, input) {
 }
 
 // ---------- sugerencias de mejora ----------
-const VARIABLE_CATS = new Set(['super', 'comida', 'delivery', 'transporte', 'ocio', 'ropa', 'regalos', 'salud', 'varios']);
-const FIXED_LIKE = new Set(['suscripciones', 'educacion', 'otros']);
+const VARIABLE_CATS = new Set(['super', 'comida', 'delivery', 'transporte', 'ocio', 'ropa', 'regalos', 'salud', 'varios', 'kiosco', 'cuidado', 'mascotas', 'chicos', 'tecnologia', 'viajes']);
+const FIXED_LIKE = new Set(['suscripciones', 'educacion', 'otros', 'vivienda', 'servicios', 'impuestos', 'deporte']);
 
 export function suggestions(s) {
   const out = [];
