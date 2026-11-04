@@ -34,7 +34,8 @@ export function inflows(s, from, to) {
 
   // aguinaldo: se paga hasta el 30 de junio y el 18 de diciembre;
   // es la mitad del mejor sueldo del semestre
-  for (const y of [from.getFullYear(), from.getFullYear() + 1]) {
+  // solo si cobrás aguinaldo (relación de dependencia). Si no lo dijiste, lo estimo y te pregunto.
+  if (s.profile.aguinaldo !== false) for (const y of [from.getFullYear(), from.getFullYear() + 1]) {
     for (const [m, day, semFrom, semTo] of [[5, 30, `${y}-01`, `${y}-06`], [11, 18, `${y}-07`, `${y}-12`]]) {
       const d = new Date(y, m, day);
       if (d < from || d > to) continue;
@@ -42,7 +43,7 @@ export function inflows(s, from, to) {
       if (s.incomes.some((i) => i.date.slice(0, 7) === mk && /aguinaldo|sac/i.test(i.note || ''))) continue;
       const sem = s.incomes.filter((i) => i.type === 'sueldo' && i.date.slice(0, 7) >= semFrom && i.date.slice(0, 7) <= semTo).map((i) => i.amount);
       const best = sem.length ? Math.max(...sem) : (last ? last.amount : 0);
-      if (best > 0) out.push({ key: `sac:${mk}`, kind: 'aguinaldo', name: 'Aguinaldo', amount: best / 2, date: toISO(d), estimated: true, sub: 'Estimado: la mitad de tu mejor sueldo del semestre' });
+      if (best > 0) out.push({ key: `sac:${mk}`, kind: 'aguinaldo', name: 'Aguinaldo', amount: best / 2, date: toISO(d), estimated: true, preguntar: s.profile.aguinaldo === undefined, sub: `Medio aguinaldo de ${m === 5 ? 'junio' : 'diciembre'}: la mitad de tu mejor sueldo del semestre` });
     }
   }
 
@@ -89,7 +90,7 @@ function startBalance(s) {
 function dailyPace(s) {
   const today = startOfToday();
   const from = toISO(addDays(today, -30));
-  const list = s.expenses.filter((e) => !e.pending && !e.cardId && !e.fromSavings && !e.fromPayment && e.category !== 'varios' && e.date >= from);
+  const list = s.expenses.filter((e) => !e.pending && !e.cardId && !e.fromSavings && !e.fromPayment && e.category !== 'varios' && !/cierre semanal/i.test(e.note || '') && e.date >= from);
   return sum(list, share) / 30;
 }
 

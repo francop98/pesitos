@@ -6,7 +6,7 @@
 
 import { money, esc, monthKey, addMonthKey, monthName, todayISO, pct , MONTHS_LONG} from './formato.js';
 import { monthExpenses, monthIncome, fixedTotal, cardSummary } from './calculos.js';
-import { catById } from './categorias.js';
+import { catById, catLabel } from './categorias.js';
 import { merchantKey } from './interprete.js';
 import { avancePresupuesto, barra as barraTope } from './presupuestos.js';
 import { screenHead, icon, catIcon , abrirSelectorMes, closeModal, ojoMontos } from './interfaz.js';
@@ -84,7 +84,7 @@ function barrasMensuales(s) {
 
 
 // ---------- más datos: proyección, día de la semana, hormiga, ticket, necesidades vs gustos ----------
-const NECESIDADES = new Set(['super', 'vivienda', 'servicios', 'salud', 'transporte', 'educacion', 'impuestos', 'chicos', 'bancarios', 'hogar', 'mascotas']);
+const NECESIDADES = new Set(['super', 'vivienda', 'servicios', 'salud', 'transporte', 'educacion', 'impuestos', 'chicos', 'hogar']);
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DIAS_LARGOS = ['los domingos', 'los lunes', 'los martes', 'los miércoles', 'los jueves', 'los viernes', 'los sábados'];
 const parte = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);
@@ -105,6 +105,32 @@ function masDatos(s, r, ms, p) {
         <span class="small muted">Lo que llevás gastado, más ${money(ritmo)} por día (tu promedio de los últimos 30 días) hasta fin de mes, más tus gastos fijos.</span></div>`);
     }
   }
+  if (lista.length) {
+    // gastos hormiga: compras chicas que de a una no se notan
+    const ingMes = r.ingresos / ms.length;
+    const umbral = Math.max(3000, Math.round((ingMes ? ingMes * 0.01 : 10000) / 1000) * 1000);
+    const chicos = lista.filter((e) => parte(e) <= umbral);
+    const sumChicos = chicos.reduce((a, e) => a + parte(e), 0);
+    const tick = lista.reduce((a, e) => a + parte(e), 0) / lista.length;
+    const porLugar = {};
+    for (const e of chicos) { const k = merchantKey(e.note || '') || e.category; const x = porLugar[k] = porLugar[k] || { n: 0, t: 0, nombre: e.note || catLabel(e.category) }; x.n++; x.t += parte(e); }
+    const topH = Object.values(porLugar).sort((x, y) => y.t - x.t).slice(0, 3);
+    if (chicos.length) out.push(`<div class="card hormiga"><div class="split"><strong>🐜 Gastos hormiga</strong><b>${money(sumChicos)}</b></div>
+      <span class="small">${chicos.length} compra${chicos.length === 1 ? '' : 's'} de hasta ${money(umbral)}${r.variables ? `: el <b>${Math.round((sumChicos / r.variables) * 100)}%</b> de lo que gastaste en el día a día` : ''}. A este ritmo son <b>${money(sumChicos / ms.length * 12)} por año</b>.</span>
+      ${topH.map((x) => `<div class="split small"><span>${esc(x.nombre)} · ${x.n} ${x.n === 1 ? 'vez' : 'veces'}</span><b>${money(x.t)}</b></div>`).join('')}
+      <span class="small muted">Cafés, kiosco, delivery chico, apps: de a uno no se notan. Cortar la mitad te deja ${money(sumChicos / ms.length / 2)} más por mes.</span></div>`);
+    // lo que más repetís (cualquier monto)
+    const rep = {};
+    for (const e of lista) { const k = merchantKey(e.note || ''); if (!k) continue; const x = rep[k] = rep[k] || { n: 0, t: 0, nombre: e.note }; x.n++; x.t += parte(e); }
+    const topR = Object.values(rep).filter((x) => x.n >= 3).sort((x, y) => y.n - x.n || y.t - x.t).slice(0, 4);
+    if (topR.length) out.push(`<div class="card"><strong>Lo que más repetís</strong>
+      ${topR.map((x) => `<div class="split small"><span>${esc(x.nombre)} · ${x.n} veces · ${money(x.t / x.n)} cada vez</span><b>${money(x.t)}</b></div>`).join('')}
+      <span class="small muted">Lo que repetís seguido es donde un cambio chico rinde más (y donde más conviene buscar promos).</span></div>`);
+    out.push(`<div class="stat-grid">
+      <div class="stat"><span class="k">Compras</span><span class="v">${lista.length}</span><span class="small muted">${(lista.length / ms.length).toFixed(0)} por mes</span></div>
+      <div class="stat"><span class="k">Ticket promedio</span><span class="v">${money(tick)}</span><span class="small muted">por compra</span></div>
+    </div>`);
+  }
   if (lista.length >= 5) {
     // por día de la semana (promedio por cada día de ese tipo en el período)
     const tot = [0, 0, 0, 0, 0, 0, 0]; const cuenta = [0, 0, 0, 0, 0, 0, 0];
@@ -117,16 +143,6 @@ function masDatos(s, r, ms, p) {
     out.push(`<div class="card"><strong>Qué día gastás más</strong>
       <div class="barras dias7" role="img" aria-label="Gasto promedio por día de la semana">${orden.map((i) => `<div class="barra-mes"><div class="barra-par"><span class="b-gas${i === iMax ? ' top' : ''}" style="height:${Math.round((prom[i] / max) * 100)}%" title="${money(prom[i])}"></span></div><span class="b-lbl">${DIAS[i]}</span></div>`).join('')}</div>
       <span class="small">${DIAS_LARGOS[iMax][0].toUpperCase() + DIAS_LARGOS[iMax].slice(1)} gastás en promedio <b>${money(prom[iMax])}</b>${prom.filter((x) => x > 0).length > 1 ? `, ${Math.round(prom[iMax] / (prom.reduce((a, x) => a + x, 0) / 7) * 10) / 10}× tu promedio diario` : ''}.</span></div>`);
-    // ticket promedio y gastos hormiga
-    const ingMes = r.ingresos / ms.length;
-    const umbral = Math.max(3000, Math.round((ingMes ? ingMes * 0.01 : 10000) / 1000) * 1000);
-    const chicos = lista.filter((e) => parte(e) <= umbral);
-    const sumChicos = chicos.reduce((a, e) => a + parte(e), 0);
-    const tick = lista.reduce((a, e) => a + parte(e), 0) / lista.length;
-    out.push(`<div class="stat-grid">
-      <div class="stat"><span class="k">Compras</span><span class="v">${lista.length}</span><span class="small muted">ticket promedio ${money(tick)}</span></div>
-      <div class="stat"><span class="k">Gastos hormiga</span><span class="v">${money(sumChicos)}</span><span class="small muted">${chicos.length} compras de hasta ${money(umbral)}${r.variables ? ` · ${Math.round((sumChicos / r.variables) * 100)}% de lo variable` : ''}</span></div>
-    </div>`);
   }
   // necesidades vs gustos (regla 50/30/20)
   if (r.ingresos && r.gastos) {

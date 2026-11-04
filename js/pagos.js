@@ -47,7 +47,8 @@ function inRow(i) {
     <span class="grow"><span class="name">${esc(i.name)}</span><span class="meta">${esc(i.sub || '')} · ${shortDate(i.date)}</span></span>
     <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="amount pos">${i.estimated ? '≈ ' : ''}+${money(i.amount)}</span>
     ${i.kind === 'income' && i.date <= todayISO() ? `<button class="btn small" data-action="markReceived" data-key="${esc(i.key)}" style="min-height:36px">Lo cobré</button>` : ''}</span>
-  </div>`;
+  </div>${i.kind === 'aguinaldo' && i.preguntar ? `<div class="aviso-sac small">¿Cobrás aguinaldo? Lo cobran quienes trabajan en relación de dependencia (no monotributistas ni autónomos).
+    <span class="btn-row"><button class="btn small" data-action="setAguinaldo" data-v="si">Sí, lo cobro</button><button class="btn small" data-action="setAguinaldo" data-v="no">No cobro</button></span></div>` : ''}`;
 }
 
 function section(title, list, note = '') {
@@ -303,6 +304,7 @@ export const actions = {
   deleteBill(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Pago borrado', (s) => { s.bills = s.bills.filter((b) => b.id !== el.dataset.id); }); },
 
   newIncome() { openModal('Nuevo cobro', incomeForm()); },
+  setAguinaldo(ctx, el) { ctx.commit((s) => { s.profile.aguinaldo = el.dataset.v === 'si'; }); toast(el.dataset.v === 'si' ? 'Listo: lo sumo en junio y diciembre' : 'Listo: no te cuento el aguinaldo'); },
   editIncome(ctx, el) { const c = (ctx.state.expectedIncomes || []).find((x) => x.id === el.dataset.id); if (c) openModal('Editar cobro', incomeForm(c)); },
   saveIncome(ctx, d) {
     const amount = num(d.amount);

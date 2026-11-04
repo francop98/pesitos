@@ -78,7 +78,8 @@ export const AYUDA_TEMAS = [
   { titulo: 'Primeros pasos', ic: 'sprout', preguntas: [
     ['¿Qué es "Hoy podés gastar"?', 'Es lo que podés gastar hoy para llegar bien al próximo cobro. Toma tu sueldo, le resta tus gastos fijos, lo que tenés que pagar de tarjetas y lo que elegiste ahorrar, y lo reparte entre los días que faltan. Si un día gastás menos, al día siguiente tenés un poco más.'],
     ['¿Qué tengo que cargar sí o sí?', 'Con tu sueldo ya funciona. Después, cuanto más cargues (gastos fijos, tarjetas, gastos del día), más preciso es. Lo demás te lo voy preguntando de a poco.'],
-    ['¿Por qué "Hoy podés gastar" no es todo lo que me queda?', 'Porque te muestro lo que podés gastar por día para llegar bien al cobro, sin pasarte de tu ritmo normal del mes. Si te sobra, te lo marco para que lo ahorres en vez de gastarlo de una.'],
+    ['¿Por qué "Hoy podés gastar" no es todo lo que me queda?', 'Porque te muestro lo que podés gastar por día para llegar bien al cobro: tu ritmo normal del mes. Si un día gastás de más, los que siguen bajan. Si gastás de menos, lo que no gastaste se reparte: una parte se suma a tus próximos días y otra te sugiero pasarla a tu meta (por defecto, mitad y mitad). Lo cambiás tocando "Cómo se reparte" en Inicio.'],
+    ['¿Lo que no gasto un día se acumula?', 'Sí, según cómo lo elijas en Inicio → "Cómo se reparte": todo para gastar después, mitad y mitad, 25% y 75%, o todo a ahorro. Lo que va a ahorro lo pasás a tu meta con un toque.'],
     ['¿Qué son los avisos de Inicio?', 'En Inicio te muestro lo más importante del momento (por ejemplo, un pago que vence). El resto queda en la campanita de arriba: el número rojo te dice cuántos avisos nuevos hay. Las sugerencias que no te sirvan las podés ocultar.'],
     ['¿Puedo probar sin cargar mis datos?', 'Sí: desde Menú → Copia de seguridad podés cargar datos de ejemplo y después borrarlos.'],
   ] },

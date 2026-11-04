@@ -38,6 +38,15 @@ const dias = (a, b) => Math.round((b - a) / 86400000);
 const hoy0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 
 // Datos útiles de la tarjeta: días al cierre, disponible, dólares, cuotas que terminan, promos y costos.
+// cargos que suma el banco al resumen: mantenimiento (+ IVA 21%), seguro y sellos (% provincial)
+export function cargosResumen(c, consumos) {
+  const lineas = [];
+  if (c.comision) lineas.push(['Mantenimiento + IVA', c.comision * 1.21]);
+  if (c.seguro) lineas.push(['Seguro y otros cargos', c.seguro]);
+  if (c.sellos && consumos) lineas.push([`Impuesto de sellos (${String(c.sellos).replace('.', ',')}%)`, consumos * c.sellos / 100]);
+  return { lineas, total: lineas.reduce((a, [, v]) => a + v, 0) };
+}
+
 function datosTarjeta(s, c, sum) {
   const { close, due } = statementDates(c, sum.current);
   const h = hoy0();
@@ -62,19 +71,27 @@ function datosTarjeta(s, c, sum) {
   const promos = ids.length ? currentPromos(s).items.filter((p) => ids.includes(p.wallet)) : [];
   const disponible = c.limit ? Math.max(0, c.limit - sum.committed) : null;
   const dispCuotas = c.limitCuotas ? Math.max(0, c.limitCuotas - sum.pending.reduce((a, p) => a + p.remaining, 0)) : null;
+  const cuotasQuedan = sum.pending.reduce((a, p) => a + p.left, 0);
+  const cargos = cargosResumen(c, sum.next);
   const dato = (k, v, sub = '') => `<div class="t-dato"><span class="k">${k}</span><b>${v}</b>${sub ? `<span class="small muted">${sub}</span>` : ''}</div>`;
   return `<div class="card t-datos">
     <div class="t-grid">
       ${dato('Cierra', alCierre === 0 ? 'Hoy' : alCierre === 1 ? 'Mañana' : `En ${alCierre} días`, `${close.getDate()}/${close.getMonth() + 1}`)}
       ${dato('Vence', alVto === 0 ? 'Hoy' : alVto === 1 ? 'Mañana' : `En ${alVto} días`, `${due.getDate()}/${due.getMonth() + 1}`)}
       ${disponible !== null ? dato('Disponible', money(disponible), `de ${money(c.limit)}`) : dato('Disponible', '—', '<button class="link-btn" data-action="editCard" data-id="' + esc(c.id) + '">Cargá el límite</button>')}
-      ${dispCuotas !== null ? dato('Para cuotas', money(dispCuotas), `de ${money(c.limitCuotas)}`) : dato('En cuotas', money(sum.pending.reduce((a, p) => a + p.remaining, 0)), `${sum.pending.length} compra${sum.pending.length === 1 ? '' : 's'}`)}
+      ${dato('Cuotas pendientes', `${cuotasQuedan}`, `${sum.pending.length} compra${sum.pending.length === 1 ? '' : 's'} · ${money(sum.pending.reduce((a, p) => a + p.remaining, 0))}`)}
+      ${dispCuotas !== null ? dato('Disponible en cuotas', money(dispCuotas), `de ${money(c.limitCuotas)}`) : ''}
     </div>
     ${usd ? `<span class="small">💵 En este resumen tenés <b>US$ ${String(Math.round(usd * 100) / 100).replace('.', ',')}</b> en dólares. Si los pagás en dólares (comprados o de tu cuenta) evitás la percepción de impuestos que se cobra al pagarlos en pesos.</span>` : ''}
     ${libera ? `<span class="small">✅ En este resumen terminan ${terminan.length === 1 ? `las cuotas de <b>${esc(terminan[0].e.note)}</b>` : `<b>${terminan.length} compras en cuotas</b>`}: desde el próximo pagás ${money(libera)} menos por mes.</span>` : ''}
     ${cats.length ? `<span class="small muted">Este resumen se va en: ${cats.map(([k, v]) => `${esc(catLabel(k))} ${money(v)}`).join(' · ')}</span>` : ''}
+    <button class="link-btn small" data-action="openAvisos" style="align-self:flex-start;text-align:left">🔔 Te aviso en el celular el día del cierre y el día antes del vencimiento. Configurar avisos ›</button>
     ${promos.length ? `<a class="small" href="#/beneficios">🏷️ ${promos.length} promo${promos.length === 1 ? '' : 's'} vigente${promos.length === 1 ? '' : 's'} con ${esc(ids.map(walletName).join(' / '))}. Ver beneficios ›</a>` : ''}
-    ${c.comision ? `<span class="small">Mantenimiento: ${money(c.comision)} por mes (<b>${money(c.comision * 12)} por año</b>). Pedile al banco que te la bonifique, o evaluá una tarjeta sin costo de mantenimiento.</span>` : ''}
+    ${cargos.total ? `<div class="t-cargos"><div class="split small"><span>Consumos del resumen</span><b>${money(sum.next)}</b></div>
+      ${cargos.lineas.map(([k, v]) => `<div class="split small"><span>${k}</span><b>${money(v)}</b></div>`).join('')}
+      <div class="split"><span><b>Resumen estimado</b></span><b>${money(sum.next + cargos.total)}</b></div>
+      <span class="small muted">Los cargos son estimados con lo que cargaste. ${c.comision ? `El mantenimiento te cuesta ${money((c.comision * 1.21) * 12)} por año con IVA: pedí que te lo bonifiquen.` : ''}</span></div>`
+    : '<span class="small muted">¿Tu resumen trae mantenimiento, seguro o sellos? <button class="link-btn" data-action="editCard" data-id="' + esc(c.id) + '">Cargalos</button> y te estimo el total real.</span>'}
   </div>`;
 }
 
@@ -164,6 +181,11 @@ function cardForm(s, c = {}) {
       <div class="field"><label for="cd-t">TNA de financiación (%)</label><input id="cd-t" name="tna" inputmode="decimal" value="${c.tna || ''}" placeholder="Figura en el resumen"></div>
       <div class="field"><label for="cd-co">Mantenimiento por mes</label><input id="cd-co" name="comision" inputmode="decimal" value="${c.comision || ''}" placeholder="$ 0 si no cobra"></div>
     </div>
+    <div class="field-row">
+      <div class="field"><label for="cd-se">Seguro y otros cargos</label><input id="cd-se" name="seguro" inputmode="decimal" value="${c.seguro || ''}" placeholder="$ por resumen"></div>
+      <div class="field"><label for="cd-sl">Sellos (%)</label><input id="cd-sl" name="sellos" inputmode="decimal" value="${c.sellos ? String(c.sellos).replace('.', ',') : ''}" placeholder="Ej: 1,2"></div>
+    </div>
+    <span class="hint">Están en tu resumen, al final: "comisión mantenimiento", "seguro de vida" e "impuesto de sellos" (depende de la provincia). Así te muestro cuánto vas a pagar de verdad.</span>
     <div class="field"><label for="cd-w">El resumen lo pagás con</label><select id="cd-w" name="payFrom">${payOptions(s, c.payFrom)}</select></div>
     <label class="check"><input type="checkbox" name="autoDebit" ${c.autoDebit ? 'checked' : ''}> <span>Débito automático del pago total<br><span class="small muted">Te aviso que tengas el saldo antes del vencimiento.</span></span></label>
     <button class="btn primary block" type="submit">Guardar</button>
@@ -175,7 +197,7 @@ export const actions = {
   newCard(ctx) { openModal('Nueva tarjeta', cardForm(ctx.state)); },
   editCard(ctx, el) { const c = ctx.state.cards.find((x) => x.id === el.dataset.id); if (c) openModal('Editar tarjeta', cardForm(ctx.state, c)); },
   saveCard(ctx, d) {
-    const data = { marca: d.marca || '', banco: d.banco || '', limitCuotas: num(d.limitCuotas), comision: num(d.comision), name: d.name.trim(), closeDay: Math.min(31, Math.max(1, parseInt(d.closeDay, 10) || 25)), dueDay: Math.min(31, Math.max(1, parseInt(d.dueDay, 10) || 5)), limit: num(d.limit), tna: parseFloat(String(d.tna || '').replace(',', '.')) || 0, payFrom: d.payFrom || '', autoDebit: !!d.autoDebit };
+    const data = { marca: d.marca || '', banco: d.banco || '', limitCuotas: num(d.limitCuotas), comision: num(d.comision), seguro: num(d.seguro), sellos: Math.min(10, parseFloat(String(d.sellos || '').replace(',', '.')) || 0), name: d.name.trim(), closeDay: Math.min(31, Math.max(1, parseInt(d.closeDay, 10) || 25)), dueDay: Math.min(31, Math.max(1, parseInt(d.dueDay, 10) || 5)), limit: num(d.limit), tna: parseFloat(String(d.tna || '').replace(',', '.')) || 0, payFrom: d.payFrom || '', autoDebit: !!d.autoDebit };
     ctx.commit((s) => {
       const c = s.cards.find((x) => x.id === d.id);
       if (c) Object.assign(c, data); else s.cards.push({ id: uid(), ...data });

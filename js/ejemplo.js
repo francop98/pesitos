@@ -10,7 +10,7 @@ export function demoState() {
   s.ready = true; s.demo = true;
   s.savingMode = 'payFirst';
   s.rules.payFirst.on = true;
-  s.customCategories = [{ id: 'c_mascotas', label: 'Mascotas' }];
+  s.customCategories = [{ id: 'c_futbol', label: 'Fútbol de los jueves', emoji: '⚽' }];
   s.profile = { name: 'Franco', payday: 1 };
   const today = startOfToday();
   const cur = monthKey(today);
@@ -40,8 +40,8 @@ export function demoState() {
     { day: 23, note: 'Verdulería', category: 'super', amount: 18000 },
     { day: 4, note: 'YPF', category: 'transporte', amount: 30000 },
     { day: 18, note: 'YPF', category: 'transporte', amount: 32000 },
-    { day: 6, note: 'PedidosYa', category: 'delivery', amount: 9000 },
-    { day: 20, note: 'Rappi', category: 'delivery', amount: 8500 },
+    { day: 6, note: 'PedidosYa', category: 'comida', amount: 9000 },
+    { day: 20, note: 'Rappi', category: 'comida', amount: 8500 },
     { day: 3, note: 'Cine', category: 'ocio', amount: 14000 },
     { day: 12, note: 'Pizza con amigos', category: 'comida', amount: 16000 },
     { day: 25, note: 'Café', category: 'comida', amount: 4500 },
@@ -51,7 +51,7 @@ export function demoState() {
   for (let back = 3; back >= 0; back--) {
     const mk = addMonthKey(cur, -back);
     const items = [...pattern];
-    if (back === 0) extraDeliveryThisMonth.forEach((d) => items.push({ day: d.day, note: 'PedidosYa', category: 'delivery', amount: d.amount }));
+    if (back === 0) extraDeliveryThisMonth.forEach((d) => items.push({ day: d.day, note: 'PedidosYa', category: 'comida', amount: d.amount }));
     for (const it of items) {
       const date = `${mk}-${String(it.day).padStart(2, '0')}`;
       if (date > todayStr) continue;

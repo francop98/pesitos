@@ -233,6 +233,7 @@ export const menuActions = {
     const s = ctx.state;
     openModal('Mis datos', `<form class="form" data-submit="saveSettings">
       ${campoCobro(s.profile)}
+      <label class="check"><input type="checkbox" name="aguinaldo" ${s.profile.aguinaldo !== false ? 'checked' : ''}> <span>Cobro aguinaldo<br><span class="small muted">Si trabajás en relación de dependencia: lo sumo como cobro esperado en junio y diciembre.</span></span></label>
       <div class="field"><label for="s-prov">Provincia (para las promos de tu zona)</label><select id="s-prov" name="province" data-change="ciudadProvincia"><option value="">Sin elegir: solo promos de todo el país</option>${PROVINCES.map((p) => `<option value="${esc(p)}" ${s.profile.province === p ? 'selected' : ''}>${esc(provinceLabel(p))}</option>`).join('')}</select></div>
       <div class="field"><label for="s-city">Ciudad (algunas promos son solo de una ciudad)</label>${campoCiudad({ id: 's-city', prov: s.profile.province, valor: s.profile.city || '' })}</div>
       <button class="btn primary block" type="submit">Guardar</button>
@@ -251,6 +252,7 @@ export const menuActions = {
       if (regla) { s.profile.payRule = regla; s.profile.paydayVaries = regla.tipo === 'varia'; s.profile.payday = regla.tipo === 'dia' ? regla.dia : regla.tipo === 'ultimo' ? 31 : 1; }
       s.profile.province = PROVINCES.includes(d.province) ? d.province : '';
       s.profile.city = String(d.city || '').trim().slice(0, 40);
+      s.profile.aguinaldo = !!d.aguinaldo;
     });
     closeModal(); toast('Datos guardados');
     refreshLive(ctx, true);

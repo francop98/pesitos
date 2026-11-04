@@ -91,7 +91,7 @@ function currentRoute() {
 function render() {
   if (!ready) return;
   usarFeriados(state);
-  setCustomCategories(state.customCategories);
+  setCustomCategories(state.customCategories, (state.catPrefs || {}).eliminadas || []);
   setCustomWallets(state.customWallets);
   document.body.classList.toggle('no-nav', !state.ready);
   document.body.classList.remove('sin-sesion');

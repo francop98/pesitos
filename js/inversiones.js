@@ -80,11 +80,12 @@ function letrasHtml(x, monto = 1000000) {
     return `<div class="row"><span class="grow"><span class="name">${esc(l.ticker)} <span class="pill">${l.etiqueta}</span></span><span class="meta">Vence el ${l.vto.split('-').reverse().join('/')} (${l.dias} días) · ${f2(l.tem)}% por mes</span></span>
       <span style="display:flex;flex-direction:column;align-items:flex-end"><b>${f2(l.tna)}% TNA</b><span class="small muted">+${money(gan)}</span></span></div>`;
   }).join('')}</div>
-  <span class="small muted">Ganancia aproximada con ${money(monto)} hasta el vencimiento, antes de comisiones del broker. Fuente: ArgentinaDatos (precios de mercado del último día hábil${x.fecha ? `, ${new Date(x.fecha).toLocaleDateString('es-AR')}` : ''}).</span>`;
+  <span class="small muted">Lo que ganarías con ${money(monto)} hasta el vencimiento, antes de comisiones del broker. Fuente: ArgentinaDatos (precios de mercado del último día hábil${x.fecha ? `, ${new Date(x.fecha).toLocaleDateString('es-AR')}` : ''}).</span>`;
 }
 
 // ---------- pantalla ----------
 let filtro = 'todos';
+let montoInv = 1000000;
 function cuerpo() {
   const grupos = [...new Set(INSTRUMENTOS.map((i) => i.grupo))];
   const lista = INSTRUMENTOS.filter((i) => filtro === 'todos' || i.grupo === filtro);
@@ -110,7 +111,9 @@ export function abrir() {
       </div>
       <span class="small muted">Antes de invertir: tené un fondo de emergencia (3 a 6 meses de gastos) en algo líquido.</span>
     </div>
-    <div class="card"><strong>Letras del Tesoro hoy</strong><div data-letras-top><p class="small muted" style="margin:0">Buscando las tasas de hoy…</p></div></div>
+    <div class="card"><strong>Letras del Tesoro hoy</strong>
+      <div class="field"><label for="inv-m">¿Cuánto invertirías?</label><input id="inv-m" inputmode="decimal" value="${montoInv.toLocaleString('es-AR')}" data-input="invMonto"></div>
+      <div data-letras-top><p class="small muted" style="margin:0">Buscando las tasas de hoy…</p></div></div>
     <div class="section-title"><span>Instrumentos</span><span class="small muted">Tocá para ver</span></div>
     <div id="inv-cuerpo">${cuerpo()}</div>
     <div class="card"><strong>Cómo empezar en la bolsa</strong>
@@ -126,7 +129,7 @@ export function abrir() {
 async function pintarLetras() {
   const g = letrasGuardadas();
   const poner = (x) => {
-    document.querySelectorAll('#modal [data-letras-top], #modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(x); });
+    document.querySelectorAll('#modal [data-letras-top], #modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(x, montoInv); });
   };
   if (g) poner(g);
   const x = await traerLetras();
@@ -135,5 +138,11 @@ async function pintarLetras() {
 
 export const actions = {
   openInversiones() { abrir(); },
-  invFiltro(ctx, el) { filtro = el.dataset.v; setModalBody('#inv-cuerpo', cuerpo()); const g = letrasGuardadas(); document.querySelectorAll('#modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(g); }); },
+  invMonto(ctx, el) {
+    const v = Number(String(el.value).replace(/\./g, '').replace(',', '.')) || 0;
+    if (v > 0) montoInv = v;
+    const g = letrasGuardadas();
+    document.querySelectorAll('#modal [data-letras-top], #modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(g, montoInv); });
+  },
+  invFiltro(ctx, el) { filtro = el.dataset.v; setModalBody('#inv-cuerpo', cuerpo()); const g = letrasGuardadas(); document.querySelectorAll('#modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(g, montoInv); }); },
 };

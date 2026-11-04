@@ -180,8 +180,9 @@ function categoriesBody(s) {
         <button type="button" class="grip" data-grip aria-label="Mover ${esc(c.label)} (flechas arriba y abajo)">${icon('grip', 18)}</button>
         <span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${c.custom ? '<span class="meta">Creada por vos</span>' : ''}</span>
         <button class="icon-btn mini" data-action="catOcultar" data-id="${esc(c.id)}" aria-label="${ocultas.has(c.id) ? 'Mostrar' : 'Ocultar'} ${esc(c.label)}" aria-pressed="${!ocultas.has(c.id)}">${icon(ocultas.has(c.id) ? 'eyeOff' : 'eye', 17)}</button>
-        ${c.custom ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Borrar ${esc(c.label)}">${icon('close', 16)}</button>` : ''}
-      </div>`).join('')}</div>`;
+        ${c.id !== 'otros' ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Eliminar ${esc(c.label)}">${icon('trash', 16)}</button>` : ''}
+      </div>`).join('')}</div>
+    ${(prefs.eliminadas || []).length ? `<button class="btn ghost block" data-action="catRestaurar">Restaurar categorías eliminadas (${prefs.eliminadas.length})</button>` : ''}`;
 }
 
 function weekDetail(w) {
@@ -391,11 +392,23 @@ export const commonActions = {
     const kind = formMedio.querySelector('[name=kind]').value;
     const lista = mediosRapidos(ctx.state).filter((m) => kind !== 'income' || !m.tarjeta);
     const grupos = [...new Set(lista.map((m) => m.grupo))];
-    openModal(kind === 'income' ? '¿Dónde entra la plata?' : '¿Con qué pagás?', `${grupos.map((g) => `<span class="small" style="font-weight:700">${g}</span>
+    openModal(kind === 'income' ? '¿Dónde entra la plata?' : '¿Con qué pagás?', `${lista.length >= 5 ? `<div class="field lista-buscar"><input type="search" placeholder="Buscar banco, billetera o tarjeta" aria-label="Buscar medio de pago" data-input="medioBuscar" autocomplete="off"></div>` : ''}
+      ${grupos.map((g) => `<div class="medio-grupo"><span class="small" style="font-weight:700">${g}</span>
       <div class="medio-hoja">${lista.filter((m) => m.grupo === g).map((m) => `<button type="button" class="medio-op${m.v === actual ? ' on' : ''}" data-action="medioElegido" data-v="${esc(m.v)}">
         <span class="cat-icon">${icon(m.tarjeta ? 'card' : 'wallet', 18)}</span><span class="grow"><span class="name">${m.falta ? '+ ' : ''}${esc(m.label)}</span>${m.principal ? '<span class="meta">Tu cuenta principal</span>' : m.falta ? '<span class="meta">Cargala para anotar con ella</span>' : m.usos ? `<span class="meta">${m.usos} ${m.usos === 1 ? 'vez' : 'veces'} en los últimos 2 meses</span>` : ''}</span>
-        ${m.v === actual ? icon('check', 18, 2.6) : ''}</button>`).join('')}</div>`).join('')}
+        ${m.v === actual ? icon('check', 18, 2.6) : ''}</button>`).join('')}</div></div>`).join('')}
+      <p class="empty" data-medio-nada hidden>No encontré ese medio. Agregalo con el botón de abajo.</p>
       <button class="btn ghost block" data-action="openWallets">Agregar un banco, billetera o tarjeta</button>`);
+  },
+  medioBuscar(ctx, el) {
+    const q = normalize(el.value.trim());
+    const m = document.getElementById('modal'); let alguno = false;
+    m.querySelectorAll('.medio-grupo').forEach((g) => {
+      let vis = 0;
+      g.querySelectorAll('.medio-op').forEach((b) => { const ok = !q || normalize(b.textContent).includes(q); b.hidden = !ok; if (ok) vis++; });
+      g.hidden = !vis; if (vis) alguno = true;
+    });
+    m.querySelector('[data-medio-nada]').hidden = alguno;
   },
   medioElegido(ctx, el) {
     const v = el.dataset.v;
@@ -489,15 +502,41 @@ export const commonActions = {
     setModalBody('#cats-body', categoriesBody(ctx.state));
     toast(`Categoría "${label}" creada`);
   },
+  // eliminar cualquier categoría (menos "Otros"): primero elegís a dónde pasan sus gastos
   deleteCategory(ctx, el) {
+    const id = el.dataset.id; const s = ctx.state;
+    const n = s.expenses.filter((e) => e.category === id).length;
+    const destinos = allCategories().filter((c) => c.id !== id);
+    openModal(`Eliminar "${catLabel(id)}"`, `<form class="form" data-submit="catEliminar">
+      <input type="hidden" name="id" value="${esc(id)}">
+      ${n ? `<div class="field"><label for="ce-d">Sus ${n} gasto${n === 1 ? '' : 's'} pasan a</label><select id="ce-d" name="destino">${destinos.map((c) => `<option value="${esc(c.id)}" ${c.id === 'otros' ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div>`
+        : '<p class="text muted" style="margin:0">No tiene gastos anotados.</p>'}
+      <p class="small muted" style="margin:0">${allCategories().find((c) => c.id === id && c.custom) ? 'Se borra para siempre.' : 'Deja de aparecer y de detectarse sola. La podés restaurar desde esta misma pantalla.'}</p>
+      <button class="btn primary block" type="submit">Eliminar</button>
+      <button class="btn ghost block" type="button" data-action="modalBack">Cancelar</button>
+    </form>`, { push: true });
+  },
+  catEliminar(ctx, d) {
+    const id = d.id; const destino = d.destino || 'otros';
+    const custom = (ctx.state.customCategories || []).some((c) => c.id === id);
     ctx.commit((s) => {
-      s.customCategories = s.customCategories.filter((c) => c.id !== el.dataset.id);
-      s.expenses.forEach((e) => { if (e.category === el.dataset.id) e.category = 'otros'; });
-      for (const k of Object.keys(s.learned)) if (s.learned[k] === el.dataset.id) delete s.learned[k];
-      setCustomCategories(s.customCategories);
+      s.expenses.forEach((e) => { if (e.category === id) e.category = destino; });
+      (s.fixed || []).forEach((f) => { if (f.category === id) f.category = destino; });
+      for (const k of Object.keys(s.learned || {})) if (s.learned[k] === id) s.learned[k] = destino;
+      s.catPrefs = { ...(s.catPrefs || {}) };
+      if (custom) s.customCategories = s.customCategories.filter((c) => c.id !== id);
+      else s.catPrefs.eliminadas = [...new Set([...(s.catPrefs.eliminadas || []), id])];
+      s.catPrefs.ocultas = (s.catPrefs.ocultas || []).filter((x) => x !== id);
+      setCustomCategories(s.customCategories, s.catPrefs.eliminadas || []);
     });
+    modalBack();
     setModalBody('#cats-body', categoriesBody(ctx.state));
-    toast('Categoría borrada (sus gastos pasaron a "Otros")');
+    toast(`Categoría eliminada (sus gastos pasaron a "${catLabel(destino)}")`);
+  },
+  catRestaurar(ctx) {
+    ctx.commit((s) => { s.catPrefs = { ...(s.catPrefs || {}), eliminadas: [] }; setCustomCategories(s.customCategories, []); });
+    setModalBody('#cats-body', categoriesBody(ctx.state));
+    toast('Categorías restauradas');
   },
 
   newEntry(ctx, el) {
@@ -616,7 +655,7 @@ export const commonActions = {
       <div class="field"><label for="b-amount">¿Cuánto cuesta?</label><input id="b-amount" name="amount" inputmode="decimal" placeholder="Ej: 90.000" required></div>
       <button class="btn primary block" type="submit">Empezar</button>
       <span class="hint">Te hago unas preguntas cortas y te doy una conclusión, con los números de tu plata.</span>
-    </form><div id="buy-result"></div>`);
+    </form><div id="buy-result"></div>`, { alto: true });
   },
   buyCheck(ctx, d) {
     const amount = num(d.amount);
@@ -677,7 +716,7 @@ export const commonActions = {
       if (exp != null) {
         const diff = exp - bal;
         if (diff > 500) {
-          s.expenses.push({ id: uid(), date: today, amount: Math.round(diff), category: 'varios', note: 'Gastos varios (cierre semanal)', installments: 1 });
+          s.expenses.push({ id: uid(), date: today, amount: Math.round(diff), category: 'otros', note: 'Gastos varios (cierre semanal)', installments: 1 });
           msg = `Sumé ${money(diff)} como gastos varios. Panorama completo sin anotar cada café.`;
         } else if (diff < -500) msg = `Tenés ${money(-diff)} más de lo esperado. ¿Un ingreso sin anotar?`;
         else msg = 'Todo cuadra. ¡Bien ahí!';

@@ -874,7 +874,7 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .riesgo.r4 i.on, .riesgo.r5 i.on { background: #D9534F; }
 .riesgo b { font-size: 11px; color: var(--muted); margin-left: 5px; min-width: 52px; }
 .inv-plazos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.inv-plazos span { background: var(--card); border-radius: 12px; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
+.inv-plazos span { background: rgba(255,255,255,.55); color: #16301f; border-radius: 12px; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
 .inv-plazos b { display: block; font-size: 13px; }
 .inv-filtros { flex-wrap: wrap; }
 /* v20: estadísticas extra */
@@ -888,3 +888,17 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .regla-barra span.mal { background: #F2B33D; }
 .regla-barra i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .55; }
 .stat-grid > .stat:only-child { grid-column: 1 / -1; }
+/* v21 */
+.medio-grupo { display: flex; flex-direction: column; gap: 6px; }
+.medio-op[hidden], .medio-grupo[hidden] { display: none; }
+.lista-buscar input { width: 100%; }
+.card.lime .muted, .card.lime .small.muted { color: rgba(22,48,31,.72); }
+.inv-plazos b { color: #0f3d24; }
+.modal-sheet.alto { min-height: 88dvh; }
+.aviso-sac { background: var(--amber-bg); border-radius: 12px; padding: 10px 12px; margin: 0 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.t-cargos { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.hormiga { gap: 6px; }
+.hero-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+.hero-acciones .link-btn { color: inherit; opacity: .85; text-decoration: underline; font-size: 13px; }
+.hero-label { display: inline-flex; align-items: center; gap: 6px; }
+.hero-info { border: 0; background: rgba(255,255,255,.14); color: inherit; width: 26px; height: 26px; border-radius: 99px; display: inline-grid; place-items: center; cursor: pointer; padding: 0; }

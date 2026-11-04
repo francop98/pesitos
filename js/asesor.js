@@ -142,7 +142,7 @@ function challengeForm() {
     <div class="field"><label for="ch-n">Nombre</label><input id="ch-n" name="name" placeholder="Ej: Un mes sin comprar ropa" required></div>
     <div class="field"><label for="ch-t">Tipo</label><select id="ch-t" name="type">${CHALLENGE_TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}</select></div>
     <div class="field-row">
-      <div class="field"><label for="ch-c">Categoría</label><select id="ch-c" name="category">${catOpts('delivery')}</select></div>
+      <div class="field"><label for="ch-c">Categoría</label><select id="ch-c" name="category">${catOpts('comida')}</select></div>
       <div class="field"><label for="ch-d">Duración (días)</label><input id="ch-d" name="days" inputmode="numeric" placeholder="Ej: 30" required></div>
     </div>
     <div class="field"><label for="ch-a">Monto (tope o gasto mínimo)</label><input id="ch-a" name="amount" inputmode="decimal" placeholder="Ej: 20.000"><span class="hint">Para "No pasar un monto": el tope. Para "Sin gastos chicos": el monto mínimo.</span></div>

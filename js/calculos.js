@@ -106,20 +106,30 @@ export function budget(s) {
   const saving = plan.total;
   const variable = cycleVariable(s, cycle);
   const spentToday = sum(s.expenses.filter((e) => !e.pending && !deAhorros(s, e) && e.date === todayStr), share);
-  const free = income - fixed - saving - variable;
-  // Lo de hoy: lo libre repartido entre los días que faltan, pero nunca más que
-  // tu ritmo normal del mes (si sobra, se sugiere ahorrarlo; no gastarlo de una).
+  // lo que pasaste a ahorro desde "Hoy podés gastar" (lo que no gastaste otros días)
+  const aparte = sum((s.transfers || []).filter((t) => t.deDiario && t.date >= cycle.startISO && t.date < cycle.nextISO), (t) => t.amount);
+  const free = income - fixed - saving - variable - aparte;
+  // Lo de hoy funciona como un administrador: tu ritmo normal del mes, más una parte
+  // de lo que no gastaste los días anteriores (la otra parte se sugiere ahorrar).
+  // s.diario.reparto: 1 = todo para gastar después, 0.5 = mitad y mitad, 0 = todo a ahorro.
   const cycleDays = Math.max(1, daysBetween(cycle.start, cycle.next));
   const normalDaily = Math.max(0, (income - fixed - saving) / cycleDays);
   const evenSplit = (free + spentToday) / cycle.daysLeft;
-  const dailyBase = normalDaily > 0 ? Math.min(evenSplit, normalDaily) : evenSplit;
+  const transcurridos0 = Math.max(0, cycleDays - cycle.daysLeft);
+  const reparto = s.diario && s.diario.reparto !== undefined ? Number(s.diario.reparto) : 0.5;
+  // lo que no gastaste de los días anteriores (lo ya pasado a ahorro sale de la parte "para ahorrar")
+  const colchon = normalDaily > 0 ? Math.max(0, Math.round(normalDaily * transcurridos0 - (variable - spentToday))) : 0;
+  const gastable = Math.max(0, Math.min(colchon * reparto, colchon - aparte));
+  const paraAhorrar = Math.max(0, Math.round(colchon - gastable - aparte));
+  const extraDia = gastable / cycle.daysLeft;
+  const dailyBase = normalDaily > 0 ? Math.min(evenSplit, normalDaily + extraDia) : evenSplit;
   const todayLeft = dailyBase - spentToday;
   const sobrante = Math.max(0, Math.round((free + spentToday) - dailyBase * cycle.daysLeft));
   // cuánto vas por encima de tu ritmo normal en lo que va del ciclo (sin contar hoy)
   const transcurridos = Math.max(0, cycleDays - cycle.daysLeft);
   const adelanto = normalDaily > 0 ? Math.max(0, Math.round((variable - spentToday) - normalDaily * transcurridos)) : 0;
-  const usedPct = income > 0 ? Math.min(1, (fixed + saving + variable) / income) : 0;
-  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, adelanto, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
+  const usedPct = income > 0 ? Math.min(1, (fixed + saving + variable + aparte) / income) : 0;
+  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, adelanto, colchon, paraAhorrar, extraDia, reparto, aparte, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
 }
 
 // ---------- metas ----------

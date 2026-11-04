@@ -16,7 +16,8 @@ import { alertaPresupuestos } from './presupuestos.js';
 import { mediosRapidos } from './acciones.js';
 import { instalada } from './menu.js';
 import { bioDisponible, bioActiva, bloqueoActions } from './bloqueo.js';
-import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast } from './interfaz.js';
+import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast, setModalBody } from './interfaz.js';
+import { uid } from './almacenamiento.js';
 
 const MODE_TEXT = {
   payFirst: (s) => `Elegiste apartar el ${s.rules.payFirst.pct}% apenas cobrás`,
@@ -177,7 +178,7 @@ const tile = ([a, ic, l]) => (a.startsWith('#')
 
 // Qué decir debajo de "Hoy podés gastar": cómo venís y qué hacer si te pasaste.
 const diasTxt = (n) => (n === 1 ? '1 día' : `${String(Math.round(n * 10) / 10).replace('.', ',')} días`);
-function heroMensaje(b, payText) {
+function heroMensaje(s, b, payText) {
   const est = b.estimated ? ' Estimado con tu último sueldo.' : '';
   const linea = (t, extra = '') => `<span class="small on-green-muted hero-msg ${extra}">${t}${est}</span>`;
   const restantes = Math.max(1, b.cycle.daysLeft - 1);
@@ -196,7 +197,16 @@ function heroMensaje(b, payText) {
   if (b.adelanto > b.normalDaily * 0.5 && b.normalDaily > 0) {
     return linea(`Por día, para llegar bien: ${payText}. Ojo: este mes vas <b>${diasTxt(b.adelanto / b.normalDaily)} adelantado</b> respecto de tu ritmo normal.`);
   }
-  if (b.sobrante > 0) return linea(`Por día, para llegar bien: ${payText}. Si seguís así, te sobran ${money(b.sobrante)} para ahorrar.`);
+  // venís gastando menos: una parte se suma a tus próximos días y otra se sugiere ahorrar
+  if (b.colchon > Math.max(500, b.normalDaily * 0.3)) {
+    const meta = mainGoal(s);
+    const partes = [];
+    if (b.extraDia >= 1) partes.push(`<b>+${money(b.extraDia)} por día</b> hasta el cobro`);
+    if (b.paraAhorrar >= 1) partes.push(`<b>${money(b.paraAhorrar)}</b> para ${meta ? `"${esc(meta.name)}"` : 'ahorrar'}`);
+    if (b.aparte >= 1) partes.push(`ya apartaste ${money(b.aparte)}`);
+    return `${linea(`No gastaste ${money(b.colchon)} de días anteriores: ${partes.join(' y ')}.`)}
+      <span class="hero-acciones">${b.paraAhorrar >= 1 ? `<button class="btn small lime" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Pasar ${money(b.paraAhorrar)} ${meta ? 'a la meta' : 'a ahorro'}</button>` : ''}<button class="link-btn on-green-muted" data-action="openDiario">Cómo se reparte</button></span>`;
+  }
   return linea(`Por día, para llegar bien: ${payText}.`);
 }
 
@@ -213,10 +223,10 @@ function widget(s, b, payText) {
   const cyclePct = Math.min(1, Math.max(0, 1 - b.cycle.daysLeft / Math.max(1, Math.round((b.cycle.next - b.cycle.start) / 86400000))));
   const slides = [
     `<div class="card green hero slide">
-      <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}</span>
+      <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}<button class="hero-info" data-action="openDiario" aria-label="Cómo se calcula y cómo se reparte lo que no gastás">${icon('info', 15)}</button></span>
       <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
-      ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(b, payText)}
+      ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(s, b, payText)}
     </div>`,
     `<div class="card green hero slide">
       <span class="hero-label">Hasta el cobro te quedan</span>
@@ -224,23 +234,11 @@ function widget(s, b, payText) {
       <div class="bar" role="img" aria-label="Pasó el ${Math.round(cyclePct * 100)}% del mes"><span style="width:${Math.round(cyclePct * 100)}%"></span></div>
       <span class="small on-green-muted">${payText[0].toUpperCase() + payText.slice(1)} (${b.cycle.next.getDate()}/${b.cycle.next.getMonth() + 1}). Ya descontados tus gastos fijos${b.saving ? ` y ${money(b.saving)} de ahorro` : ''}.</span>
     </div>`,
-    `<a class="card green hero slide" href="#/estadisticas" style="text-decoration:none">
-      <span class="hero-label">${MONTHS_LONG[new Date().getMonth()].replace(/^./, (c) => c.toUpperCase())}: te quedó</span>
-      <span class="hero-number">${money(entro - salio)}</span>
-      <span class="small on-green-muted">Entró ${money(entro)} · salió ${money(salio)}</span>
-      <span class="small on-green-muted">${salioAntes ? `En gastos del día a día vas ${varMes <= salioAntes ? `<b>${money(salioAntes - varMes)} abajo</b>` : `<b>${money(varMes - salioAntes)} arriba</b>`} del mes pasado a esta altura.` : 'Tocá para ver tus estadísticas.'}</span>
-    </a>`,
-    `<a class="card green hero slide" href="#/ahorro" style="text-decoration:none">
-      <span class="hero-label">Tu patrimonio neto</span>
-      <span class="hero-number">${money(pat.neto)}</span>
-      <span class="small on-green-muted">Cuentas ${money(pat.cuentas)} · ahorros ${money(pat.ahorros)}${pat.tarjetas + pat.creditos + pat.debo ? ` · deudas −${money(pat.tarjetas + pat.creditos + pat.debo)}` : ''}</span>
-      ${pat.conCuentas ? '' : '<span class="small on-green-muted">Cargá el saldo de tus cuentas en Mi plata para que sea exacto.</span>'}
-    </a>`,
   ];
   const i = Math.min(slides.length - 1, widgetGuardado());
   requestAnimationFrame(() => { const c = document.querySelector('[data-widget]'); if (c && i) c.scrollLeft = c.clientWidth * i; });
   return `<div class="hero-wrap"><div class="hero-carrusel" data-widget aria-roledescription="carrusel" aria-label="Resumen de tu plata">${slides.join('')}</div>
-    <div class="hero-puntos" role="tablist">${slides.map((_, n) => `<button role="tab" data-action="widgetIr" data-i="${n}" aria-label="Ver ${['hoy', 'hasta el cobro', 'el mes', 'tu patrimonio'][n]}" aria-selected="${n === i}"></button>`).join('')}</div></div>`;
+    <div class="hero-puntos" role="tablist">${slides.map((_, n) => `<button role="tab" data-action="widgetIr" data-i="${n}" aria-label="Ver ${['hoy', 'hasta el cobro'][n]}" aria-selected="${n === i}"></button>`).join('')}</div></div>`;
 }
 // al deslizar el widget, se marca el puntito y se recuerda
 document.addEventListener('scroll', (e) => {
@@ -333,6 +331,22 @@ function instalarCard() {
   </div>`;
 }
 
+function diarioBody(s) {
+  const b = budget(s); const r = b.reparto;
+  const op = (v, t, d) => `<button type="button" class="medio-op${Math.abs(r - v) < 0.01 ? ' on' : ''}" data-action="setReparto" data-v="${v}"><span class="grow"><span class="name">${t}</span><span class="meta">${d}</span></span>${Math.abs(r - v) < 0.01 ? icon('check', 18, 2.6) : ''}</button>`;
+  return `<div class="card"><span class="text">Cada día te muestro tu <b>ritmo normal</b>: lo que cobrás, menos tus gastos fijos y lo que separás para ahorrar, dividido por los días del mes${b.normalDaily ? ` (hoy: <b>${money(b.normalDaily)} por día</b>)` : ''}.</span>
+      <span class="text">Si un día gastás de más, los días que siguen bajan para que llegues al cobro. Si gastás de menos, lo que no gastaste se reparte como elijas acá abajo.</span></div>
+    <span class="small" style="font-weight:700">Lo que no gastás en el día</span>
+    <div class="medio-hoja">
+      ${op(1, 'Todo para gastar después', 'Se suma a tus próximos días: mañana podés gastar más.')}
+      ${op(0.5, 'Mitad y mitad', 'La mitad se suma a tus próximos días y la otra mitad te sugiero ahorrarla.')}
+      ${op(0.25, 'Un poco para gastar, más para ahorrar', 'Un 25% se suma a tus próximos días y el 75% va a tu meta.')}
+      ${op(0, 'Todo a ahorro', 'Tu diario queda fijo y todo lo que no gastás va a tu meta.')}
+    </div>
+    ${b.colchon ? `<div class="card lime"><span class="text">Hasta hoy no gastaste <b>${money(b.colchon)}</b> de tu ritmo: ${b.extraDia >= 1 ? `<b>+${money(b.extraDia)} por día</b> hasta el cobro` : 'nada se suma a tus días'}${b.paraAhorrar >= 1 ? ` y <b>${money(b.paraAhorrar)}</b> para ahorrar` : ''}.</span>
+      ${b.paraAhorrar >= 1 ? `<button class="btn small" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Pasar ${money(b.paraAhorrar)} a ${mainGoal(s) ? `"${esc(mainGoal(s).name)}"` : 'ahorro'}</button>` : ''}</div>` : ''}`;
+}
+
 export const actions = {
   openNovedades(ctx) {
     const lista = avisos(ctx.state, budget(ctx.state)).slice(1);
@@ -345,6 +359,25 @@ export const actions = {
     const hasta = new Date(); if (!/^promo-/.test(id)) hasta.setDate(hasta.getDate() + 13);
     ctx.commit((s) => { s.tipsNo = { ...(s.tipsNo || {}), [id]: hasta.toISOString().slice(0, 10) }; });
     toast(/^promo-/.test(id) ? 'Listo, no te la muestro más hoy' : 'Listo, lo oculto por un tiempo');
+  },
+  // lo que no gastaste, a la meta (o a ahorro): baja lo libre del ciclo
+  diarioAhorrar(ctx, el) {
+    const amount = Math.round(num(el.dataset.amount)); if (!amount) return;
+    let name = '';
+    ctx.commit((s) => {
+      const g = mainGoal(s); if (g) { g.saved += amount; name = g.name; }
+      s.transfers = s.transfers || [];
+      s.transfers.push({ id: uid(), date: todayISO(), amount, deDiario: true, note: g ? `Aporte a ${g.name} (lo que no gastaste)` : 'Ahorro de lo que no gastaste' });
+    });
+    toast(name ? `¡Bien! ${money(amount)} más para "${name}"` : `¡Bien! Apartaste ${money(amount)}`);
+    if (document.querySelector('#modal:not([hidden]) [data-action=setReparto]')) setModalBody('.modal-body', diarioBody(ctx.state));
+  },
+  openDiario(ctx) {
+    openModal('Cómo funciona "Hoy podés gastar"', diarioBody(ctx.state));
+  },
+  setReparto(ctx, el) {
+    ctx.commit((s) => { s.diario = { ...(s.diario || {}), reparto: Number(el.dataset.v) }; });
+    setModalBody('.modal-body', diarioBody(ctx.state));
   },
   widgetIr(ctx, el) { const c = document.querySelector('[data-widget]'); if (c) c.scrollTo({ left: c.clientWidth * Number(el.dataset.i), behavior: 'smooth' }); },
   openAtajos() { openModal('Más secciones', `<div class="tiles">${ATAJOS.slice(3).map(tile).join('')}</div>`); },
