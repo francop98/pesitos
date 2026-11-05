@@ -10,6 +10,7 @@ import { toISO, parseISO, startOfToday, daysBetween, addDays, money, monthName }
 import { payCycle, lastSalary, expectedBalance } from './calculos.js';
 import { agendaBetween, billOccurrences, repeatLabel } from './agenda.js';
 import { fechaDeCobro } from './feriados.js';
+import { reintegrosPendientes, reintegrosCobrados, totalReintegros } from './reintegros.js';
 
 const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + f(x), 0);
 const share = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);
@@ -56,6 +57,17 @@ export function inflows(s, from, to) {
     }
   }
 
+  // reintegros y cashback que te van a devolver (agrupados por día y billetera)
+  const grupos = {};
+  for (const e of reintegrosPendientes(s)) {
+    const r = e.reintegro; const d = parseISO(r.fecha);
+    if (d < from || d > to) continue;
+    const k = `rein:${r.fecha}:${r.wallet}`;
+    const g = grupos[k] = grupos[k] || { key: k, kind: 'reintegro', name: `Reintegro ${r.nombre}`, amount: 0, date: r.fecha, n: 0, toCard: !!r.cardId };
+    g.amount += r.monto; g.n++;
+  }
+  for (const g of Object.values(grupos)) out.push({ ...g, sub: `${g.n} compra${g.n === 1 ? '' : 's'} · ${g.toCard ? 'baja el resumen de la tarjeta' : 'se suma solo a tu cuenta'}` });
+
   // plazos fijos que vencen
   for (const h of s.holdings || []) {
     if (!h.maturity || (h.currency && h.currency !== 'ARS')) continue;
@@ -72,7 +84,7 @@ function startBalance(s) {
   if (s.lastClose) return { amount: expectedBalance(s), estimated: false, cycle };
   const today = toISO(startOfToday());
   const inCycle = (d) => d >= cycle.startISO && d <= today;
-  let amount = sum(s.incomes.filter((i) => inCycle(i.date)), (i) => i.amount);
+  let amount = sum(s.incomes.filter((i) => inCycle(i.date)), (i) => i.amount) + totalReintegros(reintegrosCobrados(s, cycle.startISO, today).filter((e) => !e.reintegro.cardId));
   if (!s.incomes.some((i) => i.type === 'sueldo' && inCycle(i.date))) { const l = lastSalary(s); if (l) amount += l.amount; }
   amount -= sum(s.expenses.filter((e) => !e.pending && !e.cardId && !e.fromSavings && !e.fromPayment && inCycle(e.date)), share);
   amount -= sum((s.transfers || []).filter((t) => inCycle(t.date)), (t) => t.amount);
@@ -104,7 +116,7 @@ export function projection(s) {
   let out = agendaBetween(s, addDays(today, -45), end).filter((i) => !i.paid && !i.fromSavings && i.due <= toISO(end));
   // con saldo real cargado, los fijos ya vencidos desde ese ajuste ya están descontados
   if (!start.estimated && s.lastClose) out = out.filter((i) => !(i.kind === 'fixed' && i.due > s.lastClose.date && i.due <= toISO(today)));
-  const ins = inflows(s, today, end).filter((i) => !i.toSavings);
+  const ins = inflows(s, today, end).filter((i) => !i.toSavings && !i.toCard);
   let bal = start.amount;
   const points = [];
   let min = Infinity; let minDate = toISO(today);

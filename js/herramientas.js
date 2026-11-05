@@ -14,6 +14,7 @@ const GRUPOS = [
   ['Antes de comprar', [
     { action: 'openBuy', icon: 'cart', title: '¿Me lo compro?', text: 'Cómo impacta una compra en tu día, tu mes y tus metas.' },
     { action: 'openInstallments', icon: 'card', title: 'Cuotas o contado', text: 'Con o sin interés, con reintegro y con la inflación: cuánto ganás o perdés de verdad.' },
+    { action: 'openConQuePagar', icon: 'coins', title: '¿Con qué conviene pagar?', text: 'Para tus servicios y compras de siempre: qué banco o billetera te devuelve más.' },
     { action: 'openTope', icon: 'ticket', title: 'Descuento con tope', text: 'Cuánto gastar para aprovechar todo el reintegro, y el descuento real.' },
   ]],
   ['Hacer rendir tu plata', [

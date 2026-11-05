@@ -1,6 +1,7 @@
 // Movimientos: ingresos y gastos separados, fijos que se cargan solos,
 // sugerencias de mejora y acceso a tarjetas.
 
+import { reintegrosDelMes } from './reintegros.js';
 import { money, esc, monthKey, addMonthKey, monthDiff, monthName, relDay, num, MONTHS_LONG } from './formato.js';
 
 const monthLabel = (mk) => { const [y, m] = mk.split('-').map(Number); return `${MONTHS_LONG[m - 1]} ${y}`; };
@@ -13,7 +14,7 @@ import { icon, catIcon, screenHead, quickForm, openModal, closeModal, toast, bor
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
-import { payOptions } from './pagos.js';
+import { payOptions, descuentoCampos, descuentoDe } from './pagos.js';
 import { nombreCuenta, saldoDeuda, totalMeDeben, totalDebo } from './cuentas.js';
 import { proyectoDe } from './proyectos.js';
 
@@ -63,7 +64,8 @@ export function render(s) {
   const dias = [];
   for (const x of list) { const d = dias[dias.length - 1]; if (d && d.date === x.date) d.items.push(x); else dias.push({ date: x.date, items: [x] }); }
   const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
-  const ahorroPesitos = (s.savedByApp || {})[mk] || 0;
+  const reintMes = reintegrosDelMes(s, mk);
+  const ahorroPesitos = ((s.savedByApp || {})[mk] || 0) + reintMes;
   const nProy = (s.proyectos || []).filter((p) => !p.cerrado).length;
   const tm = totalMeDeben(s); const td = totalDebo(s);
 
@@ -82,7 +84,7 @@ export function render(s) {
       <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
     </a>
-    ${ahorroPesitos || offset === 0 ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos en ${monthLabel(mk).split(' ')[0]}</b><span class="small">${ahorroPesitos ? 'Promos y desafíos que aprovechaste' : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
+    ${ahorroPesitos || offset === 0 ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos en ${monthLabel(mk).split(' ')[0]}</b><span class="small">${ahorroPesitos ? `${reintMes ? `Reintegros ${money(reintMes)} · ` : ''}promos y desafíos` : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
     <div class="mov-accesos">
       <a class="card mov-acceso ${tm || td ? 'activa' : ''}" href="#/deudas">
         <span class="cat-icon ${tm || td ? 'amber' : 'green'}">${icon('people', 19)}</span>
@@ -150,6 +152,7 @@ function fixedForm(s, f = {}) {
       <div class="field"><label for="fx-cr">Cuotas que te faltan pagar</label><input id="fx-cr" name="restantes" inputmode="numeric" value="${f.endMonth && f.totalCuotas ? Math.max(0, monthDiff(monthKey(), f.endMonth) + 1) : ''}" placeholder="Ej: 18"><span class="hint">Contando la de este mes si todavía no la pagaste.</span></div>
     </div>
     <div class="field" data-hasta="mes" ${f.endMonth && !f.totalCuotas ? '' : 'hidden'}><label for="fx-em">Último mes que lo pagás</label><input id="fx-em" name="endMonth" type="month" value="${esc(f.endMonth || '')}" min="${monthKey()}"></div>
+    ${descuentoCampos(f)}
     <div class="field"><label for="fx-w">Se paga con</label><select id="fx-w" name="payWith">${payOptions(s, f.payWith)}</select></div>
     <label class="check"><input type="checkbox" name="autoDebit" ${f.autoDebit ? 'checked' : ''}> <span>Débito automático<br><span class="small muted">Se da por pagado solo el día del vencimiento; te aviso que tengas saldo.</span></span></label>
     <span class="small muted">${f.variable ? 'Cada vez que pagás, actualizo el monto aproximado.' : 'Si cambia el monto, te aviso cuánto subió.'} Cuando termina, deja de descontarse solo.</span>
@@ -159,6 +162,8 @@ function fixedForm(s, f = {}) {
   </form>`;
 }
 
+export const fixedFormExt = (s, f) => fixedForm(s, f);
+
 export const actions = {
   setFilter(ctx, el) { filter = el.dataset.f; ctx.render(); },
   movVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
@@ -167,9 +172,11 @@ export const actions = {
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
   ahorroPesitosInfo(ctx) {
     openModal('Plata que te ahorraste', `<p class="text" style="margin:0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
-      <div class="card"><span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
+      <div class="card"><span class="small">💸 <b>Reintegros y cashback:</b> cuando anotás un gasto con un medio que tiene promo (o un cashback que cargaste), calculo cuánto te devuelven. El día que llega, se suma solo acá y a tu saldo.</span>
+      <span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
       <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Mi plata → Plan de ahorro, se suma lo que no gastaste.</span></div>
-      <a class="btn primary block" href="#/beneficios">Ver las promos de hoy</a>`);
+      <a class="btn primary block" href="#/reintegros">Ver mis reintegros</a>
+      <a class="btn block" href="#/beneficios">Ver las promos de hoy</a>`);
   },
   movElegirMes(ctx) {
     const s = ctx.state; const hoy = monthKey();
@@ -200,6 +207,7 @@ export const actions = {
       endMonth = d.endMonth;
     }
     const extra = { variable: !!d.variable, endMonth, totalCuotas };
+    const dsc = descuentoDe(d); if (dsc !== undefined) extra.desc = dsc;
     if (!amount || !String(d.name || '').trim()) { toast('Completá nombre y monto'); return; }
     const again = d.again === '1';
     ctx.commit((s) => {

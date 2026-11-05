@@ -20,6 +20,7 @@ export function mensajeDelDia(d = {}) {
   if (d.manana) { if (!titulo) titulo = plural(d.manana, 'Mañana vence un pago', 'Mañana vencen # pagos'); else partes.push(plural(d.manana, 'Y mañana vence otro.', 'Y mañana vencen #.')); if (!d.hoy) partes.push('Fijate que tengas la plata en la cuenta.'); }
   if (d.cierre) { if (!titulo) { titulo = 'Hoy cierra tu tarjeta'; url = './#/tarjetas'; } partes.push('Lo que compres con tarjeta desde mañana va al resumen siguiente.'); }
   if (d.cobro) { if (!titulo) { titulo = 'Hoy es día de cobro 💸'; url = './#/inicio'; } partes.push('Confirmá tu sueldo y apartá tu ahorro antes de gastar.'); }
+  if (d.recordatorio) { if (!titulo) { titulo = plural(d.recordatorio, 'Tenés un recordatorio para hoy', 'Tenés # recordatorios para hoy'); url = './#/pagos'; } else partes.push(plural(d.recordatorio, 'Y tenés un recordatorio.', 'Y tenés # recordatorios.')); }
   if (d.deuda) { if (!titulo) { titulo = plural(d.deuda, 'Hoy vence una deuda o préstamo', 'Hoy vencen # deudas o préstamos'); url = './#/deudas'; } else partes.push('También vence una deuda o préstamo.'); }
   return titulo ? { title: titulo, body: partes.join(' '), url, tag: 'pesitos-dia' } : null;
 }

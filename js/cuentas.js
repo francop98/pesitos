@@ -11,6 +11,7 @@
 // Ids de cuenta: 'efectivo' o el id de un banco/billetera de "Mis medios de pago".
 // =========================================================
 
+import { reintegrosDeCuenta } from './reintegros.js';
 import { allWallets } from './categorias.js';
 import { todayISO, monthKey, monthDiff, toISO, parseISO } from './formato.js';
 import { BILLETERAS_QUE_RINDEN, crecer } from './rendimientos.js';
@@ -54,6 +55,8 @@ export function movimientosDeCuenta(s, id, desde = '0000-00-00', hasta = todayIS
     const nombre = tipo === 'card' ? `Tarjeta ${(s.cards.find((c) => c.id === ref) || {}).name || ''}` : ((s.fixed.find((f) => f.id === ref) || {}).name || 'Gasto fijo');
     out.push({ date: p.date, monto: -Number(p.amount || 0), texto: `Pago: ${nombre}`.trim(), tipo: 'pago', ref: key });
   }
+  // reintegros y cashback que te devolvieron en esta cuenta
+  for (const e of reintegrosDeCuenta(s, id, desde, hasta)) out.push({ date: e.reintegro.fecha, monto: e.reintegro.monto, texto: `Reintegro: ${e.note}`, tipo: 'reintegro', ref: e.id });
   for (const t of s.transfers || []) if (t.accountId === id && en(t.date)) out.push({ date: t.date, monto: -t.amount, texto: t.note || 'A ahorros', tipo: 'ahorro', ref: t.id });
   for (const d of s.deudas || []) {
     if (d.cuenta === id && en(d.date) && !d.origen) out.push({ date: d.date, monto: d.tipo === 'meDeben' ? -d.monto : d.monto, texto: d.tipo === 'meDeben' ? `Le prestaste a ${d.persona}` : `Te prestó ${d.persona}`, tipo: 'deuda', ref: d.id });

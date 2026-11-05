@@ -13,6 +13,7 @@ import { LESSONS } from './aprender.js';
 import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal } from './calculos.js';
 import { statementDates, statementOf } from './agenda.js';
 import { demoState } from './ejemplo.js';
+import { detectarReintegro } from './reintegros.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
 import { ratesAge, arsPer } from './cotizaciones.js';
@@ -102,6 +103,12 @@ export function entryForm(s, e, kind) {
          <div class="field"><label for="f-inst">Cuotas (con tarjeta)</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments > 1 ? e.installments : ''}" placeholder="1 (sin cuotas)"></div></div>
          ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime" style="padding:12px 14px"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
     ${(s.proyectos || []).some((p) => !p.cerrado || p.id === e.proyectoId) ? `<div class="field"><label for="f-proy">Proyecto (opcional)</label><select id="f-proy" name="proyectoId"><option value="">Ninguno</option>${s.proyectos.filter((p) => !p.cerrado || p.id === e.proyectoId).map((p) => `<option value="${esc(p.id)}" ${p.id === e.proyectoId ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>` : ''}
+    ${isIncome ? '' : (() => { const r = e.reintegro; return `<details class="reint-box"${r || e.sinReintegro ? ' open' : ''}><summary><span>💸 Reintegro o cashback</span><span class="small muted">${r && !r.no ? `${money(r.monto)} el ${r.fecha.split('-').reverse().join('/')}` : e.sinReintegro ? 'No aplica' : 'Lo calculo solo'}</span></summary>
+      <div class="field-row"><div class="field"><label for="f-rm">Te devuelven</label><input id="f-rm" name="reintMonto" inputmode="decimal" value="${r && !r.no ? r.monto : ''}" placeholder="Automático"></div>
+      <div class="field"><label for="f-rf">Llega el</label><input id="f-rf" name="reintFecha" type="date" value="${r && !r.no ? esc(r.fecha) : ''}"></div></div>
+      ${r && !r.no ? `<span class="hint">${r.manual ? 'Lo cargaste vos.' : `Calculado con ${esc(r.nombre)} (${r.pct}%).`} Ese día se suma solo a tu saldo${r.cardId ? ' (baja el resumen de la tarjeta)' : ''}.</span>` : '<span class="hint">Si lo dejás vacío, lo calculo con las promos y los cashback de tus medios de pago.</span>'}
+      <label class="check"><input type="checkbox" name="reintNo" ${e.sinReintegro ? 'checked' : ''}> <span>No me devuelven nada por esta compra</span></label>
+    </details>`; })()}
     <div class="field-row">
       <div class="field"><label for="f-date">Fecha</label><input id="f-date" name="date" type="date" value="${esc(e.date || todayISO())}"></div>
       <div class="field"><label for="f-tags">Etiquetas</label><input id="f-tags" name="tags" value="${esc((e.tags || []).join(', '))}" placeholder="Ej: vacaciones, auto"></div>
@@ -355,10 +362,12 @@ export const commonActions = {
     // la fecha elegida en el selector manda; si quedó en hoy, vale la del texto ("ayer", "15/10")
     const date = data.date && data.date !== todayISO() ? data.date : p.date;
     const antes = kind === 'expense' ? avancePresupuesto(ctx.state, category) : null;
+    let reint = null;
     ctx.commit((s) => {
       if (kind === 'income') s.incomes.push({ id: uid(), date, amount, type: /sueldo/i.test(texto) ? 'sueldo' : 'extra', note: note === 'Gasto' ? 'Ingreso' : note, ...(accountId ? { accountId } : {}), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
       else {
         s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
+        { const ex = s.expenses[s.expenses.length - 1]; const r = detectarReintegro(s, ex); if (r) { ex.reintegro = r; reint = r; } }
         if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
         // recuerdo con qué pagaste en ese comercio, para proponértelo la próxima vez
         const kMedio = merchantKey(note);
@@ -376,6 +385,7 @@ export const commonActions = {
       if (ahora && ahora.pct >= 1 && antes.pct < 1) msg += `. Ojo: te pasaste del presupuesto de ${catLabel(category)}`;
       else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
     }
+    if (reint) msg += `. Te devuelven ${money(reint.monto)} (${reint.nombre} ${reint.pct}%) el ${reint.fecha.slice(8)}/${reint.fecha.slice(5, 7)}`;
     toast(msg);
   },
   alternarMontos(ctx, el) { const o = alternarMontos(el.dataset.clave); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles'); },
@@ -630,6 +640,18 @@ export const commonActions = {
         if (prevDeuda) Object.assign(prevDeuda, datos); else if (monto > 0) s.deudas.push({ id: uid(), pagos: [], ...datos });
         msg = shared.paidByMe ? `Guardado: ${shared.with} te debe ${money(monto)}` : `Guardado: le debés ${money(monto)} a ${shared.with}`;
       } else if (prevDeuda && !(prevDeuda.pagos || []).length) s.deudas = s.deudas.filter((x) => x !== prevDeuda);
+      // reintegro: lo cargado a mano manda; si no, lo calculo
+      const rm = num(d.reintMonto);
+      if (d.reintNo) item.sinReintegro = true;
+      else {
+        const auto = detectarReintegro(s, item);
+        const prevR = prev && prev.reintegro;
+        if (rm > 0 && !(auto && Math.abs(auto.monto - rm) < 1 && (!d.reintFecha || d.reintFecha === auto.fecha))) {
+          const base = auto || (prevR && !prevR.no ? prevR : null) || {};
+          item.reintegro = { ...base, monto: rm, fecha: d.reintFecha || base.fecha || toISO(addDays(parseISO(item.date), 7)), nombre: base.nombre || 'Reintegro', pct: base.pct || 0, key: base.key || `m:${id}`, manual: true,
+            ...(item.cardId ? { cardId: item.cardId, cuenta: undefined } : { cuenta: item.accountId || s.cuentaPrincipal, cardId: undefined }) };
+        } else if (auto) item.reintegro = auto;
+      }
       const i = s.expenses.findIndex((x) => x.id === d.id);
       if (i >= 0) s.expenses[i] = item; else s.expenses.push(item);
     });

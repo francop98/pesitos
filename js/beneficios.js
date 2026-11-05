@@ -13,7 +13,7 @@ let medioFilter = 'all';
 const expanded = new Set(); // días con "Ver más" abierto
 const PER_DAY = 8;
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
-const FILTERS = [['all', 'Todos los rubros'], ['super', 'Súper'], ['comida', 'Comida'], ['salud', 'Farmacia'], ['transporte', 'Combustible'], ['hogar', 'Hogar'], ['ropa', 'Ropa'], ['ocio', 'Salidas'], ['delivery', 'Delivery']];
+const FILTERS = [['all', 'Todos los rubros'], ['super', 'Súper'], ['comida', 'Comida'], ['salud', 'Farmacia'], ['transporte', 'Combustible'], ['hogar', 'Hogar'], ['ropa', 'Ropa'], ['ocio', 'Salidas'], ['servicios', 'Servicios'], ['viajes', 'Viajes']];
 
 function dayBlock(s, offset) {
   const day = (new Date().getDay() + offset) % 7;
@@ -40,6 +40,7 @@ export function render(s) {
   const week = has ? [0, 1, 2, 3, 4, 5, 6].map((o) => dayBlock(s, o)).join('') : '';
   return `<section class="screen">
     ${screenHead('Beneficios', '', 'Descuentos de tus medios de pago')}
+    <div class="btn-row"><a class="btn small" href="#/reintegros">${icon('coins', 16)} Mis reintegros</a><button class="btn small" data-action="openConQuePagar">¿Con qué conviene pagar?</button></div>
 
     ${has ? `<div class="card filtros-promos">
       <div class="field-row">

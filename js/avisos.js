@@ -43,6 +43,7 @@ export function agendaDeAvisos(s) {
   const sumar = (iso, k) => { if (iso < toISO(hoy) || iso > toISO(hasta)) return; (dias[iso] = dias[iso] || {})[k] = (dias[iso][k] || 0) + 1; };
   for (const it of agendaBetween(s, hoy, hasta)) {
     if (it.paid || it.autoDebit) continue;
+    if (it.kind === 'recordatorio') { sumar(it.due, 'recordatorio'); continue; }
     sumar(it.due, 'hoy');
     const antes = new Date(it.dueDate); antes.setDate(antes.getDate() - 1);
     sumar(toISO(antes), 'manana');

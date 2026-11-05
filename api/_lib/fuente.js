@@ -20,11 +20,11 @@ const MEDIOS = {
 // rubro de la fuente → categoría de la app
 const RUBROS = {
   supermercados: 'super', mayoristas: 'super', carnicerias: 'super', alimentos: 'super', ferias: 'super', 'comercios de cercanía': 'super',
-  gastronomia: 'comida', delivery: 'delivery',
+  gastronomia: 'comida', delivery: 'comida',
   transporte: 'transporte', combustible: 'transporte', automotor: 'transporte', rodados: 'transporte',
   hogar: 'hogar', electro: 'hogar', garrafas: 'hogar',
-  farmacia: 'salud', belleza: 'salud', opticas: 'salud',
-  indumentaria: 'ropa', espectaculos: 'ocio', viajes: 'ocio', librerias: 'educacion', educacion: 'educacion',
+  farmacia: 'salud', belleza: 'salud', opticas: 'salud', servicios: 'servicios', telefonia: 'servicios', 'servicios publicos': 'servicios', 'servicios públicos': 'servicios',
+  indumentaria: 'ropa', espectaculos: 'ocio', viajes: 'viajes', turismo: 'viajes', librerias: 'educacion', educacion: 'educacion', tecnologia: 'hogar', mascotas: 'chicos', jugueterias: 'chicos', deportes: 'deporte',
 };
 
 const DIAS = { domingo: 0, lunes: 1, martes: 2, miercoles: 3, 'miércoles': 3, jueves: 4, viernes: 5, sabado: 6, 'sábado': 6 };

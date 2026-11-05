@@ -82,6 +82,7 @@ function menuHtml(ctx) {
       ${item('irEstadisticas', 'pie', 'Estadísticas', 'En qué se fue tu plata, mes a mes, y topes por categoría')}
       ${item('irProyectos', 'folder', 'Proyectos', 'Lo que gastás en una obra, un viaje o un evento, aparte')}
       ${item('irDeudas', 'people', 'Deudas y préstamos', 'Lo que te deben y lo que debés')}
+      ${item('irReintegros', 'coins', 'Reintegros y cashback', 'Lo que te devuelven y con qué conviene pagar')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
     </div>
 
@@ -211,6 +212,7 @@ export const menuActions = {
   irEstadisticas(ctx) { ctx.go('estadisticas'); },
   irProyectos(ctx) { ctx.go('proyectos'); },
   irDeudas(ctx) { ctx.go('deudas'); },
+  irReintegros(ctx) { ctx.go('reintegros'); },
 
   openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
   openAvisos(ctx) {

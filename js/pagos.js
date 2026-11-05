@@ -2,6 +2,7 @@
 // el cobro, alerta si no alcanza, vista calendario, totales por cuenta,
 // historial de cumplimiento y recordatorios.
 
+import { fixedFormExt } from './movimientos.js';
 import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday , monthDiff} from './formato.js';
 import { allCategories, walletName } from './categorias.js';
 import { payCycle } from './calculos.js';
@@ -12,7 +13,8 @@ import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer , abr
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
 import { fechaDeCobro, reglaDeCobro } from './feriados.js';
-import { parseAmount } from './interprete.js';
+import { parseAmount, guessCategory } from './interprete.js';
+import { mejorConTusMedios, diasTxt } from './reintegros.js';
 import { listaCuentas } from './cuentas.js';
 
 let view = 'lista'; // 'lista' | 'calendario' | 'tarjetas'
@@ -24,19 +26,27 @@ const shortDate = (iso) => { const d = parseISO(iso); return `${d.getDate()} ${M
 const accountName = (id) => (id === 'efectivo' ? 'Efectivo' : walletName(id));
 
 const montoAgenda = (it) => (it.amount ? `${it.estimated ? '≈ ' : ''}${money(it.amount)}` : 'A confirmar');
+let estado = null;
+// sugerencia: con cuál de tus medios conviene pagar este servicio
+function sugerenciaPago(it) {
+  if (!estado || it.paid || !it.amount || !['fixed', 'bill'].includes(it.kind)) return '';
+  const o = mejorConTusMedios(estado, { texto: it.name, categoria: guessCategory(it.name, estado.learned), monto: it.amount });
+  return o ? `<span class="small sug-pago">💡 Con ${esc(o.nombre)} te devuelven ${money(o.ahorro)} (${o.pct}%${o.dias && o.dias.length < 7 ? `, ${diasTxt(o.dias)}` : ''})</span>` : '';
+}
 function row(it) {
   const tone = it.paid ? 'ok' : it.overdue ? 'warn' : it.days <= 3 ? 'lime' : '';
-  const label = it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado' : dueLabel(it);
+  const label = it.kind === 'recordatorio' ? (it.paid ? 'Hecho' : it.days === 0 ? 'Hoy' : it.days === 1 ? 'Mañana' : it.days < 0 ? `Hace ${-it.days} días` : `En ${it.days} días`) : it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado' : dueLabel(it);
   return `<div class="row pay-row ${it.paid ? 'is-paid' : ''}">
     <span class="cat-icon ${it.kind === 'card' ? 'green' : ''}">${icon(it.icon, 18)}</span>
     <button class="grow" data-action="openPayment" data-key="${esc(it.key)}" style="background:none;border:none;text-align:left;padding:0">
       <span class="name">${esc(it.name)}</span>
       <span class="meta">${esc(it.sub)}${it.payWith ? ` · ${esc(accountName(it.payWith))}` : ''}</span>
       <span class="pill ${tone}" style="align-self:flex-start;margin-top:4px">${label}</span>
+      ${sugerenciaPago(it)}
     </button>
     <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-      <span class="amount${it.amount ? '' : ' muted'}">${montoAgenda(it)}</span>
-      ${it.paid ? '' : it.autoDebit ? '<span class="small muted">Se debita solo</span>' : `<button class="btn small green" data-action="markPaid" data-key="${esc(it.key)}" style="min-height:36px">Pagué</button>`}
+      ${it.kind === 'recordatorio' ? '' : `<span class="amount${it.amount ? '' : ' muted'}">${montoAgenda(it)}</span>`}
+      ${it.paid ? '' : it.kind === 'recordatorio' ? `<button class="btn small" data-action="recordatorioListo" data-key="${esc(it.key)}" style="min-height:36px">Listo</button>` : it.autoDebit ? '<span class="small muted">Se debita solo</span>' : `<button class="btn small green" data-action="markPaid" data-key="${esc(it.key)}" style="min-height:36px">Pagué</button>`}
     </span>
   </div>`;
 }
@@ -127,6 +137,7 @@ function calendar(s) {
 }
 
 export function render(s) {
+  estado = s;
   const items = agenda(s, 62);
   const g = groups(items);
   const cycle = payCycle(s);
@@ -142,7 +153,7 @@ export function render(s) {
   const empty = !items.length;
 
   return `<section class="screen">
-    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : '<button class="btn small" data-action="newBill">+ Pago</button>', 'Vencimientos, tarjetas y cobros')}
+    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : `<span class="head-actions"><button class="icon-btn" data-action="newRecordatorio" aria-label="Nuevo recordatorio">${icon('bell', 20)}</button><button class="btn small" data-action="newBill">+ Pago</button></span>`, 'Vencimientos, tarjetas y cobros')}
 
     <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <button role="tab" data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista'}">Agenda</button>
@@ -211,6 +222,9 @@ export function render(s) {
     ${(s.bills || []).length ? `<div class="section-title"><span>Tus pagos programados</span></div>
     <div class="card tight">${s.bills.map((b) => `<button class="row" data-action="editBill" data-id="${b.id}"><span class="grow"><span class="name">${esc(b.name)}</span><span class="meta">${repeatLabel(b.repeat, b)} · desde el ${shortDate(b.date)}${b.saveAhead ? ' · ahorrando de a poco' : ''}${b.autoDebit ? ' · débito automático' : ''}</span></span><span class="amount">${money(b.amount)}</span></button>`).join('')}</div>` : ''}
 
+    <div class="section-title"><span>Tus recordatorios</span><button data-action="newRecordatorio">+ Recordatorio</button></div>
+    ${(s.recordatorios || []).length ? `<div class="card tight">${s.recordatorios.map((r) => `<button class="row" data-action="editRecordatorio" data-id="${esc(r.id)}"><span class="cat-icon">${icon('bell', 18)}</span><span class="grow"><span class="name">${esc(r.name)}</span><span class="meta">${r.repeat && r.repeat !== 'once' ? `${repeatLabel(r.repeat, r)} · desde el ` : ''}${shortDate(r.date)}${r.nota ? ` · ${esc(r.nota)}` : ''}</span></span>${icon('chevron', 16)}</button>`).join('')}</div>`
+      : '<p class="small muted" style="margin:0">Para lo que no es un pago: sacar la plata antes de un débito, llamar para pedir un descuento, renovar algo. Te aviso ese día.</p>'}
     ${(s.expectedIncomes || []).length ? `<div class="section-title"><span>Tus cobros programados</span></div>
     <div class="card tight">${s.expectedIncomes.map((c) => `<button class="row" data-action="editIncome" data-id="${c.id}"><span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${repeatLabel(c.repeat, c)} · desde el ${shortDate(c.date)}</span></span><span class="amount pos">+${money(c.amount)}</span></button>`).join('')}</div>` : ''}
 
@@ -225,6 +239,43 @@ export { payOptions };
 const repetirCustom = (x) => `<div class="field-row repetir-custom" ${x.repeat === 'custom' ? '' : 'hidden'}>
   <div class="field"><label>Cada</label><input name="everyN" inputmode="numeric" value="${(x.every && x.every.n) || ''}" placeholder="Ej: 10"></div>
   <div class="field"><label>Unidad</label><select name="everyUnit">${[['dias', 'Días'], ['semanas', 'Semanas'], ['meses', 'Meses']].map(([v, l]) => `<option value="${v}" ${(x.every && x.every.unit) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
+// descuento por un tiempo (servicios, celular, internet…) y aviso para pedir otro
+export function descuentoCampos(x = {}) {
+  const dsc = x.desc || null;
+  return `<details class="reint-box"${dsc ? ' open' : ''}><summary><span>🏷️ Descuento por un tiempo</span><span class="small muted">${dsc ? `hasta ${dsc.hasta.split('-').reverse().join('/')}` : 'Opcional'}</span></summary>
+    <span class="small muted">Por ejemplo: "50% en el celular por 6 meses". Mientras dure, cuento el monto con descuento; después, el normal.</span>
+    <div class="field-row">
+      <div class="field"><label for="ds-m">Monto con descuento</label><input id="ds-m" name="descMonto" inputmode="decimal" value="${dsc ? dsc.monto : ''}" placeholder="Ej: 12.000"></div>
+      <div class="field"><label for="ds-h">Último mes con descuento</label><input id="ds-h" name="descHasta" type="month" value="${esc(dsc ? dsc.hasta : '')}"></div>
+    </div>
+    <div class="field"><label for="ds-a">Recordarme pedir otro descuento el</label><input id="ds-a" name="descAvisar" type="date" value="${esc(dsc ? dsc.avisar || '' : '')}"><span class="hint">Si lo dejás vacío, te aviso el día 1 del último mes con descuento.</span></div>
+    ${dsc ? '<label class="check"><input type="checkbox" name="descQuitar"> <span>Quitar el descuento</span></label>' : ''}
+  </details>`;
+}
+export function descuentoDe(d) {
+  if (d.descQuitar) return null;
+  const monto = num(d.descMonto); const hasta = /^\d{4}-\d{2}$/.test(d.descHasta || '') ? d.descHasta : '';
+  if (!hasta || !(monto >= 0) || d.descMonto === '' || d.descMonto === undefined) return undefined; // sin cambios
+  return { monto, hasta, avisar: /^\d{4}-\d{2}-\d{2}$/.test(d.descAvisar || '') ? d.descAvisar : `${hasta}-01` };
+}
+
+function recordatorioForm(r = {}) {
+  return `<form class="form" data-submit="guardarRecordatorio">
+    <input type="hidden" name="id" value="${esc(r.id || '')}">
+    <p class="text muted" style="margin:0">Para lo que no es un pago pero no te podés olvidar: sacar la plata de una cuenta antes de un débito, llamar para pedir un descuento, renovar algo.</p>
+    <div class="field"><label for="rc-n">¿Qué tenés que hacer?</label><input id="rc-n" name="name" value="${esc(r.name || '')}" placeholder="Ej: Sacar la plata de la cuenta del préstamo" required maxlength="80"></div>
+    <div class="field-row">
+      <div class="field"><label for="rc-d">¿Cuándo?</label><input id="rc-d" name="date" type="date" value="${esc(r.date || todayISO())}" required></div>
+      <div class="field"><label for="rc-r">Se repite</label><select id="rc-r" name="repeat" data-change="repeatChanged">${REPEATS.map((x) => `<option value="${x.id}" ${x.id === (r.repeat || 'once') ? 'selected' : ''}>${x.label}</option>`).join('')}</select></div>
+    </div>
+    ${repetirCustom(r)}
+    <div class="field"><label for="rc-t">Nota (opcional)</label><input id="rc-t" name="nota" value="${esc(r.nota || '')}" placeholder="Ej: antes del día 5, que se debita el crédito" maxlength="120"></div>
+    <span class="hint">Te aviso ese día en el celular si tenés los avisos activados.</span>
+    <button class="btn primary block" type="submit">Guardar</button>
+    ${r.id ? `<button class="btn ghost block" type="button" data-action="borrarRecordatorio" data-id="${esc(r.id)}">Borrar</button>` : ''}
+  </form>`;
+}
+
 const everyDe = (d) => (d.repeat === 'custom' ? { n: Math.max(1, parseInt(d.everyN, 10) || 1), unit: ['dias', 'semanas', 'meses'].includes(d.everyUnit) ? d.everyUnit : 'dias' } : null);
 
 function billForm(s, b = {}) {
@@ -241,6 +292,7 @@ function billForm(s, b = {}) {
     </div>
     ${repetirCustom(b)}
     <label class="check"><input type="checkbox" name="variable" ${b.variable ? 'checked' : ''}> <span>El monto cambia cada vez<br><span class="small muted">Por ejemplo, impuestos o servicios por consumo. Si no sabés cuánto va a ser, dejá el monto vacío: aparece "a confirmar" y, cuando marques "Pagué", te pregunto cuánto fue. Lo que pagaste queda como referencia para la próxima.</span></span></label>
+    ${descuentoCampos(b)}
     <div class="field"><label for="bl-w">Se paga con</label><select id="bl-w" name="payWith">${payOptions(s, b.payWith)}</select></div>
     <label class="check"><input type="checkbox" name="autoDebit" ${b.autoDebit ? 'checked' : ''}> <span>Débito automático<br><span class="small muted">Se marca como pagado solo el día del vencimiento. Te aviso que tengas saldo.</span></span></label>
     <label class="check"><input type="checkbox" name="saveAhead" ${b.saveAhead ? 'checked' : ''}> <span>Ahorrar de a poco para este pago<br><span class="small muted">Ideal para pagos grandes: lo divido en los meses que faltan y lo sumo a tu ahorro.</span></span></label>
@@ -283,7 +335,8 @@ export const actions = {
        ${ins.length ? `<div class="card tight">${ins.map(inRow).join('')}</div>` : ''}
        ${closes.map((c) => `<div class="card"><strong>Cierra la tarjeta ${esc(c.name)}</strong><span class="text muted">Lo que compres desde mañana entra en el resumen siguiente.</span></div>`).join('')}
        ${!items.length && !ins.length && !closes.length ? '<p class="empty">Nada para este día.</p>' : ''}
-       <button class="btn small" data-action="newBill" data-date="${iso}">+ Agendar un pago este día</button>`);
+       <button class="btn small" data-action="newBill" data-date="${iso}">+ Agendar un pago este día</button>
+       <button class="btn small" data-action="newRecordatorio" data-date="${iso}">+ Recordatorio este día</button>`);
   },
   togglePaid(ctx) { showPaid = !showPaid; ctx.render(); },
   newBill(ctx, el) { openModal('Nuevo pago', billForm(ctx.state, el && el.dataset.date ? { date: el.dataset.date } : {})); },
@@ -296,6 +349,7 @@ export const actions = {
     ctx.commit((s) => {
       s.bills = s.bills || [];
       const data = { name: d.name.trim(), amount, variable, date: d.date, repeat: d.repeat, every: everyDe(d), category: d.category, payWith: d.payWith || '', autoDebit: !!d.autoDebit, saveAhead: !!d.saveAhead };
+      const dsc = descuentoDe(d); if (dsc !== undefined) data.desc = dsc;
       const b = s.bills.find((x) => x.id === d.id);
       if (b) { if (b.amount !== amount) data.lastAmount = b.amount; Object.assign(b, data); } else s.bills.push({ id: uid(), ...data });
     });
@@ -330,9 +384,32 @@ export const actions = {
     toast(`${it.name}: cobrado`);
   },
 
+  newRecordatorio(ctx, el) { openModal('Nuevo recordatorio', recordatorioForm(el && el.dataset.date ? { date: el.dataset.date } : {}), { push: !!(el && el.dataset.date) }); },
+  guardarRecordatorio(ctx, d) {
+    if (!String(d.name || '').trim()) { toast('Escribí qué tenés que hacer'); return; }
+    ctx.commit((s) => {
+      s.recordatorios = s.recordatorios || [];
+      const datos = { name: d.name.trim(), date: d.date, repeat: d.repeat || 'once', every: everyDe(d), nota: String(d.nota || '').trim() };
+      const r = s.recordatorios.find((x) => x.id === d.id);
+      if (r) Object.assign(r, datos); else s.recordatorios.push({ id: uid(), ...datos });
+    });
+    closeModal(); toast('Recordatorio guardado');
+  },
+  editRecordatorio(ctx, el) { const r = (ctx.state.recordatorios || []).find((x) => x.id === el.dataset.id); if (r) openModal('Recordatorio', recordatorioForm(r)); },
+  borrarRecordatorio(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Recordatorio borrado', (s) => { s.recordatorios = (s.recordatorios || []).filter((x) => x.id !== el.dataset.id); }); },
+  recordatorioListo(ctx, el) {
+    ctx.commit((s) => { s.paid = s.paid || {}; s.paid[el.dataset.key] = { date: todayISO(), amount: 0 }; });
+    toast('¡Hecho!');
+  },
   openPayment(ctx, el) {
     const it = findItem(ctx.state, el.dataset.key);
     if (!it) return;
+    if (it.kind === 'recordatorio') {
+      if (it.key.startsWith('rec:desc:')) { if (it.refKind === 'fixed') ctx.state.fixed.find((f) => f.id === it.refId) && openModal('Gasto fijo', fixedFormExt(ctx.state, ctx.state.fixed.find((f) => f.id === it.refId))); else actions.editBill(ctx, { dataset: { id: it.refId } }); return; }
+      const r = (ctx.state.recordatorios || []).find((x) => x.id === it.refId);
+      if (r) openModal('Recordatorio', recordatorioForm(r));
+      return;
+    }
     const goto = it.kind === 'card' ? '<button class="btn block" data-action="goTo" data-route="tarjetas">Ver el plan de pago de la tarjeta</button>'
       : it.kind === 'bill' ? `<button class="btn block" data-action="editBill" data-id="${it.refId}">Editar este pago</button>`
       : `<button class="btn block" data-action="editFixed" data-id="${it.refId}">Editar el gasto fijo</button>`;

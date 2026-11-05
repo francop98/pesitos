@@ -1,7 +1,8 @@
 // Cálculos: presupuesto del ciclo, "hoy podés gastar", ahorro por reglas,
 // metas, sueldo real, tarjetas y cuotas.
 
-import { toISO, parseISO, monthKey, addMonthKey, monthDiff, startOfToday, daysBetween, MONTHS_LONG, money } from './formato.js';
+import { reintegrosCobrados, totalReintegros } from './reintegros.js';
+import { toISO, parseISO, monthKey, addMonthKey, monthDiff, startOfToday, daysBetween, MONTHS_LONG, money, addDays } from './formato.js';
 import { arsPer } from './cotizaciones.js';
 import { valorHoy } from './rendimientos.js';
 import { fechaDeCobro } from './feriados.js';
@@ -32,7 +33,7 @@ export function lastSalary(s) {
 
 // Un gasto fijo cuenta solo hasta su mes de fin (créditos, cuotas, contratos)
 export const fixedActive = (f, mk = monthKey()) => !f.endMonth || mk <= f.endMonth;
-export const fixedTotal = (s, mk = monthKey()) => sum(s.fixed.filter((f) => fixedActive(f, mk)), (f) => f.amount);
+export const fixedTotal = (s, mk = monthKey()) => sum(s.fixed.filter((f) => fixedActive(f, mk)), (f) => (f.desc && f.desc.hasta && mk <= f.desc.hasta ? Number(f.desc.monto) || 0 : f.amount));
 // "cuota 7 de 24" para los fijos con cantidad de cuotas
 export function fixedProgress(f, mk = monthKey()) {
   if (!f.endMonth || !f.totalCuotas) return null;
@@ -99,7 +100,9 @@ export function budget(s) {
   const salaryInCycle = sum(inCycle.filter((i) => i.type === 'sueldo'), (i) => i.amount);
   const last = lastSalary(s);
   const salary = salaryInCycle || (last ? last.amount : 0);
-  const extras = sum(inCycle.filter((i) => i.type !== 'sueldo'), (i) => i.amount);
+  // reintegros y cashback que ya te devolvieron en este ciclo: plata que vuelve
+  const reint = totalReintegros(reintegrosCobrados(s, toISO(addDays(cycle.start, -1)), todayStr < cycle.nextISO ? todayStr : cycle.nextISO));
+  const extras = sum(inCycle.filter((i) => i.type !== 'sueldo'), (i) => i.amount) + reint;
   const income = salary + extras;
   const fixed = fixedTotal(s);
   const plan = plannedSaving(s, salary, extras, cycleExpenses(s, cycle));
@@ -292,8 +295,12 @@ export function cardSummary(s, card) {
     if (n > 1 && paid < n) pending.push({ e, n, each, next: paid + 1, left: n - paid, remaining: each * (n - paid), last: addMonthKey(first, n - 1) });
   }
   pending.sort((a, b) => b.remaining - a.remaining);
+  // reintegros que bajan cada resumen
+  const rein = {};
+  for (const e of s.expenses) { const r = e.reintegro; if (r && !r.no && r.cardId === card.id && r.monto > 0) { const mk = statementMonth(card, r.fecha); if (mk >= current) rein[mk] = (rein[mk] || 0) + r.monto; } }
+  for (const [mk, v] of Object.entries(rein)) { const antes = byMonth[mk] || 0; byMonth[mk] = Math.max(0, antes - v); committed -= Math.min(antes, v); }
   const months = Array.from({ length: 6 }, (_, i) => { const mk = addMonthKey(current, i); return { mk, amount: byMonth[mk] || 0 }; });
-  return { current, next: byMonth[current] || 0, months, pending, committed, used: card.limit ? committed / card.limit : 0 };
+  return { current, reintegros: rein[current] || 0, next: byMonth[current] || 0, months, pending, committed, used: card.limit ? committed / card.limit : 0 };
 }
 
 // ---------- resumen semanal automático (lunes a domingo, se cierra el lunes 00:00) ----------

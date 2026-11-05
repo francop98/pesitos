@@ -109,13 +109,16 @@ export function expectedInflation(s) {
 }
 
 // Promos vigentes del servicio (solo las que están dentro de sus fechas)
+// categorías que se unieron en la app (v21)
+const CAT_VIEJA = { delivery: 'comida', kiosco: 'comida', tecnologia: 'hogar', cuidado: 'salud', mascotas: 'chicos', bancarios: 'impuestos', varios: 'otros' };
 export function livePromos(s) {
   const today = todayISO();
   // promos de medios agregados por el usuario: llegan con su nombre y se asocian a su id
   const custom = Object.fromEntries((s.customWallets || []).map((w) => [nameKey(w.name), w.id]));
   const prov = (s.profile && s.profile.province) || '';
   const city = (s.profile && s.profile.city) || '';
-  const list = ((s.live && s.live.promos) || []).map((p) => (p.walletName && custom[nameKey(p.walletName)] ? { ...p, wallet: custom[nameKey(p.walletName)] } : p));
+  const list = ((s.live && s.live.promos) || []).map((p) => (p.walletName && custom[nameKey(p.walletName)] ? { ...p, wallet: custom[nameKey(p.walletName)] } : p))
+    .map((p) => (CAT_VIEJA[p.category] ? { ...p, category: CAT_VIEJA[p.category] } : p));
   return list.filter((p) => (!p.validFrom || p.validFrom <= today) && (!p.validTo || p.validTo >= today) && inZone(p.zone, prov, city));
 }
 

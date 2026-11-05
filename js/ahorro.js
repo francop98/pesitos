@@ -1,6 +1,7 @@
 // Ahorro e inversiones: cuánto tenés, dónde y en qué moneda, cotizaciones
 // en vivo, conversor y metas.
 
+import { reintegrosCobrados, totalReintegros } from './reintegros.js';
 import { money, esc, num, todayISO, monthName } from './formato.js';
 import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
 import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
@@ -94,7 +95,7 @@ export function render(s) {
     </div>`, 'ahorro') : ''}
 
     ${vista === 'mis' ? `
-    ${(() => { const tot = Object.values(s.savedByApp || {}).reduce((a, v) => a + (Number(v) || 0), 0); const meses = Object.keys(s.savedByApp || {}).filter((k) => s.savedByApp[k] > 0).sort(); return tot ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">En total te ahorraste con Pesitos</b><span class="small">Promos y desafíos${meses.length ? ` desde ${monthName(meses[0], true)} ${meses[0].slice(0, 4)}` : ''}</span></span><b class="v">${money(tot)}</b></button>` : ''; })()}
+    ${(() => { const tot = Object.values(s.savedByApp || {}).reduce((a, v) => a + (Number(v) || 0), 0) + totalReintegros(reintegrosCobrados(s)); const meses = Object.keys(s.savedByApp || {}).filter((k) => s.savedByApp[k] > 0).sort(); return tot ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">En total te ahorraste con Pesitos</b><span class="small">Reintegros, promos y desafíos${meses.length ? ` desde ${monthName(meses[0], true)} ${meses[0].slice(0, 4)}` : ''}</span></span><b class="v">${money(tot)}</b></button>` : ''; })()}
     ${quotes(s)}
 
     ${tips.map(tipCard).join('')}

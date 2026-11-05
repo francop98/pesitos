@@ -7,6 +7,7 @@
 // También calcula cuánto conviene ir apartando para los pagos grandes,
 // arma el archivo de calendario con recordatorios y muestra avisos.
 
+import { reintegrosDeResumen } from './reintegros.js';
 import { toISO, parseISO, addMonthKey, monthKey, startOfToday, daysBetween, money } from './formato.js';
 
 // meses entre dos 'AAAA-MM'
@@ -59,13 +60,26 @@ export function statementAmount(s, card, mk) {
     const first = statementOf(card, e.date);
     for (let k = 0; k < n; k++) if (addMonthKey(first, k) === mk) total += e.amount / n;
   }
-  return total;
+  // reintegros que te devuelven en ese resumen
+  return Math.max(0, total - reintegrosDeResumen(s, card, mk));
 }
 export function statementDates(card, mk) {
   const close = mkDate(mk, Number(card.closeDay) || 25);
   const due = Number(card.dueDay) > Number(card.closeDay) ? mkDate(mk, Number(card.dueDay)) : mkDate(addMonthKey(mk, 1), Number(card.dueDay) || 5);
   return { close, due };
 }
+
+// ---------- descuentos por un tiempo ----------
+// x.desc = { monto, hasta: 'AAAA-MM' (último mes con descuento), avisar: 'AAAA-MM-DD' }
+export const conDescuento = (x, mk) => !!(x && x.desc && x.desc.monto >= 0 && x.desc.hasta && mk <= x.desc.hasta);
+export const montoEn = (x, mk) => (conDescuento(x, mk) ? Number(x.desc.monto) || 0 : Number(x.amount) || 0);
+function textoDescuento(x, mk) {
+  if (!x.desc || !x.desc.hasta) return '';
+  if (mk <= x.desc.hasta) return `con descuento hasta ${MESES[Number(x.desc.hasta.slice(5)) - 1]}${x.desc.hasta.slice(0, 4) !== mk.slice(0, 4) ? ` ${x.desc.hasta.slice(0, 4)}` : ''} (después ${money(x.amount)})`;
+  if (mk === addMonthKey(x.desc.hasta, 1)) return 'terminó el descuento: vuelve al precio normal';
+  return '';
+}
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 // ---------- ocurrencias de pagos programados ----------
 function billOccurrences(bill, from, to) {
@@ -126,8 +140,8 @@ export function agendaBetween(s, from, to) {
       const d = mkDate(mk, Number(f.dueDay) || 10);
       if (d < from || d > to) continue;
       const cuota = f.totalCuotas && f.endMonth ? f.totalCuotas - (monthDiffKeys(mk, f.endMonth)) : 0;
-      const sub = [f.autoDebit ? 'Gasto fijo · débito automático' : 'Gasto fijo', cuota > 0 ? `cuota ${cuota} de ${f.totalCuotas}` : '', f.variable ? 'monto aproximado' : ''].filter(Boolean).join(' · ');
-      push({ key: `fixed:${f.id}:${mk}`, kind: 'fixed', refId: f.id, name: f.name, amount: f.amount, dueDate: d, icon: 'repeat', sub, payWith: f.payWith || '', autoDebit: !!f.autoDebit, estimated: !!f.variable, variable: !!f.variable });
+      const sub = [f.autoDebit ? 'Gasto fijo · débito automático' : 'Gasto fijo', cuota > 0 ? `cuota ${cuota} de ${f.totalCuotas}` : '', f.variable ? 'monto aproximado' : '', textoDescuento(f, mk)].filter(Boolean).join(' · ');
+      push({ key: `fixed:${f.id}:${mk}`, kind: 'fixed', refId: f.id, name: f.name, amount: montoEn(f, mk), dueDate: d, icon: 'repeat', sub, payWith: f.payWith || '', autoDebit: !!f.autoDebit, estimated: !!f.variable, variable: !!f.variable });
     }
   }
 
@@ -151,7 +165,21 @@ export function agendaBetween(s, from, to) {
   // pagos programados
   for (const b of s.bills || []) {
     for (const d of billOccurrences(b, from, to)) {
-      push({ key: `bill:${b.id}:${toISO(d)}`, kind: 'bill', refId: b.id, name: b.name, amount: b.amount || 0, dueDate: d, icon: 'calendar', sub: repeatLabel(b.repeat, b) + (b.variable ? ' · el monto varía' : '') + (b.autoDebit ? ' · débito automático' : ''), payWith: b.payWith || '', autoDebit: !!b.autoDebit, fromSavings: !!b.saveAhead, estimated: !!b.variable && !!b.amount, variable: !!b.variable || !b.amount });
+      push({ key: `bill:${b.id}:${toISO(d)}`, kind: 'bill', refId: b.id, name: b.name, amount: montoEn(b, toISO(d).slice(0, 7)), dueDate: d, icon: 'calendar', sub: repeatLabel(b.repeat, b) + (textoDescuento(b, toISO(d).slice(0, 7)) ? ` · ${textoDescuento(b, toISO(d).slice(0, 7))}` : '') + (b.variable ? ' · el monto varía' : '') + (b.autoDebit ? ' · débito automático' : ''), payWith: b.payWith || '', autoDebit: !!b.autoDebit, fromSavings: !!b.saveAhead, estimated: !!b.variable && !!b.amount, variable: !!b.variable || !b.amount });
+    }
+  }
+
+  // recordatorios: los que cargaste y "pedir otro descuento" antes de que termine
+  for (const x of [...(s.fixed || []), ...(s.bills || [])]) {
+    if (!x.desc || !x.desc.avisar) continue;
+    const d = parseISO(x.desc.avisar);
+    if (d < from || d > to) continue;
+    push({ key: `rec:desc:${x.id}:${x.desc.avisar}`, kind: 'recordatorio', refId: x.id, refKind: s.fixed.includes(x) ? 'fixed' : 'bill', name: `Pedir descuento: ${x.name}`, amount: 0, dueDate: d, icon: 'bell',
+      sub: `El descuento termina en ${MESES[Number(x.desc.hasta.slice(5)) - 1]}: después pagás ${money(x.amount)} en vez de ${money(x.desc.monto)}` });
+  }
+  for (const r of s.recordatorios || []) {
+    for (const d of billOccurrences(r, from, to)) {
+      push({ key: `rec:${r.id}:${toISO(d)}`, kind: 'recordatorio', refId: r.id, name: r.name, amount: 0, dueDate: d, icon: 'bell', sub: [r.nota, r.repeat && r.repeat !== 'once' ? repeatLabel(r.repeat, r) : 'Recordatorio'].filter(Boolean).join(' · ') });
     }
   }
 
@@ -189,7 +217,7 @@ export const pendingUntil = (items, iso) => items.filter((i) => !i.paid && i.due
 
 // Alertas para Inicio: vencidos (no fijos de meses viejos) y lo que vence en 3 días
 export function alerts(s) {
-  return agenda(s, 3).filter((i) => !i.paid && i.days <= 3 && i.days >= -15);
+  return agenda(s, 3).filter((i) => !i.paid && i.kind !== 'recordatorio' && i.days <= 3 && i.days >= -15);
 }
 
 // ---------- ahorrar de a poco para pagos grandes ----------

@@ -1,7 +1,7 @@
 // Service worker: deja la app disponible sin conexión.
 // Cuando cambies archivos, subí el número de versión para refrescar la caché.
 
-const CACHE = 'pesitos-v32';
+const CACHE = 'pesitos-v33';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './styles.css', './main.js',
   './js/acciones.js', './js/agenda.js', './js/ahorro.js', './js/almacenamiento.js', './js/aprender.js',
@@ -12,7 +12,7 @@ const SHELL = [
   './js/exportar.js', './js/feriados.js', './js/firebaseconfig.js', './js/flujo.js', './js/formato.js',
   './js/guia.js', './js/herramientas.js', './js/importar.js', './js/inicio.js', './js/interfaz.js',
   './js/interprete.js', './js/menu.js', './js/miscuentas.js', './js/movimientos.js', './js/pagos.js',
-  './js/presupuestos.js', './js/proyectos.js', './js/inversiones.js', './js/promosrespaldo.js', './js/rendimientos.js', './js/sincronizacion.js', './js/sueldo.js',
+  './js/presupuestos.js', './js/proyectos.js', './js/inversiones.js', './js/reintegros.js', './js/promosrespaldo.js', './js/rendimientos.js', './js/sincronizacion.js', './js/sueldo.js',
   './js/tarjetas.js', './js/tema.js', './js/ticket.js',
   './pages/terminos.html', './pages/privacidad.html', './assets/favicon.svg', './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',
 ];

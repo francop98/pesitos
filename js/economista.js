@@ -179,7 +179,10 @@ function buscarEnAyuda(q) {
 // a igualdad, el que está antes en la lista. Si nada coincide, sugiere preguntas.
 const DONDE = [
   [/letras del tesoro|lecap|invert|inversion|\bbonos?\b|acciones|cedear|caucion|obligaciones? negociables|dolar mep/, 'En Herramientas → "Letras, bonos y acciones" tenés cada inversión explicada (riesgo, plazo, dónde se compra) y las tasas de las letras del Tesoro de hoy. Para comparar billeteras y plazos fijos: Herramientas → ¿Dónde rinde más?'],
-  [/tope|reintegro/, 'Para saber cuánto gastar y llegar justo al tope de un reintegro, usá Herramientas → "Descuento con tope". En "Cuotas o contado" también podés sumar el reintegro.'],
+  [/tope/, 'Para saber cuánto gastar y llegar justo al tope de un reintegro, usá Herramientas → "Descuento con tope". En "Cuotas o contado" también podés sumar el reintegro.'],
+  [/cashback|reintegro|me devuelv|devoluci/, 'Los reintegros se calculan solos cuando anotás una compra con un medio que tiene promo. Los ves en Menú ☰ → Reintegros y cashback: lo que te van a devolver, cuándo, y el día que llega se suma a tu saldo. Ahí también cargás el cashback de tu billetera y elegís cuándo te devuelve cada una.'],
+  [/recordatorio|recordar|acordarme|descuento por|pedir descuento/, 'En Por pagar tocá la campanita (arriba) para crear un recordatorio: sacar plata antes de un débito, llamar para pedir un descuento, etc. Para un descuento por unos meses (por ejemplo, el celular), editá el gasto fijo o el pago y abrí "Descuento por un tiempo": te aviso antes de que termine.'],
+  [/con que (pago|conviene)|donde conviene pagar|que tarjeta uso|que billetera uso/, 'En Herramientas → "¿Con qué conviene pagar?" te muestro, para tus servicios y compras de siempre, qué banco o billetera te devuelve más (las tuyas y las que no tenés).'],
   [/proyecto|obra|remodelacion/, 'Los proyectos se abren desde Movimientos (botón Proyectos) o Menú ☰ → Proyectos. Creás uno con su tipo (obra, viaje, evento, emprendimiento…), presupuesto y fecha objetivo, y al cargar cada gasto elegís el proyecto.'],
   [/tema|oscuro|modo noche|letra/, 'El tema (Auto, Claro u Oscuro) y el tamaño de letra están en Menú ☰ → La app.'],
   [/aviso|notificacion/, 'Los avisos en el celular están en Menú ☰ → La app → Avisos en el celular.'],
@@ -355,8 +358,8 @@ export function answer(question, s) {
   const concepto = /^(que (es|son|significa|quiere decir)|explica|como funciona|conviene|es bueno|sirve)/.test(q) ? GLOSARIO.find(([re]) => re.test(q)) : null;
   if (concepto) return concepto[1];
   // "¿cómo hago X en la app?": la ayuda primero
-  if (/^(como|donde) (cargo|importo|instalo|activo|desactivo|cambio|borro|elimino|agrego|uso|hago|pongo|exporto|descargo|comparto|saco|veo|creo|anoto|marco|recupero|calculo|invierto|compro)/.test(q)) {
-    const d = DONDE.find(([re]) => re.test(q)); if (d && /tema|oscuro|letra|import|resumen|instal|aviso|categori|medio|banco|billetera|tope|reintegro|invert|bono|accion|cedear|lecap/.test(q)) return d[1];
+  if (/^(como|donde|con que) (cargo|importo|instalo|activo|desactivo|cambio|borro|elimino|agrego|uso|hago|pongo|exporto|descargo|comparto|saco|veo|creo|anoto|marco|recupero|calculo|invierto|compro|pago|conviene|registro)/.test(q)) {
+    const d = DONDE.find(([re]) => re.test(q)); if (d && /tema|oscuro|letra|import|resumen|instal|aviso|categori|medio|banco|billetera|tope|reintegro|cashback|recordatorio|descuento|conviene|invert|bono|accion|cedear|lecap/.test(q)) return d[1];
     const a = buscarEnAyuda(q); if (a) return a;
   }
   for (const { t } of puntaje) {
