@@ -19,18 +19,21 @@ const MEDIOS = {
 
 // rubro de la fuente → categoría de la app
 const RUBROS = {
-  supermercados: 'super', mayoristas: 'super', carnicerias: 'super', alimentos: 'super', ferias: 'super', 'comercios de cercanía': 'super',
+  supermercados: 'super', mayoristas: 'super', carnicerias: 'super', alimentos: 'super', ferias: 'super', 'comercios de cercanía': 'super', 'comercios de cercania': 'super',
   gastronomia: 'comida', delivery: 'comida',
   transporte: 'transporte', combustible: 'transporte', automotor: 'transporte', rodados: 'transporte',
-  hogar: 'hogar', electro: 'hogar', garrafas: 'hogar',
-  farmacia: 'salud', belleza: 'salud', opticas: 'salud', servicios: 'servicios', telefonia: 'servicios', 'servicios publicos': 'servicios', 'servicios públicos': 'servicios',
-  indumentaria: 'ropa', espectaculos: 'ocio', viajes: 'viajes', turismo: 'viajes', librerias: 'educacion', educacion: 'educacion', tecnologia: 'hogar', mascotas: 'chicos', jugueterias: 'chicos', deportes: 'deporte',
+  hogar: 'casa', garrafas: 'casa', servicios: 'casa', telefonia: 'casa', 'servicios publicos': 'casa', 'servicios públicos': 'casa',
+  farmacia: 'salud', belleza: 'salud', opticas: 'salud', deportes: 'salud',
+  electro: 'compras', tecnologia: 'compras', indumentaria: 'compras', espectaculos: 'compras', viajes: 'compras', turismo: 'compras', marcas: 'compras',
+  librerias: 'familia', educacion: 'familia', mascotas: 'familia', jugueterias: 'familia',
 };
 
 const DIAS = { domingo: 0, lunes: 1, martes: 2, miercoles: 3, 'miércoles': 3, jueves: 4, viernes: 5, sabado: 6, 'sábado': 6 };
 const PERIODOS = { semanal: 'semana', mensual: 'mes', 'por compra': 'compra', 'por fin de semana': 'fin de semana' };
 // corta en una palabra completa y agrega «…»
 const cut = (t, n) => { t = String(t || '').trim(); return t.length <= n ? t : t.slice(0, t.lastIndexOf(' ', n - 1) > n * 0.6 ? t.lastIndexOf(' ', n - 1) : n - 1).replace(/[\s,;:.]+$/, '') + '…'; };
+// "Tope de $5.000" escrito en las condiciones, cuando el dato no viene cargado aparte
+const topeDelTexto = (t) => { const m = String(t || '').match(/tope (?:de reintegro |unificado |mensual |semanal )?(?:de )?\$\s?(\d{1,3}(?:\.\d{3})+|\d+)/i); return m ? Number(m[1].replace(/\./g, '')) : 0; };
 const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const endOfMonth = (today) => { const [y, m] = today.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
 
@@ -56,9 +59,11 @@ export async function promosFuente(today) {
       merchant: (x.comercios || []).join(', ').slice(0, 80),
       category: RUBROS[x.rubro] || 'otros',
       pct,
-      cap: Math.max(0, Math.round(Number(x.tope_monto) || 0)),
+      cap: Math.max(0, Math.round(Number(x.tope_monto) || topeDelTexto(x.requisitos))),
       ...(PERIODOS[x.tope_periodo] ? { capPeriod: PERIODOS[x.tope_periodo] } : {}),
-      ...(!(Number(x.tope_monto) > 0) && x.tope_publicado === false ? { capUnknown: true } : {}),
+      // sin tope cargado: solo es "sin tope" si la fuente lo confirma; si no, queda "tope sin confirmar"
+      ...(!(Number(x.tope_monto) > 0) && x.tope_publicado !== true && !/sin tope/i.test(String(x.requisitos || '')) ? { capUnknown: true } : {}),
+      ...(isDate(x.verificado) ? { verified: x.verificado } : {}),
       ...(Number(x.compra_minima) > 0 ? { minPurchase: Math.round(Number(x.compra_minima)) } : {}),
       cond: cut(extraName + String(x.requisitos || ''), 220),
       zone: String(x.zona || 'Nacional').slice(0, 60),

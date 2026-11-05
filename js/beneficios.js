@@ -4,6 +4,7 @@
 import { money, esc, num, WEEKDAYS } from './formato.js';
 import { allCategories, catLabel, walletName } from './categorias.js';
 import { promosForDay, promosStatus } from './economista.js';
+import { fuentes } from './estado.js';
 import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
@@ -13,7 +14,7 @@ let medioFilter = 'all';
 const expanded = new Set(); // días con "Ver más" abierto
 const PER_DAY = 8;
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
-const FILTERS = [['all', 'Todos los rubros'], ['super', 'Súper'], ['comida', 'Comida'], ['salud', 'Farmacia'], ['transporte', 'Combustible'], ['hogar', 'Hogar'], ['ropa', 'Ropa'], ['ocio', 'Salidas'], ['servicios', 'Servicios'], ['viajes', 'Viajes']];
+const FILTERS = [['all', 'Todos los rubros'], ['super', 'Súper'], ['comida', 'Comida afuera'], ['salud', 'Farmacia y salud'], ['transporte', 'Combustible y transporte'], ['casa', 'Casa y servicios'], ['compras', 'Salidas y compras'], ['familia', 'Familia']];
 
 function dayBlock(s, offset) {
   const day = (new Date().getDay() + offset) % 7;
@@ -52,7 +53,8 @@ export function render(s) {
 
     ${week || (has ? '<div class="card"><p class="text muted">No encontré promos para tus medios de pago con este filtro.</p></div>' : '')}
 
-    <span class="small muted">${esc(promosStatus(s))} Antes de pagar, confirmá las condiciones en la app de tu banco o billetera.</span>
+    ${(() => { const f = fuentes(s).find((x) => x.id === 'promos'); return f && f.est !== 'ok' ? `<button class="card amber" data-action="irEstado" style="border:none;text-align:left"><strong>Las promos pueden estar desactualizadas</strong><span class="text">${esc(f.det)}</span></button>` : ''; })()}
+    <span class="small muted">${esc(promosStatus(s))} Antes de pagar, confirmá las condiciones en la app de tu banco o billetera. <button class="link-btn" data-action="irEstado">Estado de los datos</button></span>
 
     <div class="section-title"><span>Promos que cargaste</span><button data-action="newPromo">+ Agregar</button></div>
     <div class="card tight">
@@ -77,7 +79,7 @@ export const actions = {
         <div class="field"><label for="pr-c">Rubro</label><select id="pr-c" name="category">${allCategories().filter((c) => !['varios', 'otros'].includes(c.id)).map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}</select></div>
       </div>
       <div class="field-row">
-        <div class="field"><label for="pr-p">Descuento %</label><input id="pr-p" name="pct" inputmode="decimal" required></div>
+        <div class="field"><label for="pr-p">Descuento %</label><input id="pr-p" name="pct" inputmode="decimal" required placeholder="Ej: 20"></div>
         <div class="field"><label for="pr-t">Tope de reintegro</label><input id="pr-t" name="cap" inputmode="decimal" placeholder="Opcional"></div>
       </div>
       <button class="btn primary block" type="submit">Guardar</button>

@@ -11,3 +11,6 @@ export function db() {
   }
   return admin.firestore();
 }
+
+/** Auth de Firebase (para buscar al dueño de la app por su email). */
+export function auth() { db(); return admin.auth(); }

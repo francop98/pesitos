@@ -112,7 +112,7 @@ export function abrir() {
       <span class="small muted">Antes de invertir: tené un fondo de emergencia (3 a 6 meses de gastos) en algo líquido.</span>
     </div>
     <div class="card"><strong>Letras del Tesoro hoy</strong>
-      <div class="field"><label for="inv-m">¿Cuánto invertirías?</label><input id="inv-m" inputmode="decimal" value="${montoInv.toLocaleString('es-AR')}" data-input="invMonto"></div>
+      <div class="field"><label for="inv-m">¿Cuánto invertirías?</label><input id="inv-m" inputmode="decimal" value="${montoInv !== 1000000 ? montoInv.toLocaleString('es-AR') : ''}" placeholder="Ej: 1.000.000" data-input="invMonto"></div>
       <div data-letras-top><p class="small muted" style="margin:0">Buscando las tasas de hoy…</p></div></div>
     <div class="section-title"><span>Instrumentos</span><span class="small muted">Tocá para ver</span></div>
     <div id="inv-cuerpo">${cuerpo()}</div>
@@ -140,7 +140,7 @@ export const actions = {
   openInversiones() { abrir(); },
   invMonto(ctx, el) {
     const v = Number(String(el.value).replace(/\./g, '').replace(',', '.')) || 0;
-    if (v > 0) montoInv = v;
+    montoInv = v > 0 ? v : 1000000; // vacío: el ejemplo de $1.000.000
     const g = letrasGuardadas();
     document.querySelectorAll('#modal [data-letras-top], #modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(g, montoInv); });
   },

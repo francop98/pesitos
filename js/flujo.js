@@ -66,7 +66,7 @@ export function inflows(s, from, to) {
     const g = grupos[k] = grupos[k] || { key: k, kind: 'reintegro', name: `Reintegro ${r.nombre}`, amount: 0, date: r.fecha, n: 0, toCard: !!r.cardId };
     g.amount += r.monto; g.n++;
   }
-  for (const g of Object.values(grupos)) out.push({ ...g, sub: `${g.n} compra${g.n === 1 ? '' : 's'} · ${g.toCard ? 'baja el resumen de la tarjeta' : 'se suma solo a tu cuenta'}` });
+  for (const g of Object.values(grupos)) out.push({ ...g, sub: `${g.n} compra${g.n === 1 ? '' : 's'} · ${g.toCard ? 'baja el resumen de la tarjeta' : 'se suma a tu cuenta cuando confirmás que llegó'}` });
 
   // plazos fijos que vencen
   for (const h of s.holdings || []) {

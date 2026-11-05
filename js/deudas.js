@@ -73,7 +73,7 @@ export const actions = {
       <div class="card"><span class="small muted">${esc(d.nota || '')}</span><span style="font-size:28px;font-weight:800">${money(saldo)}</span>
         <span class="small muted">De ${money(d.monto)}${d.vence ? ` · vence el ${parseISO(d.vence).toLocaleDateString('es-AR')}` : ''}</span></div>
       ${saldo > 0.5 ? `<form class="form" data-submit="pagoDeuda"><input type="hidden" name="id" value="${esc(d.id)}">
-        <div class="field-row"><div class="field"><label for="dp-m">${d.tipo === 'meDeben' ? 'Te devolvió' : 'Pagaste'}</label><input id="dp-m" name="monto" inputmode="decimal" value="${Math.round(saldo)}"></div>
+        <div class="field-row"><div class="field"><label for="dp-m">${d.tipo === 'meDeben' ? 'Te devolvió' : 'Pagaste'}</label><input id="dp-m" name="monto" inputmode="decimal" placeholder="Todo: ${money(Math.round(saldo))}"><input type="hidden" name="saldo" value="${Math.round(saldo)}"></div>
         <div class="field"><label for="dp-c">${d.tipo === 'meDeben' ? 'Entró en' : 'Salió de'}</label><select id="dp-c" name="cuenta">${opcionesCuenta(s, cuentaPrincipal(s), 'Ninguna (efectivo sin seguir)')}</select></div></div>
         <button class="btn green block" type="submit">${d.tipo === 'meDeben' ? 'Registrar cobro' : 'Registrar pago'}</button></form>
         <button class="btn block" data-action="avisarDeuda" data-id="${esc(d.id)}">${icon('send', 18)} ${d.tipo === 'meDeben' ? 'Recordarle por WhatsApp' : 'Avisarle por WhatsApp'}</button>` : '<p class="text pos"><b>Saldada.</b></p>'}
@@ -94,7 +94,7 @@ export const actions = {
     closeModal(); toast('Guardado');
   },
   pagoDeuda(ctx, d) {
-    const monto = num(d.monto);
+    const monto = num(d.monto) || num(d.saldo); // vacío = todo lo que falta
     if (!monto) return;
     ctx.commit((s) => {
       const x = (s.deudas || []).find((y) => y.id === d.id);

@@ -4,6 +4,7 @@
 // Variables de entorno: VAPID_PRIVATE_KEY (y FIREBASE_SERVICE_ACCOUNT_JSON).
 
 import webpush from 'web-push';
+import { auth } from './firebase.js';
 import { db } from './firebase.js';
 
 export const VAPID_PUBLICA = 'BOZlQ_Umdlrnx3ClrCKVe4P_c8gTsKP9e0i-8sRZD7J2Df_RmPxaiu3o7RWGm0ycGY8b6o5pGQ4Vpo_HqRevIV0';
@@ -45,4 +46,26 @@ export async function enviarAvisos(hoy) {
     }
   }
   return `ok: ${enviados} avisos a ${conAviso} usuarios${borrados ? `, ${borrados} suscripciones vencidas borradas` : ''}`;
+}
+
+/**
+ * Aviso solo para el dueño de la app (OWNER_EMAIL en Vercel): por ejemplo, si una
+ * fuente de datos falla o deja de actualizarse. Le llega como cualquier aviso,
+ * a los dispositivos donde tenga los avisos activados.
+ */
+export async function avisarDueno(titulo, texto) {
+  const email = process.env.OWNER_EMAIL;
+  if (!email) return 'sin OWNER_EMAIL';
+  if (!avisosConfigurados()) return 'apagado (falta VAPID_PRIVATE_KEY)';
+  webpush.setVapidDetails('mailto:pesitosapp@gmail.com', VAPID_PUBLICA, process.env.VAPID_PRIVATE_KEY);
+  let uid;
+  try { uid = (await auth().getUserByEmail(email)).uid; } catch { return 'no encontré ese email entre los usuarios'; }
+  const subs = await db().collection('usuarios').doc(uid).collection('push').get();
+  let enviados = 0;
+  for (const sd of subs.docs) {
+    const sub = sd.data();
+    try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, JSON.stringify({ title: titulo, body: texto, url: './#/estado', tag: 'pesitos-estado' }), { TTL: 12 * 3600, urgency: 'normal' }); enviados++; }
+    catch (e) { if (e.statusCode === 404 || e.statusCode === 410) await sd.ref.delete(); }
+  }
+  return enviados ? `ok: ${enviados}` : 'el dueño no tiene avisos activados';
 }

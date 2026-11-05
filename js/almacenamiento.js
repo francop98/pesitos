@@ -1,6 +1,7 @@
 // Capa de datos local: la copia rápida de tus datos en este dispositivo.
 // Hay una copia por cuenta (pesitos:v1:<uid>). La nube (Firestore) la maneja
 // js/sincronizacion.js: cada guardado acá también se envía a tu cuenta.
+import { CATEGORY_ALIAS } from './categorias.js';
 
 const LEGACY_KEY = 'pesitos:v1'; // datos de antes de que existieran las cuentas
 let KEY = LEGACY_KEY;
@@ -94,20 +95,21 @@ export function migrate(data) {
     if (s.settings.manualRates && s.settings.manualRates.XAU) s.settings.manualRates = { ...s.settings.manualRates, XAU: s.settings.manualRates.XAU / G };
   }
   s.oroGramos = true;
-  // categorías unidas (v21): delivery y kiosco → comida, tecnología → hogar, etc.
-  const AL = { delivery: 'comida', kiosco: 'comida', tecnologia: 'hogar', cuidado: 'salud', mascotas: 'chicos', bancarios: 'impuestos', varios: 'otros' };
+  // categorías unidas (v21 y v23: quedan 8). Los datos viejos se pasan solos a la nueva.
+  const AL = CATEGORY_ALIAS;
   const re = (c) => AL[c] || c;
-  for (const e of s.expenses || []) if (AL[e.category]) e.category = re(e.category);
-  for (const f of s.fixed || []) if (AL[f.category]) f.category = re(f.category);
-  for (const p of s.promos || []) if (AL[p.category]) p.category = re(p.category);
+  for (const l of [s.expenses, s.fixed, s.promos, s.bills, s.misBeneficios, s.customChallenges, (s.rules || {}).custom]) for (const x of l || []) { if (AL[x.category]) x.category = re(x.category); if (AL[x.categoria]) x.categoria = re(x.categoria); }
   for (const k of Object.keys(s.learned || {})) if (AL[s.learned[k]]) s.learned[k] = re(s.learned[k]);
   if (s.presupuestos) { const n = {}; for (const [k, v] of Object.entries(s.presupuestos)) n[re(k)] = (n[re(k)] || 0) + Number(v || 0); s.presupuestos = n; }
   if (s.catPrefs) {
     const u = (l) => [...new Set((l || []).map(re))];
-    s.catPrefs = { ...s.catPrefs, lista: u(s.catPrefs.lista), ocultas: u(s.catPrefs.ocultas).filter((x) => x !== 'otros'), eliminadas: u(s.catPrefs.eliminadas).filter((x) => x !== 'otros') };
+    const antes = new Set(s.catPrefs.eliminadas || []);
+    const miembros = (x) => Object.keys(AL).filter((k) => AL[k] === x);
+    // una categoría queda eliminada si la habías borrado, o si borraste todas las que se unieron en ella
+    const elim = [...new Set([...antes].map(re))].filter((x) => x !== 'otros' && (antes.has(x) || miembros(x).every((k) => antes.has(k))));
+    s.catPrefs = { ...s.catPrefs, lista: u(s.catPrefs.lista), ocultas: u(s.catPrefs.ocultas).filter((x) => x !== 'otros'), eliminadas: elim };
   }
   if (s.challenge && AL[s.challenge.category]) s.challenge = { ...s.challenge, category: re(s.challenge.category) };
-  for (const c of s.customChallenges || []) if (AL[c.category]) c.category = re(c.category);
   s.version = base.version;
   return s;
 }

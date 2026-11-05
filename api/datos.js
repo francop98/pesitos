@@ -26,6 +26,8 @@ export default async function handler(req, res) {
       ipc: doc.ipc || {},
       sources: doc.sources || [],
       updatedAt: doc.updatedAt || null,
+      fuenteFecha: doc.fuenteFecha || null,
+      salud: doc.salud || null,
     });
   } catch (e) {
     console.error(e);

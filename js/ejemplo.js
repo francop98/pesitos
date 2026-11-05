@@ -42,7 +42,7 @@ export function demoState() {
     { day: 18, note: 'YPF', category: 'transporte', amount: 32000 },
     { day: 6, note: 'PedidosYa', category: 'comida', amount: 9000 },
     { day: 20, note: 'Rappi', category: 'comida', amount: 8500 },
-    { day: 3, note: 'Cine', category: 'ocio', amount: 14000 },
+    { day: 3, note: 'Cine', category: 'compras', amount: 14000 },
     { day: 12, note: 'Pizza con amigos', category: 'comida', amount: 16000 },
     { day: 25, note: 'Café', category: 'comida', amount: 4500 },
     { day: 14, note: 'Farmacia', category: 'salud', amount: 11000 },
@@ -55,11 +55,11 @@ export function demoState() {
     for (const it of items) {
       const date = `${mk}-${String(it.day).padStart(2, '0')}`;
       if (date > todayStr) continue;
-      if (it.category === 'ocio' && date >= challengeStart) continue;
+      if (it.category === 'compras' && date >= challengeStart) continue;
       s.expenses.push({ id: uid(), date, amount: it.amount, category: it.category, note: it.note, installments: 1 });
     }
   }
-  s.expenses.push({ id: uid(), date: `${addMonthKey(cur, -2)}-07`, amount: 540000, category: 'hogar', note: 'Heladera', installments: 12 });
+  s.expenses.push({ id: uid(), date: `${addMonthKey(cur, -2)}-07`, amount: 540000, category: 'compras', note: 'Heladera', installments: 12 });
   s.expenses.push({ id: uid(), date: todayStr, amount: 12500, category: 'salud', note: 'Farmacity', installments: 1, pending: true });
 
   s.fixed = [
@@ -90,8 +90,8 @@ export function demoState() {
   const card = { id: uid(), name: 'Visa Provincia', closeDay: 24, dueDay: 5, limit: 2500000, payFrom: 'provincia' };
   s.cards = [card];
   for (const e of s.expenses) if (e.note === 'Heladera') e.cardId = card.id;
-  s.expenses.push({ id: uid(), date: `${addMonthKey(cur, -1)}-15`, amount: 180000, category: 'ropa', note: 'Zapatillas', installments: 6, cardId: card.id });
-  s.expenses.push({ id: uid(), date: `${cur}-${String(Math.min(today.getDate(), 20)).padStart(2, '0')}`, amount: 96000, category: 'hogar', note: 'Silla de escritorio', installments: 3, cardId: card.id });
+  s.expenses.push({ id: uid(), date: `${addMonthKey(cur, -1)}-15`, amount: 180000, category: 'compras', note: 'Zapatillas', installments: 6, cardId: card.id });
+  s.expenses.push({ id: uid(), date: `${cur}-${String(Math.min(today.getDate(), 20)).padStart(2, '0')}`, amount: 96000, category: 'compras', note: 'Silla de escritorio', installments: 3, cardId: card.id });
   s.promos = [];
   // los fijos que ya vencieron este mes, pagados
   s.paid = {};
@@ -102,7 +102,7 @@ export function demoState() {
   s.bills = [
     { id: uid(), name: 'Patente del auto', amount: 38000, date: inDays(2), repeat: 'bimonthly', category: 'transporte', saveAhead: false, payWith: 'mercadopago' },
     { id: uid(), name: 'Seguro del auto (anual)', amount: 420000, date: inDays(95), repeat: 'yearly', category: 'transporte', saveAhead: true },
-    { id: uid(), name: 'Matrícula del gimnasio', amount: 25000, date: inDays(12), repeat: 'once', category: 'suscripciones', saveAhead: false },
+    { id: uid(), name: 'Matrícula del gimnasio', amount: 25000, date: inDays(12), repeat: 'once', category: 'salud', saveAhead: false },
   ];
   s.savedByApp = { [cur]: 12300 };
   s.setAside = {};

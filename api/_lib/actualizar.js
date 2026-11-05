@@ -7,7 +7,7 @@
 import { db } from './firebase.js';
 import { FUENTE, promosFuente } from './fuente.js';
 import { complementoActivo, promosComplemento } from './complemento.js';
-import { enviarAvisos } from './avisos.js';
+import { enviarAvisos, avisarDueno } from './avisos.js';
 
 export const TZ = 'America/Argentina/Buenos_Aires';
 export const todayAR = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date()); // AAAA-MM-DD
@@ -31,6 +31,29 @@ async function ipcOficial(today) {
     out[String(date).slice(0, 7)] = Math.round(pct * 100) / 100;
   }
   return out;
+}
+
+// Control de calidad de los datos: qué tan nuevos son y si algo se ve raro.
+const diasEntre = (a, b) => Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000);
+export function revisarSalud({ today, promos, fuenteOk, fuenteFecha, ipc, ipcOk, status }) {
+  const problemas = [];
+  const atraso = fuenteFecha ? diasEntre(String(fuenteFecha).slice(0, 10), today) : null;
+  if (!fuenteOk) problemas.push(`La fuente de promos falló (${String(status.fuente || '').slice(0, 60)})`);
+  else if (atraso !== null && atraso >= 2) problemas.push(`La fuente de promos no se actualiza hace ${atraso} días`);
+  const vigentes = promos.filter((p) => p.validTo >= today).length;
+  if (vigentes < 80) problemas.push(`Hay pocas promos vigentes (${vigentes})`);
+  const meses = Object.keys(ipc || {}).sort(); const ultimoIpc = meses[meses.length - 1] || null;
+  // el INDEC publica a mitad de mes el dato del mes anterior: más de 2 meses de atraso es raro
+  const [y, m] = today.split('-').map(Number); const hace2 = `${m <= 2 ? y - 1 : y}-${String(((m + 9) % 12) + 1).padStart(2, '0')}`;
+  if (!ipcOk) problemas.push('No se pudo leer la inflación del INDEC');
+  else if (ultimoIpc && ultimoIpc < hace2) problemas.push(`La inflación del INDEC no tiene dato nuevo desde ${ultimoIpc}`);
+  return {
+    revisado: new Date().toISOString(),
+    fuente: { ok: fuenteOk, fecha: fuenteFecha || null, atraso },
+    promos: { vigentes, topeSinConfirmar: promos.filter((p) => p.capUnknown && !p.cap).length },
+    ipc: { ok: ipcOk, ultimo: ultimoIpc },
+    problemas,
+  };
 }
 
 export async function actualizar({ turno = 'manana' } = {}) {
@@ -70,14 +93,22 @@ export async function actualizar({ turno = 'manana' } = {}) {
   if (turno !== 'tarde') { try { status.avisos = await enviarAvisos(today); } catch (e) { status.avisos = `error: ${e.message}`; } }
 
   const base = promos || (prev.promos || []).filter((p) => !p.auto && p.validTo >= today); // si la fuente falló, se conservan las anteriores vigentes
+  const todas = [...base, ...extraPromos];
+  const salud = revisarSalud({ today, promos: todas, fuenteOk: !!promos, fuenteFecha, ipc, ipcOk: status.ipc === 'ok', status });
   const doc = {
-    promos: [...base, ...extraPromos],
+    promos: todas,
     ipc,
     fuenteFecha,
     sources: [{ name: FUENTE.name, url: FUENTE.url }],
     status,
+    salud,
+    duenoAvisado: prev.duenoAvisado || null,
     updatedAt: new Date().toISOString(),
   };
+  // si algo anda mal, un aviso al dueño (una vez por día como máximo)
+  if (salud.problemas.length && prev.duenoAvisado !== today) {
+    try { status.dueno = await avisarDueno('Pesitos: revisá los datos', salud.problemas.join(' · ').slice(0, 220)); if (/^ok/.test(status.dueno)) doc.duenoAvisado = today; } catch (e) { status.dueno = `error: ${e.message}`; }
+  }
   if (!doc.promos.length && !Object.keys(ipc).length) throw new Error(`Sin datos: ${JSON.stringify(status)}`);
   await DOC.set(doc);
   return doc;

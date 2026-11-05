@@ -315,7 +315,7 @@ export function abrirMiCuenta({ onNombre, onEliminar } = {}) {
     </div>
     <button class="btn block" data-action="openMisDatos">📅 Mis datos: cuándo cobrás, provincia y ciudad</button>
     <button class="btn block" data-action="openBloqueo">🔐 PIN de seguridad y huella</button>
-    <form class="form" id="f-nombre"><div class="field"><label for="c-nombre">Tu nombre</label><input id="c-nombre" name="nombre" value="${esc(u.displayName || '')}" maxlength="40"></div>
+    <form class="form" id="f-nombre"><div class="field"><label for="c-nombre">Tu nombre</label><input id="c-nombre" name="nombre" value="${esc(u.displayName || '')}" maxlength="40" placeholder="Tu nombre"></div>
       <button class="btn small" type="submit">Guardar nombre</button></form>
     ${mail ? `<form class="form" id="f-clave"><strong>Cambiar contraseña</strong>
       <div class="field"><label for="c-actual">Contraseña actual</label><input id="c-actual" name="actual" type="password" autocomplete="current-password" required></div>
@@ -373,7 +373,7 @@ function abrirEliminar() {
   openModal('Eliminar mi cuenta', `<form class="form" id="f-eliminar">
       <div class="card amber"><strong>Esto no se puede deshacer</strong><p class="text" style="margin:0">Se borran tu cuenta y todos tus datos de Pesitos: movimientos, sueldo, metas, tarjetas y ahorros. Si querés, antes descargá una copia desde el menú.</p></div>
       ${mail ? '<div class="field"><label for="e-clave">Tu contraseña, para confirmar</label><input id="e-clave" name="clave" type="password" autocomplete="current-password" required></div>' : '<p class="small muted" style="margin:0">Te vamos a pedir que confirmes con Google.</p>'}
-      <div class="field"><label for="e-conf">Escribí ELIMINAR para confirmar</label><input id="e-conf" name="conf" autocomplete="off" required></div>
+      <div class="field"><label for="e-conf">Escribí ELIMINAR para confirmar</label><input id="e-conf" name="conf" autocomplete="off" required placeholder="ELIMINAR"></div>
       <p class="auth-error" role="alert" hidden></p>
       <button class="btn block danger-fill" type="submit">Eliminar definitivamente</button></form>`, { push: true });
 }

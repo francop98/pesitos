@@ -29,7 +29,7 @@ const enMoneda = (x) => (x.currency && x.currency !== 'ARS' ? ` · ${x.currency}
 
 export function expenseRow(s, e) {
   const c = catById(e.category);
-  const green = ['super', 'salud', 'hogar'].includes(c.id);
+  const green = ['super', 'salud', 'casa'].includes(c.id);
   const card = e.cardId ? s.cards.find((x) => x.id === e.cardId) : null;
   const medio = card ? esc(card.name) : (e.accountId ? esc(nombreCuenta(s, e.accountId)) : '');
   const cat = e.splits && e.splits.length > 1 ? `${e.splits.length} categorías` : c.label;
@@ -172,7 +172,7 @@ export const actions = {
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
   ahorroPesitosInfo(ctx) {
     openModal('Plata que te ahorraste', `<p class="text" style="margin:0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
-      <div class="card"><span class="small">💸 <b>Reintegros y cashback:</b> cuando anotás un gasto con un medio que tiene promo (o un cashback que cargaste), calculo cuánto te devuelven. El día que llega, se suma solo acá y a tu saldo.</span>
+      <div class="card"><span class="small">💸 <b>Reintegros y cashback:</b> cuando anotás un gasto con un medio que tiene promo (o un cashback que cargaste), calculo cuánto te devuelven. Cuando confirmás que llegó, se suma acá y a tu saldo.</span>
       <span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
       <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Mi plata → Plan de ahorro, se suma lo que no gastaste.</span></div>
       <a class="btn primary block" href="#/reintegros">Ver mis reintegros</a>

@@ -6,6 +6,7 @@
 // Nada de esto se carga a mano.
 
 import { monthKey, addMonthKey, todayISO, normalize } from './formato.js';
+import { catReal } from './categorias.js';
 
 const norm = (t) => normalize(t).replace(/[^a-z0-9]+/g, ' ').trim();
 // para comparar nombres de bancos: "Banco Patagonia" = "Patagonia"
@@ -74,7 +75,7 @@ export async function refreshLive(ctx, force = false) {
     if (extra) q.set('extra', extra);
     const url = q.toString() ? `${LIVE_URL}?${q}` : LIVE_URL;
     tasks.push(getJSON(url).then((j) => {
-      if (j && (Array.isArray(j.promos) || j.ipc)) patch.live = { promos: j.promos || [], ipc: j.ipc || {}, updatedAt: j.updatedAt || null, sources: j.sources || [], prov: zonaActual, at: now };
+      if (j && (Array.isArray(j.promos) || j.ipc)) patch.live = { promos: j.promos || [], ipc: j.ipc || {}, updatedAt: j.updatedAt || null, fuenteFecha: j.fuenteFecha || null, salud: j.salud || null, sources: j.sources || [], prov: zonaActual, at: now };
     }).catch(() => { patch.liveFailedAt = now; }));
   }
   if (force || !s.ipcAuto || now - (s.ipcAuto.at || 0) > IPC_TTL) {
@@ -110,7 +111,6 @@ export function expectedInflation(s) {
 
 // Promos vigentes del servicio (solo las que están dentro de sus fechas)
 // categorías que se unieron en la app (v21)
-const CAT_VIEJA = { delivery: 'comida', kiosco: 'comida', tecnologia: 'hogar', cuidado: 'salud', mascotas: 'chicos', bancarios: 'impuestos', varios: 'otros' };
 export function livePromos(s) {
   const today = todayISO();
   // promos de medios agregados por el usuario: llegan con su nombre y se asocian a su id
@@ -118,7 +118,7 @@ export function livePromos(s) {
   const prov = (s.profile && s.profile.province) || '';
   const city = (s.profile && s.profile.city) || '';
   const list = ((s.live && s.live.promos) || []).map((p) => (p.walletName && custom[nameKey(p.walletName)] ? { ...p, wallet: custom[nameKey(p.walletName)] } : p))
-    .map((p) => (CAT_VIEJA[p.category] ? { ...p, category: CAT_VIEJA[p.category] } : p));
+    .map((p) => (catReal(p.category) !== p.category ? { ...p, category: catReal(p.category) } : p));
   return list.filter((p) => (!p.validFrom || p.validFrom <= today) && (!p.validTo || p.validTo >= today) && inZone(p.zone, prov, city));
 }
 

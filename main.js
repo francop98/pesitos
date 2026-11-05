@@ -23,6 +23,7 @@ import { ayudaActions, tutorialPendiente } from './js/ayuda.js';
 import { aplicarTema, aplicarLetra } from './js/tema.js';
 import { commonActions, addPendingFromText } from './js/acciones.js';
 import { guideActions } from './js/guia.js';
+import { habitosActions } from './js/habitos.js';
 import { refreshRates } from './js/cotizaciones.js';
 import { refreshLive } from './js/datosvivos.js';
 import { refreshRendimientos } from './js/rendimientos.js';
@@ -45,6 +46,7 @@ import * as deudas from './js/deudas.js';
 import * as estadisticas from './js/estadisticas.js';
 import * as proyectos from './js/proyectos.js';
 import * as reintegros from './js/reintegros.js';
+import * as estado from './js/estado.js';
 import { actions as inversionesActions } from './js/inversiones.js';
 import { notifyDue } from './js/agenda.js';
 import { setCustomCategories, setCustomWallets } from './js/categorias.js';
@@ -52,7 +54,7 @@ import { setCustomCategories, setCustomWallets } from './js/categorias.js';
 // rutas viejas que ahora son pestañas de otra pantalla
 const vistaDe = (mod, v) => ({ render: (s) => mod.renderVista(s, v) });
 const views = { inicio, movimientos, ahorro, asesor, beneficios, herramientas, pagos, buscar, presupuestos,
-  cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas, proyectos, estadisticas, reintegros };
+  cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas, proyectos, estadisticas, reintegros, estado };
 const NAV_ORDER = ['inicio', 'movimientos', 'pagos', 'ahorro', 'herramientas'];
 
 let state = emptyState();
@@ -118,7 +120,7 @@ function render() {
   goingBack = false;
   lastRoute = route;
 
-  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', deudas: 'movimientos', proyectos: 'movimientos', reintegros: 'ahorro', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
+  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', deudas: 'movimientos', proyectos: 'movimientos', reintegros: 'ahorro', estado: 'inicio', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
@@ -126,7 +128,7 @@ function render() {
   if (route === 'inicio') tutorialPendiente(ctx);
 }
 
-const actions = Object.assign({ recargar: () => location.reload() }, commonActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, proyectos.actions, inversionesActions, reintegros.actions, {
+const actions = Object.assign({ recargar: () => location.reload() }, commonActions, habitosActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, proyectos.actions, inversionesActions, reintegros.actions, reintegros.confirmarActions, estado.actions, {
   goBack() {
     trail.pop();
     const prev = trail.pop() || 'inicio';

@@ -2,7 +2,7 @@
 // (sueldo del mes, ahorro, resumen semanal) y accesos rápidos.
 
 import { money, esc, monthKey, MONTHS_LONG, MONTHS, num, todayISO, monthName, parseISO , addMonthKey } from './formato.js';
-import { budget, mainGoal, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary , monthIncome, monthExpenses, fixedTotal } from './calculos.js';
+import { budget, mainGoal, metaDiario, diarioConfig, MODOS_DIARIO, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary , monthIncome, monthExpenses, fixedTotal } from './calculos.js';
 import { insights } from './economista.js';
 import { renderQuestion, suggestions, renderSuggestion } from './guia.js';
 import { lessonCard } from './aprender.js';
@@ -18,6 +18,8 @@ import { instalada } from './menu.js';
 import { bioDisponible, bioActiva, bloqueoActions } from './bloqueo.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast, setModalBody } from './interfaz.js';
 import { uid } from './almacenamiento.js';
+import { reintegrosPorConfirmar } from './reintegros.js';
+import { compararCard } from './miscuentas.js';
 
 const MODE_TEXT = {
   payFirst: (s) => `Elegiste apartar el ${s.rules.payFirst.pct}% apenas cobrás`,
@@ -119,6 +121,13 @@ function weekCard(s) {
   </div>`;
 }
 
+// reintegros que ya tendrían que haber llegado: hay que confirmarlos para que sumen
+function reintConfirmarCard(s) {
+  const l = reintegrosPorConfirmar(s); if (!l.length) return '';
+  const t = l.reduce((a, e) => a + e.reintegro.monto, 0);
+  return `<button class="card amber" data-action="irReintegros" style="border:none;text-align:left"><strong>¿Te llegaron ${l.length === 1 ? 'el reintegro' : `${l.length} reintegros`}? (${money(t)})</strong><span class="text">Confirmalo${l.length === 1 ? '' : 's'} para sumarlo${l.length === 1 ? '' : 's'} a tu saldo.</span></button>`;
+}
+
 // Todo lo que pide tu atención, ordenado por importancia.
 // En Inicio se ve solo el primero; el resto queda en "Novedades".
 function avisos(s, b) {
@@ -127,6 +136,8 @@ function avisos(s, b) {
   const lista = [
     payAlerts(s),
     coverageAlert(s),
+    reintConfirmarCard(s),
+    compararCard(s),
     savingCard(s, b),
     salaryCard(s, b),
     renderQuestion(s),
@@ -199,15 +210,46 @@ function heroMensaje(s, b, payText) {
   }
   // venís gastando menos: una parte se suma a tus próximos días y otra se sugiere ahorrar
   if (b.colchon > Math.max(500, b.normalDaily * 0.3)) {
-    const meta = mainGoal(s);
+    const meta = metaDiario(s);
     const partes = [];
     if (b.extraDia >= 1) partes.push(`<b>+${money(b.extraDia)} por día</b> hasta el cobro`);
-    if (b.paraAhorrar >= 1) partes.push(`<b>${money(b.paraAhorrar)}</b> para ${meta ? `"${esc(meta.name)}"` : 'ahorrar'}`);
+    if (b.paraAhorrar >= 1) partes.push(`<b>${money(b.paraAhorrar)}</b> para ${meta ? `"${esc(meta.name)}"` : 'ahorrar'}${adelantoMeta(meta, b.paraAhorrar)}`);
     if (b.aparte >= 1) partes.push(`ya apartaste ${money(b.aparte)}`);
     return `${linea(`No gastaste ${money(b.colchon)} de días anteriores: ${partes.join(' y ')}.`)}
       <span class="hero-acciones">${b.paraAhorrar >= 1 ? `<button class="btn small lime" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Pasar ${money(b.paraAhorrar)} ${meta ? 'a la meta' : 'a ahorro'}</button>` : ''}<button class="link-btn on-green-muted" data-action="openDiario">Cómo se reparte</button></span>`;
   }
   return linea(`Por día, para llegar bien: ${payText}.`);
+}
+
+// Tu ritmo: cómo venís esta semana, cuántos días seguidos dentro de lo previsto y lo de ayer.
+function ritmoDia(s, iso) {
+  return s.expenses.filter((e) => !e.pending && !e.fromSavings && e.date === iso && !(e.installments > 1)).reduce((a, e) => a + e.amount, 0)
+    + s.expenses.filter((e) => !e.pending && !e.fromSavings && e.date === iso && e.installments > 1).reduce((a, e) => a + e.amount / e.installments, 0);
+}
+function ritmoSlide(s, b) {
+  if (b.noIncome || !(b.normalDaily > 0)) return '';
+  const hoy = new Date(); hoy.setHours(12, 0, 0, 0);
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const dSem = (hoy.getDay() + 6) % 7; // lunes = 0
+  let gastoSem = 0;
+  for (let k = 0; k <= dSem; k++) { const d = new Date(hoy); d.setDate(d.getDate() - k); gastoSem += ritmoDia(s, iso(d)); }
+  const ritmoSem = b.normalDaily * (dSem + 1);
+  const pct = Math.min(1, gastoSem / Math.max(1, ritmoSem));
+  // días seguidos (hasta ayer) sin pasarte de tu ritmo, desde que usás la app
+  const primero = s.expenses.reduce((a, e) => (!a || e.date < a ? e.date : a), '');
+  let racha = 0;
+  for (let k = 1; k <= 60; k++) { const d = new Date(hoy); d.setDate(d.getDate() - k); if (!primero || iso(d) < primero) break; if (ritmoDia(s, iso(d)) > b.normalDaily) break; racha++; }
+  const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1);
+  const sobroAyer = primero && iso(ayer) >= primero ? b.normalDaily - ritmoDia(s, iso(ayer)) : 0;
+  const meta = metaDiario(s);
+  const dif = ritmoSem - gastoSem;
+  return `<div class="card green hero slide">
+      <span class="hero-label">Esta semana gastaste</span>
+      <span class="hero-number">${money(gastoSem)}</span>
+      <div class="bar" role="img" aria-label="Usaste el ${Math.round(pct * 100)}% de tu ritmo de la semana"><span style="width:${Math.round(pct * 100)}%"></span></div>
+      <span class="small on-green-muted">${dif >= 0 ? `Vas <b>${money(dif)} abajo</b> de tu ritmo de la semana (${money(ritmoSem)}).` : `Vas <b>${money(-dif)} arriba</b> de tu ritmo de la semana (${money(ritmoSem)}).`}${racha >= 2 ? ` 🔥 ${racha} días seguidos dentro de lo previsto.` : ''}</span>
+      ${sobroAyer >= 500 && b.paraAhorrar >= 1 ? `<span class="hero-acciones"><button class="btn small lime" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Ayer te sobraron ${money(sobroAyer)}: pasar ${money(b.paraAhorrar)} ${meta ? 'a la meta' : 'a ahorro'}</button></span>` : ''}
+    </div>`;
 }
 
 // Cartel principal: un widget que se desliza de costado con distintos datos.
@@ -234,11 +276,12 @@ function widget(s, b, payText) {
       <div class="bar" role="img" aria-label="Pasó el ${Math.round(cyclePct * 100)}% del mes"><span style="width:${Math.round(cyclePct * 100)}%"></span></div>
       <span class="small on-green-muted">${payText[0].toUpperCase() + payText.slice(1)} (${b.cycle.next.getDate()}/${b.cycle.next.getMonth() + 1}). Ya descontados tus gastos fijos${b.saving ? ` y ${money(b.saving)} de ahorro` : ''}.</span>
     </div>`,
-  ];
+    ritmoSlide(s, b),
+  ].filter(Boolean);
   const i = Math.min(slides.length - 1, widgetGuardado());
   requestAnimationFrame(() => { const c = document.querySelector('[data-widget]'); if (c && i) c.scrollLeft = c.clientWidth * i; });
   return `<div class="hero-wrap"><div class="hero-carrusel" data-widget aria-roledescription="carrusel" aria-label="Resumen de tu plata">${slides.join('')}</div>
-    <div class="hero-puntos" role="tablist">${slides.map((_, n) => `<button role="tab" data-action="widgetIr" data-i="${n}" aria-label="Ver ${['hoy', 'hasta el cobro'][n]}" aria-selected="${n === i}"></button>`).join('')}</div></div>`;
+    <div class="hero-puntos" role="tablist">${slides.map((_, n) => `<button role="tab" data-action="widgetIr" data-i="${n}" aria-label="Ver ${['hoy', 'hasta el cobro', 'tu ritmo'][n]}" aria-selected="${n === i}"></button>`).join('')}</div></div>`;
 }
 // al deslizar el widget, se marca el puntito y se recuerda
 document.addEventListener('scroll', (e) => {
@@ -334,20 +377,36 @@ function instalarCard() {
   </div>`;
 }
 
+// cuánto adelanta la meta un aporte (en días), según lo que le ponés por mes
+function adelantoMeta(g, monto) {
+  if (!g || !(g.monthly > 0) || !(monto > 0)) return '';
+  const d = Math.round(monto / (g.monthly / 30));
+  return d >= 1 ? ` y te adelanta "${esc(g.name)}" ${d === 1 ? '1 día' : `${d} días`}` : '';
+}
+
 function diarioBody(s) {
-  const b = budget(s); const r = b.reparto;
-  const op = (v, t, d) => `<button type="button" class="medio-op${Math.abs(r - v) < 0.01 ? ' on' : ''}" data-action="setReparto" data-v="${v}"><span class="grow"><span class="name">${t}</span><span class="meta">${d}</span></span>${Math.abs(r - v) < 0.01 ? icon('check', 18, 2.6) : ''}</button>`;
+  const b = budget(s); const cfg = diarioConfig(s); const meta = metaDiario(s);
+  const op = (k) => { const m = MODOS_DIARIO[k]; const on = cfg.modo === k; return `<button type="button" class="medio-op${on ? ' on' : ''}" data-action="setModoDiario" data-v="${k}" aria-pressed="${on}"><span class="grow"><span class="name">${m.nombre}${k === 'ahorrador' ? ' <span class="chip-mini">Recomendado</span>' : ''}</span><span class="meta">${m.txt}</span></span>${on ? icon('check', 18, 2.6) : ''}</button>`; };
+  const pct = Math.round(cfg.reparto * 100);
+  const topes = [[0.1, '+10%'], [0.2, '+20%'], [0.5, '+50%'], [1, 'El doble'], ['sin', 'Sin techo']];
+  const topeAct = cfg.tope == null ? 'sin' : cfg.tope;
+  const metas = s.goals || [];
+  const aMedida = cfg.modo === 'personalizado' ? `<div class="card diario-medida">
+      <div class="field"><label for="dm-rep">De lo que no gastás, a tus próximos días: <b data-out="rep">${pct}%</b> (a tu meta: <b data-out="aho">${100 - pct}%</b>)</label>
+        <input id="dm-rep" type="range" min="0" max="100" step="5" value="${pct}" data-change="setDiarioReparto" data-input="verDiarioReparto"></div>
+      <span class="small" style="font-weight:700">Tu día puede subir hasta</span>
+      <div class="chips">${topes.map(([v, l]) => `<button type="button" class="chip toggle" data-action="setDiarioTope" data-v="${v}" aria-pressed="${String(v) === String(topeAct)}">${l}</button>`).join('')}</div>
+      <span class="small muted">Por encima de tu ritmo normal${b.normalDaily ? ` (${money(b.normalDaily)})` : ''}. Lo que pasa ese techo te sugiero ahorrarlo.</span>
+    </div>` : '';
+  const destino = metas.length > 1 ? `<div class="field"><label for="dm-dest">Lo que ahorrás de tu día va a</label><select id="dm-dest" data-change="setDiarioDestino">${metas.map((g) => `<option value="${esc(g.id)}" ${meta && meta.id === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>` : '';
+  const sinMeta = !metas.length ? `<div class="card tight"><span class="text">Todavía no tenés una meta. Lo que no gastás se va a <b>ahorro</b>; si le ponés un nombre (vacaciones, fondo de emergencia, un auto) te digo cuánto te adelanta cada peso.</span><button class="btn small ghost" data-action="openGoalForm">Crear una meta</button></div>` : '';
   return `<div class="card"><span class="text">Cada día te muestro tu <b>ritmo normal</b>: lo que cobrás, menos tus gastos fijos y lo que separás para ahorrar, dividido por los días del mes${b.normalDaily ? ` (hoy: <b>${money(b.normalDaily)} por día</b>)` : ''}.</span>
-      <span class="text">Si un día gastás de más, los días que siguen bajan para que llegues al cobro. Si gastás de menos, lo que no gastaste se reparte como elijas acá abajo.</span></div>
-    <span class="small" style="font-weight:700">Lo que no gastás en el día</span>
-    <div class="medio-hoja">
-      ${op(1, 'Todo para gastar después', 'Se suma a tus próximos días: mañana podés gastar más.')}
-      ${op(0.5, 'Mitad y mitad', 'La mitad se suma a tus próximos días y la otra mitad te sugiero ahorrarla.')}
-      ${op(0.25, 'Un poco para gastar, más para ahorrar', 'Un 25% se suma a tus próximos días y el 75% va a tu meta.')}
-      ${op(0, 'Todo a ahorro', 'Tu diario queda fijo y todo lo que no gastás va a tu meta.')}
-    </div>
-    ${b.colchon ? `<div class="card lime"><span class="text">Hasta hoy no gastaste <b>${money(b.colchon)}</b> de tu ritmo: ${b.extraDia >= 1 ? `<b>+${money(b.extraDia)} por día</b> hasta el cobro` : 'nada se suma a tus días'}${b.paraAhorrar >= 1 ? ` y <b>${money(b.paraAhorrar)}</b> para ahorrar` : ''}.</span>
-      ${b.paraAhorrar >= 1 ? `<button class="btn small" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Pasar ${money(b.paraAhorrar)} a ${mainGoal(s) ? `"${esc(mainGoal(s).name)}"` : 'ahorro'}</button>` : ''}</div>` : ''}`;
+      <span class="text">Si un día gastás de más, los días que siguen bajan para que llegues al cobro. Si gastás de menos, lo que no gastaste se reparte según el modo que elijas.</span></div>
+    <span class="small" style="font-weight:700">Elegí cómo querés que funcione</span>
+    <div class="medio-hoja">${['ahorrador', 'equilibrado', 'flexible', 'personalizado'].map(op).join('')}</div>
+    ${aMedida}${destino}${sinMeta}
+    ${b.colchon ? `<div class="card lime"><span class="text">Hasta hoy no gastaste <b>${money(b.colchon)}</b> de tu ritmo: ${b.extraDia >= 1 ? `<b>+${money(b.extraDia)} por día</b> hasta el cobro` : 'nada se suma a tus días'}${b.paraAhorrar >= 1 ? ` y <b>${money(b.paraAhorrar)}</b> para ahorrar${adelantoMeta(meta, b.paraAhorrar)}` : ''}.</span>
+      ${b.paraAhorrar >= 1 ? `<button class="btn small" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Pasar ${money(b.paraAhorrar)} a ${meta ? `"${esc(meta.name)}"` : 'ahorro'}</button>` : ''}</div>` : ''}`;
 }
 
 export const actions = {
@@ -368,7 +427,7 @@ export const actions = {
     const amount = Math.round(num(el.dataset.amount)); if (!amount) return;
     let name = '';
     ctx.commit((s) => {
-      const g = mainGoal(s); if (g) { g.saved += amount; name = g.name; }
+      const g = metaDiario(s); if (g) { g.saved += amount; name = g.name; }
       s.transfers = s.transfers || [];
       s.transfers.push({ id: uid(), date: todayISO(), amount, deDiario: true, note: g ? `Aporte a ${g.name} (lo que no gastaste)` : 'Ahorro de lo que no gastaste' });
     });
@@ -378,8 +437,32 @@ export const actions = {
   openDiario(ctx) {
     openModal('Cómo funciona "Hoy podés gastar"', diarioBody(ctx.state));
   },
-  setReparto(ctx, el) {
-    ctx.commit((s) => { s.diario = { ...(s.diario || {}), reparto: Number(el.dataset.v) }; });
+  setModoDiario(ctx, el) {
+    const k = el.dataset.v;
+    ctx.commit((s) => {
+      const d = { ...(s.diario || {}), modo: k };
+      // al pasar a "A tu medida" arranca con lo que tenías
+      if (k === 'personalizado' && s.diario && !s.diario.modo) { const c = diarioConfig(s); d.reparto = c.reparto; d.tope = c.tope; }
+      s.diario = d;
+    });
+    setModalBody('.modal-body', diarioBody(ctx.state));
+    toast(`Modo ${MODOS_DIARIO[k].nombre.toLowerCase()}`);
+  },
+  verDiarioReparto(ctx, el) {
+    const v = Number(el.value); const m = el.closest('.modal-body');
+    if (m) { const r = m.querySelector('[data-out=rep]'); const a = m.querySelector('[data-out=aho]'); if (r) r.textContent = `${v}%`; if (a) a.textContent = `${100 - v}%`; }
+  },
+  setDiarioReparto(ctx, el) {
+    ctx.commit((s) => { s.diario = { ...(s.diario || {}), modo: 'personalizado', reparto: Number(el.value) / 100 }; });
+    setModalBody('.modal-body', diarioBody(ctx.state));
+  },
+  setDiarioTope(ctx, el) {
+    const v = el.dataset.v;
+    ctx.commit((s) => { s.diario = { ...(s.diario || {}), modo: 'personalizado', tope: v === 'sin' ? null : Number(v) }; });
+    setModalBody('.modal-body', diarioBody(ctx.state));
+  },
+  setDiarioDestino(ctx, el) {
+    ctx.commit((s) => { s.diario = { ...(s.diario || {}), destino: el.value }; });
     setModalBody('.modal-body', diarioBody(ctx.state));
   },
   widgetIr(ctx, el) { const c = document.querySelector('[data-widget]'); if (c) c.scrollTo({ left: c.clientWidth * Number(el.dataset.i), behavior: 'smooth' }); },

@@ -84,7 +84,7 @@ function barrasMensuales(s) {
 
 
 // ---------- más datos: proyección, día de la semana, hormiga, ticket, necesidades vs gustos ----------
-const NECESIDADES = new Set(['super', 'vivienda', 'servicios', 'salud', 'transporte', 'educacion', 'impuestos', 'chicos', 'hogar']);
+const NECESIDADES = new Set(['super', 'casa', 'salud', 'transporte', 'familia', 'otros']);
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DIAS_LARGOS = ['los domingos', 'los lunes', 'los martes', 'los miércoles', 'los jueves', 'los viernes', 'los sábados'];
 const parte = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);

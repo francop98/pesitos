@@ -29,6 +29,7 @@ export function cuerpo(s) {
       <span class="hero-label">${con.length ? 'Tenés en tus cuentas' : 'Cargá el saldo de tus cuentas'}</span>
       <span class="hero-number" style="font-size:34px">${con.length ? money(totalCuentas(s)) : '—'}</span>
       <span class="small on-green-muted">${con.length ? `Se actualiza solo con lo que anotás${con.some((c) => tnaCuenta(s, c.id)) ? ' y con los intereses de las cuentas que rinden' : ''}. Si no coincide con tu banco, tocá la cuenta y ajustalo.` : 'Tocá una cuenta y poné cuánto tiene hoy: después se actualiza sola con cada gasto e ingreso.'}</span>
+      ${con.length ? `<button class="link-btn on-green-muted" data-action="openComparar" style="align-self:flex-start">Comparar con el banco${s.comparacion && s.comparacion.ultima ? ` (última vez: ${relDay(s.comparacion.ultima).toLowerCase()})` : ''} ›</button>` : ''}
     </div>
     <div class="card tight">${todas.map((c) => { const sal = saldoCuenta(s, c.id); return `<button class="row" data-action="abrirCuenta" data-id="${esc(c.id)}">
       <span class="cat-icon ${c.id === ppal ? 'green' : ''}">${icon(c.id === 'efectivo' ? 'wallet' : 'card', 18)}</span>
@@ -76,7 +77,49 @@ function formTransferencia(s, t = {}) {
   </form>`;
 }
 
+// ---------- comparar con el banco (una vez por semana) ----------
+// El saldo que calcula Pesitos puede alejarse del real (un gasto sin anotar, un débito,
+// un reintegro distinto). Cada 7 días te pido que lo compares y ajusto la diferencia.
+export function compararPendiente(s) {
+  if (!cuentasConSaldo(s).length) return false;
+  const u = s.comparacion && s.comparacion.ultima;
+  if (!u) return true;
+  return (Date.now() - new Date(u + 'T12:00:00').getTime()) / 86400000 >= 7;
+}
+export function compararCard(s) {
+  if (!compararPendiente(s)) return '';
+  const n = cuentasConSaldo(s).length;
+  return `<div class="card"><div class="tip-head"><span style="color:var(--green)">${icon('scale', 20)}</span><strong>¿Tu saldo coincide con el del banco?</strong></div>
+    <span class="text">Una vez por semana conviene comparar: si anotaste todo, coincide; si no, lo ajusto y seguimos desde el saldo real.</span>
+    <div class="btn-row"><button class="btn small primary" data-action="openComparar">Comparar ${n === 1 ? 'mi cuenta' : `mis ${n} cuentas`}</button><button class="btn small" data-action="compararCoincide">Coinciden</button></div></div>`;
+}
+
 export const actions = {
+  openComparar(ctx) {
+    const s = ctx.state;
+    openModal('Comparar con el banco', `<form class="form" data-submit="guardarComparar">
+      <p class="text muted" style="margin:0">Abrí la app de cada banco o billetera y escribí el saldo de hoy. Si coincide, dejalo vacío.</p>
+      ${cuentasConSaldo(s).map((c) => `<div class="field"><label for="cmp-${esc(c.id)}">${esc(c.name)}</label><input id="cmp-${esc(c.id)}" name="c_${esc(c.id)}" inputmode="decimal" placeholder="Pesitos: ${money(saldoCuenta(s, c.id) || 0)}"></div>`).join('')}
+      <button class="btn primary block" type="submit">Listo</button></form>`);
+  },
+  guardarComparar(ctx, d) {
+    const difs = [];
+    ctx.commit((s) => {
+      for (const c of cuentasConSaldo(s)) {
+        const raw = String(d[`c_${c.id}`] || '').trim(); if (!raw) continue;
+        const real = num(raw); const calc = saldoCuenta(s, c.id) || 0;
+        if (Math.abs(real - calc) >= 1) difs.push(`${c.name}: ${real > calc ? '+' : '−'}${money(Math.abs(real - calc))}`);
+        s.cuentas = { ...(s.cuentas || {}), [c.id]: { saldo: real, desde: todayISO() } };
+      }
+      s.comparacion = { ultima: todayISO(), difs: difs.slice(0, 6) };
+    });
+    closeModal();
+    toast(difs.length ? `Ajustado. Diferencia: ${difs.join(' · ')}` : '¡Coincide todo!');
+  },
+  compararCoincide(ctx) {
+    ctx.commit((s) => { s.comparacion = { ultima: todayISO(), difs: [] }; });
+    toast('¡Bien! Te pregunto de nuevo en una semana');
+  },
   abrirCuenta(ctx, el) {
     const s = ctx.state; const id = el.dataset.id;
     const c = s.cuentas && s.cuentas[id];

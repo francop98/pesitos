@@ -6,6 +6,7 @@
 import { uid } from './almacenamiento.js';
 import { money, num, todayISO, toISO, addDays, esc, normalize, addMonthKey, monthKey } from './formato.js';
 import { parseAmount, merchantKey, guessCategory } from './interprete.js';
+import { aprendizajes } from './habitos.js';
 import { HOLDING_TYPES, ASSETS, catLabel, PROVINCES, provinceLabel } from './categorias.js';
 import { refreshLive } from './datosvivos.js';
 import { BILLETERAS_QUE_RINDEN, rinde } from './rendimientos.js';
@@ -190,8 +191,9 @@ function apply(ctx, qid, input) {
 }
 
 // ---------- sugerencias de mejora ----------
-const VARIABLE_CATS = new Set(['super', 'comida', 'delivery', 'transporte', 'ocio', 'ropa', 'regalos', 'salud', 'varios', 'kiosco', 'cuidado', 'mascotas', 'chicos', 'tecnologia', 'viajes']);
-const FIXED_LIKE = new Set(['suscripciones', 'educacion', 'otros', 'vivienda', 'servicios', 'impuestos', 'deporte']);
+const VARIABLE_CATS = new Set(['super', 'comida', 'transporte', 'compras', 'salud', 'familia']);
+const FIXED_LIKE = new Set(['casa', 'familia', 'otros']);
+const ES_SUSCRIPCION = /netflix|spotify|disney|hbo|\bmax\b|prime video|amazon prime|paramount|youtube|icloud|google one|chatgpt|claude|canva|adobe|office 365|microsoft 365|dropbox|deezer|crunchyroll|mubi|suscripcion|membresia|patreon|twitch|game pass|playstation plus|apple (music|tv|one)|duolingo|vpn|kindle|audible|flow|directv go|fanatiz|universal\+/;
 
 export function suggestions(s) {
   const out = [];
@@ -240,25 +242,28 @@ export function suggestions(s) {
     const close = list.every((e) => Math.abs(e.amount - last.amount) <= last.amount * 0.25);
     const looksBill = months.size >= 2 && sameDay && close && !VARIABLE_CATS.has(last.category);
     const id = 'rec-' + key;
-    if (!dismissed[id] && (last.category === 'suscripciones' || (months.size >= 2 && similar && FIXED_LIKE.has(last.category)) || looksBill)) {
+    if (!dismissed[id] && (ES_SUSCRIPCION.test(normalize(last.note || '')) || (months.size >= 2 && similar && FIXED_LIKE.has(last.category)) || looksBill)) {
       out.push({ id, text: looksBill && !similar
         ? `Parece que ${last.note} es un vencimiento mensual: lo pagás siempre alrededor del día ${Math.round(days.reduce((a, d) => a + d, 0) / days.length)} (último: ${money(last.amount)}). ¿Lo agendo como gasto fijo para avisarte antes?`
         : `Vi que pagás ${last.note} todos los meses (${money(last.amount)}). ¿Lo agrego como gasto fijo así lo descuento solo y te aviso antes del vencimiento?`,
         yes: { label: 'Sí, agregarlo', action: 'makeFixed', data: `data-name="${esc(last.note)}" data-amount="${last.amount}" data-day="${Math.round(days.reduce((a, d) => a + d, 0) / days.length)}"` }, impact: last.amount, why: 'Así lo descuento solo y te aviso antes de que venza' });
     }
   }
-  // primero la que más plata mueve por mes
-  return out.sort((a, b) => b.impact - a.impact);
+  // lo que aprendí de tus hábitos (js/habitos.js)
+  try { out.push(...aprendizajes(s)); } catch (err) { console.warn('aprendizajes', err); }
+  // primero la que más plata mueve por mes (las alertas, siempre arriba)
+  return out.sort((a, b) => (b.tipo === 'alerta') - (a.tipo === 'alerta') || b.impact - a.impact);
 }
 
 export function renderSuggestion(sg) {
-  return `<div class="card suggest">
-    <div class="tip-head"><span class="badge">${sprout(17)}</span><strong>Pesitos sugiere una mejora</strong></div>
+  const titulo = sg.titulo || 'Pesitos sugiere una mejora';
+  return `<div class="card suggest${sg.tipo === 'alerta' ? ' alerta' : ''}">
+    <div class="tip-head"><span class="badge">${sprout(17)}</span><strong>${esc(titulo)}</strong></div>
     <p class="text">${esc(sg.text)}</p>
-    <span class="small muted">Impacto: ${money(sg.impact)} por mes · ${esc(sg.why)}</span>
+    <span class="small muted">${sg.impact ? `${sg.tipo === 'alerta' ? 'En juego' : 'Impacto'}: ${money(sg.impact)} por mes · ` : ''}${esc(sg.why)}</span>
     <div class="btn-row">
-      <button class="btn small green" data-action="${sg.yes.action}" data-sid="${esc(sg.id)}" ${sg.yes.data}>${esc(sg.yes.label)}</button>
-      <button class="btn small" data-action="dismissSuggestion" data-sid="${esc(sg.id)}">Está bien así</button>
+      ${sg.yes ? `<button class="btn small green" data-action="${sg.yes.action}" data-sid="${esc(sg.id)}" ${sg.yes.data}>${esc(sg.yes.label)}</button>` : ''}
+      <button class="btn small" data-action="dismissSuggestion" data-sid="${esc(sg.id)}">${sg.yes ? 'Está bien así' : 'Entendido'}</button>
     </div>
   </div>`;
 }

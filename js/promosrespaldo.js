@@ -24,8 +24,8 @@ export const PROMO_CATALOG = {
     { wallet: 'cuentadni', days: [4, 5], merchant: 'Mostaza', category: 'comida', pct: 30, cap: 15000, cond: 'Tope semanal, pagando con NFC' },
     { wallet: 'cuentadni', days: [0, 6], merchant: 'YPF Full', category: 'comida', pct: 25, cap: 8000, cond: 'Tope semanal' },
     { wallet: 'cuentadni', days: [3, 4], merchant: 'Farmacias y perfumerías', category: 'salud', pct: 10, cap: 0, cond: '' },
-    { wallet: 'cuentadni', days: [3], merchant: 'Sodimac', category: 'hogar', pct: 10, cap: 0, cond: 'Acumulable con otras ofertas' },
+    { wallet: 'cuentadni', days: [3], merchant: 'Sodimac', category: 'casa', pct: 10, cap: 0, cond: 'Acumulable con otras ofertas' },
     { wallet: 'cuentadni', days: [1, 2, 3, 4, 5], merchant: 'Comercios de cercanía', category: 'super', pct: 20, cap: 6000, cond: 'Tope semanal' },
-    { wallet: 'cuentadni', days: [1, 2], merchant: 'Librerías', category: 'educacion', pct: 10, cap: 0, cond: '' },
+    { wallet: 'cuentadni', days: [1, 2], merchant: 'Librerías', category: 'familia', pct: 10, cap: 0, cond: '' },
   ],
 };

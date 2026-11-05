@@ -252,13 +252,13 @@ export const actions = {
     openModal('Plazo fijo o dólar', `<form class="form" data-submit="calcPfDolar">
       <div class="field"><label for="pd-a">¿Cuántos pesos tenés?</label><input id="pd-a" name="amount" inputmode="decimal" placeholder="Ej: 1.000.000" required></div>
       <div class="field-row">
-        <div class="field"><label for="pd-d">Plazo (días)</label><input id="pd-d" name="days" inputmode="numeric" value="30"></div>
+        <div class="field"><label for="pd-d">Plazo (días)</label><input id="pd-d" name="days" inputmode="numeric" placeholder="30"></div>
         <div class="field"><label for="pd-t">Tasa del plazo fijo (TNA %)</label><input id="pd-t" name="tna" inputmode="decimal" value="${def ? tasaTxt(def.tna) : ''}" placeholder="Ej: 32" required></div>
       </div>
       ${bancoPicker(s, def)}
       <div class="field"><label for="pd-tipo">¿Qué dólar comprarías?</label><select id="pd-tipo" name="tipo" data-change="pfTipoDolar">${tipos.map((x) => `<option value="${x.id}" ${x === t0 ? 'selected' : ''}>${esc(x.nombre)}${x.venta ? ` · ${money(x.venta)}` : ''}</option>`).join('')}</select></div>
-      <div class="field"><label for="pd-v">Precio al que lo comprás hoy</label><input id="pd-v" name="venta" inputmode="decimal" value="${t0 && t0.venta ? Math.round(t0.venta) : ''}" required>
-        <span class="hint" data-pd-hint>${t0 && t0.venta ? 'Se actualiza solo cada 5 minutos (DolarApi). Si te lo venden a otro precio, cambialo.' : 'No pude traer la cotización: escribila.'}</span></div>
+      <div class="field"><label for="pd-v">Precio al que lo comprás hoy</label><input id="pd-v" name="venta" inputmode="decimal" placeholder="${t0 && t0.venta ? `Hoy: ${Math.round(t0.venta).toLocaleString('es-AR')}` : 'Ej: 1.200'}"><input type="hidden" name="ventaDef" value="${t0 && t0.venta ? Math.round(t0.venta) : ''}">
+        <span class="hint" data-pd-hint>${t0 && t0.venta ? 'Si lo dejás vacío, uso el de hoy (DolarApi, se actualiza cada 5 minutos). Si te lo venden a otro precio, escribilo.' : 'No pude traer la cotización: escribila.'}</span></div>
       <input type="hidden" name="compra" value="${t0 && t0.compra ? Math.round(t0.compra) : ''}">
       <button class="btn primary block" type="submit">Comparar</button>
     </form><div id="pd-result"></div>`);
@@ -299,7 +299,7 @@ export const actions = {
   pfTipoDolar(ctx, el) {
     const x = tiposDolar(ctx.state).find((t) => t.id === el.value);
     const f = el.closest('form'); if (!f || !x) return;
-    f.venta.value = x.venta ? Math.round(x.venta) : '';
+    f.venta.value = ''; f.venta.placeholder = x.venta ? `Hoy: ${Math.round(x.venta).toLocaleString('es-AR')}` : 'Ej: 1.200'; f.ventaDef.value = x.venta ? Math.round(x.venta) : '';
     f.compra.value = x.compra ? Math.round(x.compra) : '';
   },
   pfAbrirBancos(ctx, el) {
@@ -318,7 +318,7 @@ export const actions = {
   calcPfDolar(ctx, d) {
     const monto = amt(d.amount); const dias = Math.max(1, parseInt(d.days, 10) || 30);
     const tna = parseFloat(String(d.tna || '').replace(',', '.')) || 0;
-    const venta = amt(d.venta); const compra = amt(d.compra) || venta;
+    const venta = amt(d.venta) || amt(d.ventaDef); const compra = amt(d.compra) || venta;
     if (!monto || !tna || !venta) return;
     const pfFinal = monto * (1 + tna / 100 * dias / 365);
     const dolares = monto / venta;
@@ -343,13 +343,13 @@ export const actions = {
 
   // ---------- ¿Dónde rinde más? ----------
   openRinde(ctx) {
-    openModal('¿Dónde rinde más?', `<div class="field"><label for="rd-a">Si ponés</label><input id="rd-a" inputmode="decimal" value="1.000.000" data-input="calcRinde"></div>
+    openModal('¿Dónde rinde más?', `<div class="field"><label for="rd-a">Si ponés</label><input id="rd-a" inputmode="decimal" placeholder="Ej: 1.000.000" data-input="calcRinde"></div>
       <div class="tabs" role="tablist" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button data-action="rindeTab" data-v="billeteras" aria-pressed="${rindeTab === 'billeteras'}">Billeteras (día a día)</button><button data-action="rindeTab" data-v="pf" aria-pressed="${rindeTab === 'pf'}">Plazo fijo (30 días)</button></div>
       <div id="rd-lista">${rindeLista(ctx.state, 1000000)}</div>
       <button class="btn block" data-action="openYield" data-push="1">${icon('percent', 18)} ¿Te ofrecen otra tasa? Calculá cuánto ganás</button>`);
   },
   rindeTab(ctx, el) { rindeTab = el.dataset.v; document.querySelectorAll('#modal [data-action=rindeTab]').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); actions.calcRinde(ctx); },
-  calcRinde(ctx) { const a = amt(document.getElementById('rd-a')?.value) || 0; setModalBody('#rd-lista', rindeLista(ctx.state, a)); },
+  calcRinde(ctx) { const a = amt(document.getElementById('rd-a')?.value) || 1000000; setModalBody('#rd-lista', rindeLista(ctx.state, a)); },
 
   // ---------- Descuento con tope ----------
   openTope() {
@@ -359,7 +359,7 @@ export const actions = {
         <div class="field"><label for="tp-t">Tope de reintegro</label><input id="tp-t" name="tope" inputmode="decimal" placeholder="Ej: 10.000" required data-input="calcTopeVivo"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label for="tp-n">¿Entre cuántas personas?</label><input id="tp-n" name="personas" type="number" inputmode="numeric" min="1" max="20" value="1" data-input="calcTopeVivo"><span class="hint">Cada una paga con su cuenta y tiene su propio tope.</span></div>
+        <div class="field"><label for="tp-n">¿Entre cuántas personas?</label><input id="tp-n" name="personas" type="number" inputmode="numeric" min="1" max="20" placeholder="1" data-input="calcTopeVivo"><span class="hint">Cada una paga con su cuenta y tiene su propio tope.</span></div>
         <div class="field"><label for="tp-g">Precio de la compra</label><input id="tp-g" name="gasto" inputmode="decimal" placeholder="Opcional" data-input="calcTopeVivo"></div>
       </div>
     </form><div id="tp-result" class="tp-result"><p class="small muted">Completá el % y el tope.</p></div>`, { alto: true });

@@ -74,7 +74,7 @@ function fechaAcredita(s, fechaGasto, wallet, ctx) {
 function reglas(s) {
   const out = [];
   for (const p of currentPromos(s).items || []) {
-    out.push({ key: `p:${p.wallet}:${normalize(p.merchant || '').slice(0, 30)}:${p.pct}`, wallet: p.wallet, nombre: p.wallet === 'todos' ? 'Cualquier medio' : (p.walletName || walletName(p.wallet)), pct: Number(p.pct) || 0, cap: Number(p.cap) || 0, capPeriodo: p.capPeriod || 'semana', dias: p.days || [], categoria: catReal(p.category || ''), comercio: p.merchant || '', minimo: p.minPurchase || 0, cond: p.cond || '', origen: 'promo' });
+    out.push({ key: `p:${p.wallet}:${normalize(p.merchant || '').slice(0, 30)}:${p.pct}`, wallet: p.wallet, nombre: p.wallet === 'todos' ? 'Cualquier medio' : (p.walletName || walletName(p.wallet)), pct: Number(p.pct) || 0, cap: Number(p.cap) || 0, capPeriodo: p.capPeriod || 'semana', dias: p.days || [], categoria: catReal(p.category || ''), comercio: p.merchant || '', minimo: p.minPurchase || 0, cond: p.cond || '', origen: 'promo', ...(p.capUnknown && !p.cap ? { capDudoso: true } : {}), ...(p.verified ? { verificado: p.verified } : {}), validTo: p.validTo || '' });
   }
   for (const b of s.misBeneficios || []) {
     out.push({ key: `b:${b.id}`, wallet: b.wallet, nombre: b.nombre || walletName(b.wallet), pct: Number(b.pct) || 0, cap: Number(b.cap) || 0, capPeriodo: b.capPeriodo || 'mes', dias: b.dias && b.dias.length ? b.dias : [0, 1, 2, 3, 4, 5, 6], categoria: b.categoria || '', comercio: b.comercio || '', minimo: 0, cond: b.cond || '', origen: 'mio' });
@@ -126,7 +126,7 @@ export function detectarReintegro(s, e) {
       v = Math.max(0, Math.min(v, r.cap - usado));
     }
     v = Math.round(v);
-    if (v > 0 && (!mejor || v > mejor.monto)) mejor = { monto: v, pct: r.pct, key: r.key, wallet: r.wallet === 'todos' ? w.wallets[0] : r.wallet, nombre: r.nombre, origen: r.origen };
+    if (v > 0 && (!mejor || v > mejor.monto)) mejor = { monto: v, pct: r.pct, key: r.key, wallet: r.wallet === 'todos' ? w.wallets[0] : r.wallet, nombre: r.nombre, origen: r.origen, ...(r.capDudoso ? { aprox: true } : {}) };
   }
   if (!mejor) return null;
   const fecha = fechaAcredita(s, e.date, mejor.wallet, w);
@@ -135,10 +135,14 @@ export function detectarReintegro(s, e) {
 
 // ---------- lo cobrado y lo que falta ----------
 const vivos = (s) => (s.expenses || []).filter((e) => e.reintegro && !e.reintegro.no && e.reintegro.monto > 0);
-export const reintegrosCobrados = (s, desde = '0000-00-00', hasta = todayISO()) => vivos(s).filter((e) => e.reintegro.fecha > desde && e.reintegro.fecha <= hasta);
-export const reintegrosPendientes = (s) => vivos(s).filter((e) => e.reintegro.fecha > todayISO());
+// Un reintegro cuenta en tu saldo recién cuando confirmás que llegó (r.ok).
+// Hasta entonces es "por cobrar" (antes de la fecha) o "a confirmar" (ya pasó la fecha).
+const confirmados = (s) => vivos(s).filter((e) => e.reintegro.ok);
+export const reintegrosCobrados = (s, desde = '0000-00-00', hasta = todayISO()) => confirmados(s).filter((e) => e.reintegro.fecha > desde && e.reintegro.fecha <= hasta);
+export const reintegrosPendientes = (s) => vivos(s).filter((e) => !e.reintegro.ok && e.reintegro.fecha > todayISO());
+export const reintegrosPorConfirmar = (s) => vivos(s).filter((e) => !e.reintegro.ok && e.reintegro.fecha <= todayISO());
 export const totalReintegros = (lista) => lista.reduce((a, e) => a + e.reintegro.monto, 0);
-export const reintegrosDelMes = (s, mk) => totalReintegros(vivos(s).filter((e) => e.reintegro.fecha.slice(0, 7) === mk && e.reintegro.fecha <= todayISO()));
+export const reintegrosDelMes = (s, mk) => totalReintegros(confirmados(s).filter((e) => e.reintegro.fecha.slice(0, 7) === mk && e.reintegro.fecha <= todayISO()));
 /** Para la cuenta: reintegros acreditados en esa cuenta entre dos fechas. */
 export const reintegrosDeCuenta = (s, id, desde, hasta) => reintegrosCobrados(s, desde, hasta).filter((e) => e.reintegro.cuenta === id);
 /** Para la tarjeta: lo que baja el resumen de ese mes. */
@@ -158,14 +162,14 @@ export function conQuePagar(s, { texto, categoria, monto }) {
     const tuyo = r.wallet === 'todos' || mias.has(r.wallet);
     const k = r.wallet;
     const prev = porWallet.get(k);
-    if (!prev || v > prev.ahorro) porWallet.set(k, { wallet: r.wallet, nombre: r.nombre, tuyo, pct: r.pct, cap: r.cap, capPeriodo: r.capPeriodo, ahorro: v, dias: r.dias, cond: r.cond, comercio: r.comercio, origen: r.origen });
+    if (!prev || v > prev.ahorro) porWallet.set(k, { wallet: r.wallet, nombre: r.nombre, tuyo, pct: r.pct, cap: r.cap, capPeriodo: r.capPeriodo, capDudoso: r.capDudoso, ahorro: v, dias: r.dias, cond: r.cond, comercio: r.comercio, origen: r.origen });
   }
   return [...porWallet.values()].filter((x) => x.ahorro > 0).sort((a, b) => b.ahorro - a.ahorro || b.tuyo - a.tuyo);
 }
 
 const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const diasTxt = (d) => (!d || d.length === 7 ? 'todos los días' : d.length === 2 && d.includes(0) && d.includes(6) ? 'los fines de semana' : d.map((x) => DIAS_CORTOS[x]).join(', '));
-export const capTxt = (o) => (o.cap ? `tope ${money(o.cap)}${o.capPeriodo === 'semana' ? ' por semana' : o.capPeriodo === 'mes' ? ' por mes' : ''}` : 'sin tope');
+export const capTxt = (o) => (o.cap ? `tope ${money(o.cap)}${o.capPeriodo === 'semana' ? ' por semana' : o.capPeriodo === 'mes' ? ' por mes' : ''}` : o.capDudoso ? 'tope sin confirmar' : 'sin tope');
 export const nombreMedio = (id) => (allWallets().find((w) => w.id === id) || {}).name || id;
 
 // =========================================================
@@ -186,24 +190,66 @@ function misMedios(s) {
   return out;
 }
 
+// Tus descuentos vigentes, con su tope y cuánto te queda para usar en el período
+const PER_TXT = { semana: 'esta semana', mes: 'este mes', compra: 'por compra' };
+export function topesDeTusMedios(s) {
+  const mias = new Set([...(s.wallets || []), ...(s.cards || []).flatMap((c) => [c.banco, c.marca]).filter(Boolean)]);
+  const hoy = todayISO();
+  const vistas = new Set();
+  return reglas(s).filter((r) => mias.has(r.wallet) && r.pct > 0).map((r) => {
+    const per = r.cap ? periodoDe(hoy, r.capPeriodo) : null;
+    const usado = per ? vivos(s).filter((e) => e.reintegro.key === r.key && periodoDe(e.date, r.capPeriodo) === per).reduce((a, e) => a + e.reintegro.monto, 0) : 0;
+    return { ...r, usado, queda: r.cap ? Math.max(0, r.cap - usado) : null };
+  }).filter((r) => { const k = `${r.wallet}|${r.comercio}|${r.categoria}|${r.pct}|${(r.dias || []).join('')}`; if (vistas.has(k)) return false; vistas.add(k); return true; })
+    .sort((a, b) => (b.usado > 0) - (a.usado > 0) || b.pct - a.pct);
+}
+function topesHtml(s) {
+  const l = topesDeTusMedios(s);
+  if (!l.length) return '';
+  const hoyDia = new Date().getDay();
+  const fila = (r) => {
+    const donde = r.comercio ? esc(r.comercio) : r.categoria ? esc(catLabel(r.categoria)) : 'En todas tus compras';
+    const tope = r.cap ? `<span class="tope-barra" role="img" aria-label="Usaste ${money(r.usado)} de ${money(r.cap)}"><span style="width:${Math.min(100, Math.round((r.usado / r.cap) * 100))}%"></span></span>
+      <span class="meta"><b>Te queda ${money(r.queda)}</b> de ${money(r.cap)} ${PER_TXT[r.capPeriodo] || ''}${r.usado ? ` (usaste ${money(r.usado)})` : ''}</span>` : `<span class="meta">${r.capDudoso ? '⚠️ Tope sin confirmar: el banco no lo publica' : 'Sin tope'}</span>`;
+    return `<div class="row tope-fila"><span class="grow"><span class="name">${esc(r.nombre)} · ${r.pct}%${(r.dias || []).includes(hoyDia) ? ' <span class="chip-mini">Hoy</span>' : ''}</span>
+      <span class="meta">${donde} · ${diasTxt(r.dias)}${r.minimo ? ` · compra mínima ${money(r.minimo)}` : ''}${r.verificado ? ` · verificada el ${fecha(r.verificado)}` : ''}${r.validTo ? ` · hasta el ${fecha(r.validTo)}` : ''}</span>${tope}</span></div>`;
+  };
+  const primeras = l.slice(0, 6); const resto = l.slice(6);
+  return `<div class="section-title"><span>Tus descuentos y topes</span></div>
+    <div class="card tight">${primeras.map(fila).join('')}</div>
+    ${resto.length ? `<details class="card"><summary><strong>Ver ${resto.length} más</strong></summary><div class="card tight" style="margin-top:8px">${resto.map(fila).join('')}</div></details>` : ''}`;
+}
+
+function filaConfirmar(e) {
+  const r = e.reintegro;
+  return `<div class="row reint-conf"><span class="grow"><span class="name">${esc(e.note)} · ${money(r.monto)}${r.aprox ? ' (hasta)' : ''}</span>
+      <span class="meta">${esc(r.nombre)}${r.pct ? ` ${r.pct}%` : ''} · ${r.cardId ? 'en el resumen de la tarjeta' : 'en tu cuenta'} · tenía que llegar el ${fecha(r.fecha)}</span>
+      <span class="btn-row"><button class="btn small green" data-action="reintLlego" data-id="${esc(e.id)}">Llegó</button><button class="btn small" data-action="reintOtro" data-id="${esc(e.id)}">Otro monto</button><button class="btn small ghost" data-action="reintNoLlego" data-id="${esc(e.id)}">No llegó</button></span></span></div>`;
+}
+
 export function render(s) {
   const pend = reintegrosPendientes(s);
+  const conf = reintegrosPorConfirmar(s);
   const hoy = todayISO(); const mk = hoy.slice(0, 7);
   const cob = reintegrosCobrados(s, toISO(addDays(new Date(), -45)), hoy);
   const fila = (e) => `<button class="row" data-action="openEntry" data-id="${esc(e.id)}" data-kind="expense">
       <span class="cat-icon">${catIcon(catById(e.category), 18)}</span>
-      <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${esc(e.reintegro.nombre)}${e.reintegro.pct ? ` ${e.reintegro.pct}%` : ''} · compra del ${fecha(e.date)} · ${e.reintegro.fecha > hoy ? `llega el ${fecha(e.reintegro.fecha)}` : `llegó el ${fecha(e.reintegro.fecha)}`}</span></span>
+      <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${esc(e.reintegro.nombre)}${e.reintegro.pct ? ` ${e.reintegro.pct}%` : ''}${e.reintegro.aprox ? ' (tope sin confirmar)' : ''} · compra del ${fecha(e.date)} · ${e.reintegro.fecha > hoy ? `llega el ${fecha(e.reintegro.fecha)}` : `llegó el ${fecha(e.reintegro.fecha)}`}</span></span>
       <span class="amount pos">+${money(e.reintegro.monto)}</span></button>`;
   return `<section class="screen">
     ${screenHead('Reintegros y cashback', '<button class="btn small" data-action="nuevoBeneficio">+ Cashback</button>', 'Lo que te devuelven por tus compras')}
     <div class="stat-grid">
       <div class="stat"><span class="k">Por cobrar</span><span class="v">${money(totalReintegros(pend))}</span><span class="small muted">${pend.length} compra${pend.length === 1 ? '' : 's'}</span></div>
-      <div class="stat"><span class="k">Cobrado este mes</span><span class="v pos">${money(reintegrosDelMes(s, mk))}</span><span class="small muted">ya sumado a tu saldo</span></div>
+      <div class="stat"><span class="k">Cobrado este mes</span><span class="v pos">${money(reintegrosDelMes(s, mk))}</span><span class="small muted">confirmados</span></div>
     </div>
+    ${conf.length ? `<div class="section-title"><span>¿Te llegaron? (${conf.length})</span></div>
+    <p class="small muted" style="margin:0">Se suman a tu saldo recién cuando me confirmás que llegaron y por cuánto. Así tu saldo no se aleja del real.</p>
+    <div class="card tight">${conf.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(filaConfirmar).join('')}</div>` : ''}
     <div class="section-title"><span>Por cobrar</span></div>
     ${pend.length ? `<div class="card tight">${pend.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(fila).join('')}</div>`
       : '<p class="empty">Nada pendiente. Cuando anotes una compra con un medio que tiene promo o cashback, lo calculo solo.</p>'}
     <button class="btn block" data-action="openConQuePagar">${icon('ticket', 18)} ¿Con qué conviene pagar?</button>
+    ${topesHtml(s)}
     <div class="section-title"><span>Tus cashback y beneficios propios</span><button data-action="nuevoBeneficio">+ Agregar</button></div>
     ${(s.misBeneficios || []).length ? `<div class="card tight">${s.misBeneficios.map((b) => `<button class="row" data-action="editarBeneficio" data-id="${esc(b.id)}">
         <span class="grow"><span class="name">${esc(b.nombre || nombreMedio(b.wallet))} · ${b.pct}%</span><span class="meta">${b.comercio ? esc(b.comercio) : b.categoria ? esc(catLabel(b.categoria)) : 'En todas tus compras'} · ${diasTxt(b.dias)} · ${capTxt(b)}</span></span>
@@ -213,7 +259,8 @@ export function render(s) {
     <div class="card tight">${misMedios(s).map((m) => { const r = reglaAcredita(s, m.id, m.tarjeta); return `<button class="row" data-action="editarAcredita" data-id="${esc(m.id)}">
         <span class="grow"><span class="name">${esc(m.nombre)}</span><span class="meta">${textoAcredita(r)}</span></span>${icon('chevron', 16)}</button>`; }).join('') || '<p class="empty">Cargá tus bancos y billeteras en Menú → Mis medios de pago.</p>'}</div>
     ${cob.length ? `<details class="card"><summary><strong>Cobrados (últimos 45 días)</strong> · ${money(totalReintegros(cob))}</summary><div class="card tight" style="margin-top:8px">${cob.map(fila).join('')}</div></details>` : ''}
-    <p class="small muted" style="margin:0">El día que llega cada reintegro se suma solo a tu saldo (o baja el resumen si pagaste con tarjeta), a "Hoy podés gastar" y a "Te ahorraste". Si no te llegó, abrí la compra y corregilo.</p>
+    <p class="small muted" style="margin:0">Cuando llega la fecha te pregunto si te llegó y por cuánto. Recién ahí se suma a tu saldo (o baja el resumen si pagaste con tarjeta), a "Hoy podés gastar" y a "Te ahorraste". Así el saldo de Pesitos no se separa del de tu banco.</p>
+    <button class="link-btn" data-action="irEstado" style="align-self:flex-start">Ver de cuándo son las promos y qué tan confiables son ›</button>
   </section>`;
 }
 
@@ -249,9 +296,9 @@ function acreditaForm(s, id) {
     <input type="hidden" name="id" value="${esc(id)}">
     <p class="text muted" style="margin:0">¿Cuándo te devuelve ${esc(nombre)} los reintegros y el cashback? Así sé qué día sumarlos a tu saldo.</p>
     <div class="field"><label for="ac-t">Se acreditan</label><select id="ac-t" name="tipo" data-change="acreditaTipo">${TIPOS_ACREDITA.filter(([v]) => tarjeta || v !== 'resumen').map(([v, l]) => `<option value="${v}" ${r.tipo === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    <div class="field" data-ac="dias" ${r.tipo === 'dias' ? '' : 'hidden'}><label for="ac-n">¿A los cuántos días?</label><input id="ac-n" name="n" type="number" min="1" max="90" value="${r.n || 7}"></div>
+    <div class="field" data-ac="dias" ${r.tipo === 'dias' ? '' : 'hidden'}><label for="ac-n">¿A los cuántos días?</label><input id="ac-n" name="n" type="number" min="1" max="90" value="${r.tipo === 'dias' && r.n ? r.n : ''}" placeholder="7"></div>
     <div class="field" data-ac="semanal" ${r.tipo === 'semanal' ? '' : 'hidden'}><label for="ac-d">¿Qué día?</label><select id="ac-d" name="dia">${DIAS_SEMANA.map((d, i) => `<option value="${i}" ${Number(r.dia ?? 1) === i ? 'selected' : ''}>${d}</option>`).join('')}</select><span class="hint">Lo de una semana (de lunes a domingo) llega ese día de la semana siguiente.</span></div>
-    <div class="field" data-ac="mensual" ${r.tipo === 'mensual' ? '' : 'hidden'}><label for="ac-m">¿Qué día del mes siguiente?</label><input id="ac-m" name="diaMes" type="number" min="1" max="28" value="${r.tipo === 'mensual' ? r.dia || 10 : 10}"></div>
+    <div class="field" data-ac="mensual" ${r.tipo === 'mensual' ? '' : 'hidden'}><label for="ac-m">¿Qué día del mes siguiente?</label><input id="ac-m" name="diaMes" type="number" min="1" max="28" value="${r.tipo === 'mensual' && r.dia ? r.dia : ''}" placeholder="10"></div>
     <button class="btn primary block" type="submit">Guardar</button>
   </form>`;
 }
@@ -294,6 +341,35 @@ function cqpBody(s, q = '', m = 0) {
     ${lista.map((it) => `<div class="card cqp"><div class="split"><strong>${esc(it.texto)}</strong><span class="small muted">${esc(it.tipo)} · ${money(it.monto)}</span></div>${cqpResultados(s, it)}</div>`).join('')}` : ''}
     <p class="small muted" style="margin:0">Uso las promos vigentes de bancos y billeteras (se actualizan solas todos los días) y los cashback que cargaste vos. Revisá las condiciones antes de pagar.</p>`;
 }
+
+// ---------- confirmar que llegó ----------
+const reintDe = (s, id) => (s.expenses || []).find((e) => e.id === id && e.reintegro);
+export const confirmarActions = {
+  reintLlego(ctx, el) {
+    ctx.commit((s) => { const e = reintDe(s, el.dataset.id); if (e) { e.reintegro.ok = true; if (e.reintegro.fecha > todayISO()) e.reintegro.fecha = todayISO(); } });
+    toast('Listo: lo sumé a tu saldo');
+  },
+  reintOtro(ctx, el) {
+    const e = reintDe(ctx.state, el.dataset.id); if (!e) return;
+    openModal('¿Cuánto te llegó?', `<form class="form" data-submit="reintOtroGuardar"><input type="hidden" name="id" value="${esc(e.id)}">
+      <div class="field"><label for="ro-m">Monto que te devolvieron</label><input id="ro-m" name="monto" inputmode="decimal" placeholder="Esperaba ${money(e.reintegro.monto)}" required></div>
+      <span class="hint">Si te devolvieron menos porque el banco tiene un tope, lo tengo en cuenta la próxima vez.</span>
+      <button class="btn primary block" type="submit">Guardar</button></form>`);
+  },
+  reintOtroGuardar(ctx, d) {
+    const v = Math.round(num(d.monto)); if (!(v >= 0)) return;
+    ctx.commit((s) => {
+      const e = reintDe(s, d.id); if (!e) return;
+      e.reintegro.esperado = e.reintegro.esperado || e.reintegro.monto;
+      if (v === 0) { e.reintegro.no = true; e.reintegro.noLlego = true; } else { e.reintegro.monto = v; e.reintegro.ok = true; if (e.reintegro.fecha > todayISO()) e.reintegro.fecha = todayISO(); }
+    });
+    closeModal(); toast(v ? `Listo: sumé ${money(v)} a tu saldo` : 'Listo: no te llegó nada');
+  },
+  reintNoLlego(ctx, el) {
+    ctx.commit((s) => { const e = reintDe(s, el.dataset.id); if (e) { e.reintegro.no = true; e.reintegro.noLlego = true; } });
+    toast('Listo: no lo cuento. Si después llega, abrí la compra y cargalo');
+  },
+};
 
 export const actions = {
   openConQuePagar(ctx) { openModal('¿Con qué conviene pagar?', cqpBody(ctx.state)); },

@@ -273,7 +273,7 @@ function formColumnas() {
   const ejemplo = filas.slice(Math.max(0, cabecera) + 1, Math.max(0, cabecera) + 4).map((f) => `<li class="small muted">${(f || []).map((c) => esc(String(c instanceof Date ? toISO(c) : c).slice(0, 18))).join(' | ')}</li>`).join('');
   return `<form class="form" data-submit="importarMapear">
     <p class="text">Decime qué columna es cada cosa:</p>
-    <div class="field"><label for="imp-cab">Los títulos están en la fila</label><input id="imp-cab" name="cabecera" inputmode="numeric" value="${cabecera + 1}"></div>
+    <div class="field"><label for="imp-cab">Los títulos están en la fila</label><input id="imp-cab" name="cabecera" inputmode="numeric" placeholder="${cabecera + 1}"><input type="hidden" name="cabDef" value="${cabecera + 1}"></div>
     ${ROLES.map((r) => `<div class="field"><label for="imp-${r.id}">${r.label}</label><select id="imp-${r.id}" name="${r.id}">${opciones(mapa[r.id])}</select></div>`).join('')}
     ${ejemplo ? `<p class="small">Primeras filas:</p><ul class="imp-ej">${ejemplo}</ul>` : ''}
     <button class="btn primary block" type="submit">Seguir</button>
@@ -332,7 +332,7 @@ export const importarActions = {
     for (const r of ROLES) if (d[r.id] !== '' && d[r.id] !== undefined) mapa[r.id] = Number(d[r.id]);
     if (mapa.fecha === undefined || (mapa.monto === undefined && mapa.debito === undefined && mapa.credito === undefined)) { toast('Elegí al menos la fecha y el importe'); return; }
     const p = borrador.planilla;
-    p.mapa = mapa; p.cabecera = Math.max(0, (parseInt(d.cabecera, 10) || 1) - 1);
+    p.mapa = mapa; p.cabecera = Math.max(0, (parseInt(d.cabecera, 10) || parseInt(d.cabDef, 10) || 1) - 1);
     borrador.movs = filasDePlanilla(p.filas, p.cabecera, mapa);
     borrador.filas = preparar(ctx.state, borrador.movs, borrador.medio);
     mostrar(ctx);

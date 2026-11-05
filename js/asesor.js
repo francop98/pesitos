@@ -6,6 +6,8 @@ import { money, esc, num, monthKey, todayISO } from './formato.js';
 import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES } from './categorias.js';
 import { challengeStatus, allChallenges, answer, DISCLAIMER } from './economista.js';
 import { LESSONS } from './aprender.js';
+import { aprendizajes, loQueSe } from './habitos.js';
+import { renderSuggestion } from './guia.js';
 import { ayudaHtml } from './ayuda.js';
 import { budget } from './calculos.js';
 import { sprout, icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
@@ -84,6 +86,14 @@ export function planAhorroHtml(s, metasHtml = '') {
 `;
 }
 
+// Lo que Pesitos aprendió de vos y los consejos que salen de eso (js/habitos.js)
+function aprendidoHtml(s) {
+  const ap = aprendizajes(s);
+  return `<div class="section-title"><span>Lo que aprendí de vos</span></div>
+    <div class="card tight aprendi">${loQueSe(s).map((t) => `<span class="text">• ${t}</span>`).join('')}</div>
+    ${ap.length ? ap.map(renderSuggestion).join('') : '<p class="small muted" style="margin:0">Por ahora no tengo consejos nuevos: vas bien. Los reviso cada vez que anotás algo.</p>'}`;
+}
+
 export function render(s) {
   const chat = s.chat.slice(-8);
   return `<section class="screen">
@@ -104,6 +114,7 @@ export function render(s) {
     ` : ''}
 
     ${tab === 'consultas' ? `
+    ${aprendidoHtml(s)}
     <div class="section-title"><span>Consultale a Pesitos</span>${s.chat.length ? '<button data-action="clearChat">Limpiar</button>' : ''}</div>
     <div class="chat">
       ${chat.length ? chat.map((m) => `<div class="bubble ${m.from}">${esc(m.text)}</div>`).join('') : '<div class="bubble bot">Hola. Preguntame lo que quieras de tu plata, con tus palabras: cuánto podés gastar hoy, qué vence, cuánto gastaste en algo, si te conviene una compra, dónde rinde más o dónde está cada cosa en la app.</div>'}
@@ -173,7 +184,7 @@ export const actions = {
     const v = ctx.state.rules[r.key][r.param];
     openModal(r.name, `<form class="form" data-submit="saveRuleParam"><input type="hidden" name="key" value="${r.key}">
       <div class="field"><label for="rp">${r.unit === '$' ? 'Redondear a' : 'Porcentaje'}</label>
-      ${r.unit === '$' ? `<select id="rp" name="value">${[100, 500, 1000, 5000].map((n) => `<option value="${n}" ${n === v ? 'selected' : ''}>${money(n)}</option>`).join('')}</select>` : `<input id="rp" name="value" inputmode="decimal" value="${v}">`}</div>
+      ${r.unit === '$' ? `<select id="rp" name="value">${[100, 500, 1000, 5000].map((n) => `<option value="${n}" ${n === v ? 'selected' : ''}>${money(n)}</option>`).join('')}</select>` : `<input id="rp" name="value" inputmode="decimal" value="${v}" placeholder="Ej: 10">`}</div>
       <button class="btn primary block" type="submit">Guardar</button></form>`);
   },
   saveRuleParam(ctx, d) {

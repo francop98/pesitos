@@ -6,6 +6,7 @@
 // Arriba de todo, tu nombre y mail: abre "Mi cuenta" (todo lo de la cuenta)
 // =========================================================
 
+import { hayProblemas } from './estado.js';
 import { esc, todayISO } from './formato.js';
 import { icon, openModal, closeModal, toast } from './interfaz.js';
 import { PROVINCES, provinceLabel } from './categorias.js';
@@ -90,6 +91,7 @@ function menuHtml(ctx) {
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
       ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
+      ${item('irEstado', 'refresh', 'Estado de los datos', hayProblemas(s) ? 'Hay fuentes para revisar' : 'Dólar, promos, inflación y tasas: todo al día')}
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
     </div>
 
@@ -213,6 +215,7 @@ export const menuActions = {
   irProyectos(ctx) { ctx.go('proyectos'); },
   irDeudas(ctx) { ctx.go('deudas'); },
   irReintegros(ctx) { ctx.go('reintegros'); },
+  irEstado(ctx) { ctx.go('estado'); },
 
   openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
   openAvisos(ctx) {

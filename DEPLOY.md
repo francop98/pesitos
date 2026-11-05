@@ -39,6 +39,7 @@ Sirve para los bancos que la fuente principal no cubre (por ejemplo Banco Nació
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | El contenido completo del `.json` de la cuenta de servicio (todo, con las llaves) |
 | `CRON_SECRET` | Una clave inventada **solo con letras y números** (sin `$` ni símbolos) |
 | `VAPID_PRIVATE_KEY` | La clave privada de los avisos en el celular (te la paso aparte; la pública ya está en el código) |
+| `OWNER_EMAIL` | (Opcional) Tu email de Pesitos. Si una fuente de datos falla o se atrasa, te llega un aviso al celular (solo a vos). Necesita los avisos activados en tu cuenta. |
 | `TAVILY_API_KEY` | Opcional. La clave de Tavily |
 | `GEMINI_API_KEY` | Opcional. La clave de Gemini |
 | `GEMINI_MODEL` | Opcional. Por defecto usa el Gemini Flash más nuevo |
@@ -66,6 +67,8 @@ package.json            Dependencia firebase-admin para las funciones
 ```
 
 ## Si algo falla
+
+- En la app: Menú → **Estado de los datos** muestra cada fuente, cuándo se actualizó y si hay problemas. El servidor revisa la calidad de los datos en cada actualización (fuente atrasada, pocas promos, inflación sin dato nuevo) y, con `OWNER_EMAIL` cargado, avisa al dueño una vez por día.
 - **Vercel → Logs** muestra el error de cada función.
 - La respuesta de `/api/actualizar` (y Firestore → `publico/datos` → `status`) dice si cada parte anduvo: fuente, complemento e inflación.
 - Si una actualización falla, la app sigue usando las promos guardadas (las vencidas se ocultan solas) y se reintenta en la próxima corrida.

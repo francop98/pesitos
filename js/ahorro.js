@@ -163,11 +163,11 @@ function holdingForm(h = {}, s = {}) {
   </form>`;
 }
 
-function converterBody(s, d = { amount: 100, from: 'USD', to: 'ARS' }) {
+function converterBody(s, d = { amount: '', from: 'USD', to: 'ARS' }) {
   const opts = (sel) => ASSETS.map((a) => `<option value="${a.id}" ${a.id === sel ? 'selected' : ''}>${a.label}</option>`).join('');
   const r = convert(s, d.amount, d.from, d.to);
   return `<form class="form" data-submit="convert">
-    <div class="field"><label for="cv-a">Cantidad</label><input id="cv-a" name="amount" inputmode="decimal" value="${d.amount}"></div>
+    <div class="field"><label for="cv-a">Cantidad</label><input id="cv-a" name="amount" inputmode="decimal" value="${d.amount === '' ? '' : esc(String(d.amount))}" placeholder="Ej: 100"></div>
     <div class="conv-row">
       <div class="field"><label for="cv-f">De</label><select id="cv-f" name="from">${opts(d.from)}</select></div>
       <button type="button" class="icon-btn" data-action="swapCurrencies" aria-label="Invertir monedas">${icon('swap', 20)}</button>

@@ -92,6 +92,35 @@ export function cycleVariable(s, cycle) {
   return total;
 }
 
+// ---------- "Hoy podés gastar": modos ----------
+// reparto: parte de lo que no gastás que se suma a tus próximos días (el resto se sugiere ahorrar)
+// tope: cuánto puede subir tu día por encima del ritmo normal (0.2 = +20%; null = sin techo)
+export const MODOS_DIARIO = {
+  ahorrador: { nombre: 'Ahorrador', reparto: 0.2, tope: 0.2, txt: 'Casi todo lo que no gastás va a tu meta. Tu día nunca pasa tu ritmo normal + 20%.' },
+  equilibrado: { nombre: 'Equilibrado', reparto: 0.5, tope: 0.5, txt: 'La mitad se suma a tus próximos días (hasta +50%) y la otra mitad, a tu meta.' },
+  flexible: { nombre: 'Flexible', reparto: 1, tope: null, txt: 'Todo lo que no gastás se suma a tus próximos días. No te sugiero ahorrar nada extra.' },
+  personalizado: { nombre: 'A tu medida', reparto: 0.3, tope: 0.3, txt: 'Elegís vos cuánto pasa a tus próximos días, hasta cuánto puede subir y a qué meta va el resto.' },
+};
+export function diarioConfig(s) {
+  const d = s.diario || {};
+  let modo = d.modo;
+  if (!MODOS_DIARIO[modo]) {
+    // quienes ya habían elegido un reparto (v21) siguen igual
+    if (d.reparto === undefined) modo = 'ahorrador';
+    else modo = Object.keys(MODOS_DIARIO).find((k) => k !== 'personalizado' && MODOS_DIARIO[k].reparto === Number(d.reparto)) || 'personalizado';
+  }
+  const m = MODOS_DIARIO[modo];
+  if (modo !== 'personalizado') return { modo, reparto: m.reparto, tope: m.tope, destino: d.destino || '' };
+  const rep = d.reparto !== undefined ? Math.min(1, Math.max(0, Number(d.reparto))) : m.reparto;
+  const tope = d.tope === null || d.tope === 'sin' ? null : d.tope !== undefined ? Math.max(0, Number(d.tope)) : m.tope;
+  return { modo, reparto: rep, tope, destino: d.destino || '' };
+}
+/** La meta a la que va lo que no gastás: la que elegiste, o la principal. */
+export function metaDiario(s) {
+  const id = diarioConfig(s).destino;
+  return (id && (s.goals || []).find((g) => g.id === id)) || mainGoal(s);
+}
+
 export function budget(s) {
   const today = startOfToday();
   const todayStr = toISO(today);
@@ -119,10 +148,12 @@ export function budget(s) {
   const normalDaily = Math.max(0, (income - fixed - saving) / cycleDays);
   const evenSplit = (free + spentToday) / cycle.daysLeft;
   const transcurridos0 = Math.max(0, cycleDays - cycle.daysLeft);
-  const reparto = s.diario && s.diario.reparto !== undefined ? Number(s.diario.reparto) : 0.5;
+  const cfg = diarioConfig(s); const reparto = cfg.reparto;
   // lo que no gastaste de los días anteriores (lo ya pasado a ahorro sale de la parte "para ahorrar")
   const colchon = normalDaily > 0 ? Math.max(0, Math.round(normalDaily * transcurridos0 - (variable - spentToday))) : 0;
-  const gastable = Math.max(0, Math.min(colchon * reparto, colchon - aparte));
+  // lo que se suma a tus próximos días, con un techo según el modo (lo que pasa el techo se sugiere ahorrar)
+  const techoDia = cfg.tope == null ? Infinity : normalDaily * cfg.tope;
+  const gastable = Math.max(0, Math.min(colchon * reparto, colchon - aparte, techoDia * cycle.daysLeft));
   const paraAhorrar = Math.max(0, Math.round(colchon - gastable - aparte));
   const extraDia = gastable / cycle.daysLeft;
   const dailyBase = normalDaily > 0 ? Math.min(evenSplit, normalDaily + extraDia) : evenSplit;
@@ -132,7 +163,7 @@ export function budget(s) {
   const transcurridos = Math.max(0, cycleDays - cycle.daysLeft);
   const adelanto = normalDaily > 0 ? Math.max(0, Math.round((variable - spentToday) - normalDaily * transcurridos)) : 0;
   const usedPct = income > 0 ? Math.min(1, (fixed + saving + variable + aparte) / income) : 0;
-  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, adelanto, colchon, paraAhorrar, extraDia, reparto, aparte, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
+  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, adelanto, colchon, paraAhorrar, extraDia, reparto, modo: cfg.modo, aparte, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
 }
 
 // ---------- metas ----------

@@ -4,8 +4,8 @@
 
 import { uid, emptyState, clear, migrate } from './almacenamiento.js';
 import { parseEntry, merchantKey } from './interprete.js';
-import { allWallets, CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel, categoriasOrdenadas, soloEmoji } from './categorias.js';
-import { money, esc, todayISO, num, monthKey, relDay, normalize, toISO, addDays, parseISO, MONTHS } from './formato.js';
+import { allWallets, CATEGORIES, allCategories, catLabel, WALLETS, setCustomCategories, setCustomWallets, PROVINCES, provinceLabel, categoriasOrdenadas, soloEmoji, catReal } from './categorias.js';
+import { money, esc, todayISO, num, monthKey, relDay, normalize, toISO, addDays, parseISO, MONTHS, monthDiff } from './formato.js';
 import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
@@ -23,7 +23,7 @@ import { ASSETS } from './categorias.js';
 import { extraerEtiquetas, etiquetasDeTexto } from './formato.js';
 import { lastIpc, refreshLive, expectedInflation } from './datosvivos.js';
 
-const catOptions = (sel) => allCategories().map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.emoji ? c.emoji + ' ' : '')}${esc(c.label)}</option>`).join('');
+const catOptions = (sel) => allCategories().map((c) => `<option value="${c.id}" ${c.id === catReal(sel) ? 'selected' : ''}>${esc(c.emoji ? c.emoji + ' ' : '')}${esc(c.label)}</option>`).join('');
 const MONEDAS = ASSETS.filter((a) => ['ARS', 'USD', 'EUR', 'BRL', 'UYU', 'CLP', 'USDT'].includes(a.id));
 
 /** Opciones de "con qué pagaste": cuentas y tarjetas de crédito. Valor: 'acc:<id>' o 'card:<id>'. */
@@ -88,8 +88,8 @@ export function entryForm(s, e, kind) {
       <div class="field"><label for="f-amount">${sh ? 'Total del gasto' : 'Monto'}</label><input id="f-amount" name="amount" inputmode="decimal" required value="${montoTxt(sh ? (cur === 'ARS' ? sh.total : original) : original)}" placeholder="Ej: 48.000"></div>
       <div class="field"><label for="f-cur">Moneda</label><select id="f-cur" name="currency" data-change="entryCurrency">${MONEDAS.map((a) => `<option value="${a.id}" ${a.id === cur ? 'selected' : ''}>${a.id === 'ARS' ? 'Pesos' : a.label}</option>`).join('')}</select></div>
     </div>
-    <div class="field" data-cur-box ${cur === 'ARS' ? 'hidden' : ''}><label for="f-rate">Cotización (pesos por unidad)</label><input id="f-rate" name="rate" inputmode="decimal" value="${montoTxt(e.rate || (cur !== 'ARS' ? arsPer(s, cur) : 0))}"><span class="hint">La pongo sola con la cotización del día. Si pagaste con otra (por ejemplo, dólar tarjeta), cambiala.</span></div>
-    <div class="field"><label for="f-note">Descripción</label><input id="f-note" name="note" value="${esc(e.note || '')}"></div>
+    <div class="field" data-cur-box ${cur === 'ARS' ? 'hidden' : ''}><label for="f-rate">Cotización (pesos por unidad)</label><input id="f-rate" name="rate" inputmode="decimal" value="${e.rate && cur !== 'ARS' ? montoTxt(e.rate) : ''}" placeholder="${cur !== 'ARS' && arsPer(s, cur) ? `Hoy: ${montoTxt(arsPer(s, cur))}` : 'Ej: 1.200'}"><span class="hint">Si la dejás vacía, uso la cotización del día. Si pagaste con otra (por ejemplo, dólar tarjeta), escribila.</span></div>
+    <div class="field"><label for="f-note">Descripción</label><input id="f-note" name="note" value="${esc(e.note || '')}" placeholder="Ej: Coto, nafta, cena con amigos"></div>
     ${isIncome
       ? `<div class="field-row"><div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Sueldo</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>
          <div class="field"><label for="f-acc">Entró en</label><select id="f-acc" name="medio">${medioOptions(s, medio, { conTarjetas: false })}</select></div></div>`
@@ -106,7 +106,8 @@ export function entryForm(s, e, kind) {
     ${isIncome ? '' : (() => { const r = e.reintegro; return `<details class="reint-box"${r || e.sinReintegro ? ' open' : ''}><summary><span>💸 Reintegro o cashback</span><span class="small muted">${r && !r.no ? `${money(r.monto)} el ${r.fecha.split('-').reverse().join('/')}` : e.sinReintegro ? 'No aplica' : 'Lo calculo solo'}</span></summary>
       <div class="field-row"><div class="field"><label for="f-rm">Te devuelven</label><input id="f-rm" name="reintMonto" inputmode="decimal" value="${r && !r.no ? r.monto : ''}" placeholder="Automático"></div>
       <div class="field"><label for="f-rf">Llega el</label><input id="f-rf" name="reintFecha" type="date" value="${r && !r.no ? esc(r.fecha) : ''}"></div></div>
-      ${r && !r.no ? `<span class="hint">${r.manual ? 'Lo cargaste vos.' : `Calculado con ${esc(r.nombre)} (${r.pct}%).`} Ese día se suma solo a tu saldo${r.cardId ? ' (baja el resumen de la tarjeta)' : ''}.</span>` : '<span class="hint">Si lo dejás vacío, lo calculo con las promos y los cashback de tus medios de pago.</span>'}
+      ${r && !r.no ? `<span class="hint">${r.manual ? 'Lo cargaste vos.' : `Calculado con ${esc(r.nombre)} (${r.pct}%).`} Se suma a tu saldo cuando confirmás que llegó${r.cardId ? ' (baja el resumen de la tarjeta)' : ''}.</span>` : '<span class="hint">Si lo dejás vacío, lo calculo con las promos y los cashback de tus medios de pago.</span>'}
+      ${r && !r.no ? `<label class="check"><input type="checkbox" name="reintOk" ${r.ok ? 'checked' : ''}> <span>Ya me llegó (se suma a mi saldo)</span></label>` : ''}
       <label class="check"><input type="checkbox" name="reintNo" ${e.sinReintegro ? 'checked' : ''}> <span>No me devuelven nada por esta compra</span></label>
     </details>`; })()}
     <div class="field-row">
@@ -185,7 +186,7 @@ function categoriesBody(s) {
       <span class="hint">${orden === 'frecuentes' ? 'Primero las que más usaste en los últimos 3 meses.' : orden === 'personalizado' ? 'En el orden que elegiste.' : 'Por orden alfabético.'} Para acomodarlas a tu gusto, arrastrá cada una desde ${icon('grip', 13)}. El ojo oculta las que no usás.</span></div>
     <div class="card tight cat-lista" data-sortable="catOrdenar">${lista.map((c) => `<div class="row cat-admin ${ocultas.has(c.id) ? 'oculta' : ''}" data-sort-id="${esc(c.id)}">
         <button type="button" class="grip" data-grip aria-label="Mover ${esc(c.label)} (flechas arriba y abajo)">${icon('grip', 18)}</button>
-        <span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${c.custom ? '<span class="meta">Creada por vos</span>' : ''}</span>
+        <span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${c.custom ? '<span class="meta">Creada por vos</span>' : c.hint ? `<span class="meta">${esc(c.hint)}</span>` : ''}</span>
         <button class="icon-btn mini" data-action="catOcultar" data-id="${esc(c.id)}" aria-label="${ocultas.has(c.id) ? 'Mostrar' : 'Ocultar'} ${esc(c.label)}" aria-pressed="${!ocultas.has(c.id)}">${icon(ocultas.has(c.id) ? 'eyeOff' : 'eye', 17)}</button>
         ${c.id !== 'otros' ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Eliminar ${esc(c.label)}">${icon('trash', 16)}</button>` : ''}
       </div>`).join('')}</div>
@@ -254,11 +255,12 @@ function numerosCompra(s, amount) {
   return { b, r, sal, lineas, ahorrado, fijos };
 }
 
-const PREGUNTAS_COMPRA = (amount, b, promosHoy) => [
-  { k: 'tipo', q: '¿Es algo que necesitás o un gusto?', ops: [['necesito', 'Lo necesito'], ['gusto', 'Es un gusto']], ayuda: 'Las dos están bien. Cambia cuánto conviene esperar.' },
+const PREGUNTAS_COMPRA = (amount, b, promosHoy, resp = {}) => [
+  { k: 'tipo', q: '¿Es algo que necesitás o un gusto?', ops: [['necesito', 'Lo necesito'], ['gusto', 'Es un gusto']], ayuda: 'Necesitar es que sin eso tenés un problema (se rompió, es para trabajar, es salud). Si no, es un gusto: está bien, pero se mide más fino.' },
+  ...(resp.tipo === 'gusto' ? [{ k: 'parecido', q: '¿Ya tenés algo que cumpla la misma función?', ops: [['si', 'Sí, pero quiero este'], ['no', 'No tengo nada parecido']], ayuda: 'Reemplazar algo que funciona es de los gastos que más se lamentan.' }] : []),
   { k: 'compare', q: '¿Comparaste el precio en otro lado?', ops: [['si', 'Sí'], ['no', 'Todavía no']], ayuda: 'Comparar 2 o 3 lugares suele ahorrar un 10% o más.' },
   { k: 'promo', q: '¿Hay promo o reintegro con tus medios de pago?', ops: [['si', 'Sí, la voy a usar'], ['no', 'No hay'], ['nose', 'No sé']], ayuda: promosHoy ? `Hoy tenés ${promosHoy} promo${promosHoy === 1 ? '' : 's'} con tus medios de pago.` : 'Fijate en Beneficios antes de pagar.' },
-  ...(amount > 3 * Math.max(1, b.dailyBase || 0) ? [{ k: 'pensado', q: '¿Lo venís pensando hace más de 2 días?', ops: [['si', 'Sí, lo pensé'], ['no', 'Lo vi y lo quiero']], ayuda: 'En compras grandes, esperar 48 horas evita la mayoría de los arrepentimientos.' }] : []),
+  ...(resp.tipo === 'gusto' || amount > 3 * Math.max(1, b.dailyBase || 0) ? [{ k: 'pensado', q: '¿Lo venís pensando hace más de 2 días?', ops: [['si', 'Sí, lo pensé'], ['no', 'Lo vi y lo quiero']], ayuda: 'Esperar 48 horas evita la mayoría de los arrepentimientos.' }] : []),
   { k: 'pago', q: '¿Cómo lo pagarías?', ops: [['contado', 'Contado o débito'], ['tarjeta', 'Tarjeta en 1 pago'], ['cuotas', 'En cuotas']] },
 ];
 
@@ -266,7 +268,7 @@ function pintarGuiaCompra(s) {
   const { amount, resp } = guiaCompra;
   const n = numerosCompra(s, amount);
   const promosHoy = promosForDay(s, new Date().getDay()).length;
-  const pregs = PREGUNTAS_COMPRA(amount, n.b, promosHoy);
+  const pregs = PREGUNTAS_COMPRA(amount, n.b, promosHoy, resp);
   const pend = pregs.find((p) => !(p.k in resp));
   const hechas = pregs.filter((p) => p.k in resp).length;
   const progreso = `<div class="guia-prog" aria-label="Paso ${Math.min(hechas + 1, pregs.length + 1)} de ${pregs.length + 1}">${pregs.map((p, i) => `<span class="${i < hechas ? 'ok' : i === hechas ? 'on' : ''}"></span>`).join('')}<span class="${pend ? '' : 'on'}"></span></div>`;
@@ -280,35 +282,63 @@ function pintarGuiaCompra(s) {
     return;
   }
   // ---- conclusión ----
+  // Criterio exigente: un gusto tiene que pasar varias pruebas para que la respuesta sea "sí".
   const { b, sal } = n;
   const gusto = resp.tipo === 'gusto';
   const impulso = resp.pensado === 'no';
-  let nivel; let titulo; const razones = []; const hacer = [];
+  const razones = []; const hacer = [];
   const plata = b.noIncome ? 'sin-datos' : amount <= Math.max(0, b.todayLeft) ? 'holgado' : amount <= Math.max(0, b.free) ? 'ajustado' : amount <= Math.max(0, b.free) + n.ahorrado ? 'ahorros' : 'no-alcanza';
   if (plata === 'holgado') razones.push(`Entra en lo que podés gastar hoy (${money(b.todayLeft)}).`);
-  if (plata === 'ajustado') { const nuevo = (b.free - amount) / Math.max(1, b.cycle.daysLeft - 1); razones.push(`Te alcanza, pero usa plata de los próximos días: quedarías con <b>${money(Math.max(0, nuevo))} por día</b> hasta el cobro (en vez de ${money(b.dailyBase)}).`); }
+  if (plata === 'ajustado') { const nuevo = (b.free - amount) / Math.max(1, b.cycle.daysLeft - 1); razones.push(`Usa plata de los próximos días: quedarías con <b>${money(Math.max(0, nuevo))} por día</b> hasta el cobro (en vez de ${money(b.dailyBase)}).`); }
   if (plata === 'ahorros') razones.push(`No te alcanza con la plata del mes: <b>${money(amount - Math.max(0, b.free))}</b> saldrían de tus ahorros.`);
-  if (plata === 'no-alcanza') razones.push(`Hoy no te alcanza: ni con la plata del mes ni con tus ahorros cargados (te faltan ${money(amount - Math.max(0, b.free) - n.ahorrado)}).`);
+  if (plata === 'no-alcanza') razones.push(`No te alcanza: ni con la plata del mes ni con tus ahorros cargados (te faltan ${money(amount - Math.max(0, b.free) - n.ahorrado)}).`);
   if (plata === 'sin-datos') razones.push('Todavía no sé cuánto cobrás, así que no puedo medirlo contra tu mes.');
-  if (sal) razones.push(`Equivale a ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de tu sueldo.`);
-  if (plata === 'no-alcanza') { nivel = 'bad'; titulo = gusto ? 'No ahora' : 'Hoy no te alcanza'; hacer.push(gusto ? 'Armá una meta de ahorro para comprarlo más adelante.' : 'Si es imprescindible, buscá cuotas sin interés o una alternativa más barata.'); }
-  else if (plata === 'ahorros') {
-    nivel = 'warn'; titulo = gusto ? 'Esperá: se come tus ahorros' : 'Podés, usando ahorros';
-    hacer.push(gusto ? 'Si lo querés igual, juntalo en una meta durante los próximos meses.' : 'Usá ahorros y reponelos en los próximos meses.');
-    if (n.fijos && n.ahorrado - (amount - Math.max(0, b.free)) < n.fijos * 3) razones.push('Después de la compra tu fondo de emergencia quedaría por debajo de 3 meses de gastos fijos.');
-  } else if (plata === 'ajustado') {
-    nivel = gusto && impulso ? 'warn' : 'ok';
-    titulo = gusto && impulso ? 'Esperá 48 horas' : 'Sí, pero ajustá los próximos días';
-  } else { nivel = 'ok'; titulo = gusto && impulso ? 'Podés, pero pensalo un día más' : 'Adelante'; }
-  if (gusto && impulso) razones.push('Es una compra por impulso: si en 2 días lo seguís queriendo, es buena señal.');
-  if (resp.compare === 'no') hacer.push('Antes de pagar, compará el precio en 2 o 3 lugares.');
+  const pctSueldo = sal ? amount / sal.amount : 0;
+  if (sal) razones.push(`Equivale a ${Math.max(1, Math.round(pctSueldo * 100))}% de tu sueldo.`);
+  const grande = amount > 3 * Math.max(1, b.dailyBase || 0);
+  const fondoMeses = n.fijos > 0 ? n.ahorrado / n.fijos : 99;
+  const sePasa = b.adelanto > b.normalDaily * 0.3;
+  const comeAhorro = b.sobrante > 0 && amount > Math.max(0, b.todayLeft) && amount - Math.max(0, b.todayLeft) > b.sobrante;
+  const g = mainGoal(s);
+  const atrasaMeta = g && g.monthly > 0 && plata !== 'holgado' ? Math.round(Math.max(0, amount - Math.max(0, b.todayLeft)) / (g.monthly / 30)) : 0;
+  const cuotasMes = s.expenses.filter((e) => !e.pending && e.installments > 1).reduce((a, e) => { const k = monthDiff(e.date.slice(0, 7), monthKey()); return k >= 0 && k < e.installments ? a + e.amount / e.installments : a; }, 0);
+  const cuotasPct = sal ? (cuotasMes + (resp.pago === 'cuotas' ? amount / 6 : 0)) / sal.amount : 0;
+  // motivos para decir que no (alcanza uno) y para pedir cautela
+  const no = []; const ojo = [];
+  if (plata === 'no-alcanza') no.push(gusto ? 'Armá una meta de ahorro para comprarlo más adelante.' : 'Si es imprescindible, buscá una alternativa más barata o cuotas sin interés.');
+  if (gusto) {
+    if (plata === 'ahorros') no.push('Un gusto no debería salir de tus ahorros: juntalo en una meta durante los próximos meses.');
+    if (resp.parecido === 'si') { razones.push('Ya tenés algo que cumple la misma función.'); no.push('Usá lo que tenés hasta que deje de servir; si igual lo querés, armá una meta.'); }
+    if (impulso && plata !== 'holgado') no.push('Es una compra por impulso que no entra en lo de hoy: esperá 48 horas y, si lo seguís queriendo, volvé a consultarlo.');
+    if (impulso && plata === 'holgado' && grande) no.push('Es grande y por impulso: esperá 48 horas aunque te alcance.');
+    if (plata === 'ajustado' && sePasa) { razones.push(`Venís gastando más rápido que tu ritmo: ya vas ${money(b.adelanto)} adelantado.`); no.push('Este mes no: compralo el mes que viene, cuando arranques al día.'); }
+    if (fondoMeses < 1 && (plata !== 'holgado' || grande)) { razones.push(`No tenés un fondo para imprevistos: lo ahorrado (${money(n.ahorrado)}) no cubre ni un mes de gastos fijos (${money(n.fijos)}).`); no.push('Primero juntá al menos un mes de gastos fijos; después, el gusto.'); }
+    if (pctSueldo >= 0.1 && !(resp.pensado === 'si' && fondoMeses >= 3)) no.push(`Es más del 10% de tu sueldo: para un gusto así, pensalo al menos 2 días y tené 3 meses de gastos fijos ahorrados (tenés ${fondoMeses >= 99 ? 'sin datos' : `${fondoMeses.toFixed(1).replace('.', ',')}`}).`);
+    if (atrasaMeta > 15) { razones.push(`Atrasa "${esc(g.name)}" unos ${atrasaMeta} días.`); no.push('Tu meta va primero: si lo querés, sumalo como meta aparte.'); }
+    if (resp.pago === 'cuotas' && cuotasPct > 0.25) { razones.push(`Con esta compra, tus cuotas se llevarían el ${Math.round(cuotasPct * 100)}% de tu sueldo por mes.`); no.push('No sumes más cuotas para gustos hasta bajar de 25% del sueldo.'); }
+    if (comeAhorro) { razones.push(`Se come lo que te iba a sobrar este mes (${money(b.sobrante)}).`); ojo.push('Ahorrás menos este mes.'); }
+    if (resp.compare === 'no' && grande) ojo.push('Antes de pagar, compará el precio en 2 o 3 lugares.');
+    if (impulso && plata === 'holgado' && !grande) ojo.push('Es por impulso: si mañana lo seguís queriendo, es buena señal.');
+    if (fondoMeses >= 1 && fondoMeses < 3 && plata !== 'holgado') ojo.push('Tu fondo para imprevistos todavía no llega a 3 meses de gastos fijos.');
+  } else {
+    if (plata === 'ahorros') { ojo.push('Usá ahorros y reponelos en los próximos meses.'); if (fondoMeses < 3) razones.push('Después de la compra tu fondo de emergencia quedaría por debajo de 3 meses de gastos fijos.'); }
+    if (plata === 'ajustado' && sePasa) ojo.push(`Venís ${money(b.adelanto)} arriba de tu ritmo: ajustá los próximos días.`);
+    if (resp.compare === 'no' && grande) ojo.push('Como es grande, compará el precio en 2 o 3 lugares antes de pagar.');
+    if (resp.pago === 'cuotas' && cuotasPct > 0.3) { razones.push(`Tus cuotas se llevarían el ${Math.round(cuotasPct * 100)}% de tu sueldo por mes.`); ojo.push('Si podés, elegí menos cuotas o una alternativa más barata.'); }
+  }
+  let nivel; let titulo;
+  if (no.length) { nivel = 'bad'; titulo = plata === 'no-alcanza' ? (gusto ? 'No ahora' : 'No te alcanza') : impulso && gusto ? 'No: esperá y volvé a pensarlo' : 'No te lo compres ahora'; hacer.push(...no); }
+  else if (ojo.length || plata === 'ajustado' || plata === 'ahorros') { nivel = 'warn'; titulo = gusto ? 'Podés, pero con cuidado' : plata === 'ahorros' ? 'Podés, usando ahorros' : 'Sí, pero ajustá los próximos días'; hacer.push(...ojo); }
+  else { nivel = 'ok'; titulo = gusto ? 'Sí, te lo podés dar' : 'Adelante'; }
+  if (gusto && impulso && !no.length) razones.push('Es una compra por impulso.');
+  if (resp.compare === 'no' && !grande && nivel !== 'bad') hacer.push('Si podés, compará el precio antes de pagar.');
   if (resp.promo === 'nose') hacer.push(promosHoy ? `Revisá Beneficios: hoy tenés ${promosHoy} promo${promosHoy === 1 ? '' : 's'}.` : 'Revisá Beneficios por si hay alguna promo.');
-  if (resp.pago === 'tarjeta') {
+  if (resp.pago === 'tarjeta' && nivel !== 'bad') {
     const card = (s.cards || [])[0];
     if (card) { const due = statementDates(card, statementOf(card, todayISO())).due; hacer.push(`Con ${esc(card.name)} en 1 pago lo pagás el <b>${due.getDate()}/${due.getMonth() + 1}</b>: tené la plata ese día.`); }
     else hacer.push('En 1 pago con tarjeta lo pagás con el resumen: tené la plata para el vencimiento.');
   }
-  if (resp.pago === 'cuotas') hacer.push('Fijate si te conviene en cuotas o de contado con la herramienta de abajo.');
+  if (resp.pago === 'cuotas' && nivel !== 'bad') hacer.push('Fijate si te conviene en cuotas o de contado con la herramienta de abajo.');
   if (!hacer.length && nivel === 'ok') hacer.push('Anotalo cuando lo compres así tu "Hoy podés gastar" queda al día.');
   setModalBody('#buy-result', `<div class="result ${nivel} guia-fin">${progreso}
       <span class="small" style="font-weight:700;opacity:.8">Conclusión para ${money(amount)}</span>
@@ -385,7 +415,7 @@ export const commonActions = {
       if (ahora && ahora.pct >= 1 && antes.pct < 1) msg += `. Ojo: te pasaste del presupuesto de ${catLabel(category)}`;
       else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
     }
-    if (reint) msg += `. Te devuelven ${money(reint.monto)} (${reint.nombre} ${reint.pct}%) el ${reint.fecha.slice(8)}/${reint.fecha.slice(5, 7)}`;
+    if (reint) msg += `. Te devuelven ${reint.aprox ? 'hasta ' : ''}${money(reint.monto)} (${reint.nombre} ${reint.pct}%${reint.aprox ? ', tope sin confirmar' : ''}) el ${reint.fecha.slice(8)}/${reint.fecha.slice(5, 7)}`;
     toast(msg);
   },
   alternarMontos(ctx, el) { const o = alternarMontos(el.dataset.clave); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles'); },
@@ -565,7 +595,7 @@ export const commonActions = {
     const box = f.querySelector('[data-cur-box]');
     box.hidden = el.value === 'ARS';
     const r = arsPer(ctx.state, el.value);
-    if (el.value !== 'ARS' && r) f.querySelector('[name=rate]').value = String(Math.round(r * 100) / 100).replace('.', ',');
+    if (el.value !== 'ARS' && r) { const inp = f.querySelector('[name=rate]'); inp.value = ''; inp.placeholder = `Hoy: ${String(Math.round(r * 100) / 100).replace('.', ',')}`; }
   },
   entryToggle(ctx, el) {
     const box = el.closest('form').querySelector(`[data-box-id="${el.dataset.box}"]`);
@@ -651,6 +681,7 @@ export const commonActions = {
           item.reintegro = { ...base, monto: rm, fecha: d.reintFecha || base.fecha || toISO(addDays(parseISO(item.date), 7)), nombre: base.nombre || 'Reintegro', pct: base.pct || 0, key: base.key || `m:${id}`, manual: true,
             ...(item.cardId ? { cardId: item.cardId, cuenta: undefined } : { cuenta: item.accountId || s.cuentaPrincipal, cardId: undefined }) };
         } else if (auto) item.reintegro = auto;
+        if (item.reintegro) { if (d.reintOk) item.reintegro.ok = true; else delete item.reintegro.ok; }
       }
       const i = s.expenses.findIndex((x) => x.id === d.id);
       if (i >= 0) s.expenses[i] = item; else s.expenses.push(item);
