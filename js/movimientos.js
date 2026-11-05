@@ -15,7 +15,7 @@ import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { agenda } from './agenda.js';
 import { payOptions, descuentoCampos, descuentoDe } from './pagos.js';
-import { nombreCuenta, saldoDeuda, totalMeDeben, totalDebo } from './cuentas.js';
+import { nombreCuenta, saldoDeuda } from './cuentas.js';
 import { proyectoDe } from './proyectos.js';
 
 let filter = 'todo';
@@ -35,7 +35,7 @@ export function expenseRow(s, e) {
   const cat = e.splits && e.splits.length > 1 ? `${e.splits.length} categorías` : c.label;
   return `<button class="row" data-action="openEntry" data-id="${e.id}" data-kind="expense">
     <span class="cat-icon ${green ? 'green' : ''}">${catIcon(c, 18)}</span>
-    <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${relDay(e.date)} · ${esc(cat)}${e.installments > 1 ? ` · ${e.installments} cuotas` : ''}${medio ? ` · ${medio}` : ''}${enMoneda(e)}${e.shared ? ` · tu parte (con ${esc(e.shared.with)})` : ''}${e.proyectoId && proyectoDe(s, e.proyectoId) ? ` · 📁 ${esc(proyectoDe(s, e.proyectoId).nombre)}` : ''}</span>${tagsHtml(e.tags)}</span>
+    <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${relDay(e.date)} · ${esc(cat)}${e.installments > 1 ? ` · ${e.installments} cuotas` : ''}${medio ? ` · ${medio}` : ''}${enMoneda(e)}${e.shared ? ` · tu parte (con ${esc(e.shared.with)})` : ''}${e.por ? ` · cargó ${esc(e.por)}` : ''}${e.proyectoId && proyectoDe(s, e.proyectoId) ? ` · 📁 ${esc(proyectoDe(s, e.proyectoId).nombre)}` : ''}</span>${tagsHtml(e.tags)}</span>
     <span class="amount">−${money(e.amount)}</span>
   </button>`;
 }
@@ -66,8 +66,6 @@ export function render(s) {
   const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
   const reintMes = reintegrosDelMes(s, mk);
   const ahorroPesitos = ((s.savedByApp || {})[mk] || 0) + reintMes;
-  const nProy = (s.proyectos || []).filter((p) => !p.cerrado).length;
-  const tm = totalMeDeben(s); const td = totalDebo(s);
 
   return `<section class="screen">
     ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
@@ -85,16 +83,6 @@ export function render(s) {
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
     </a>
     ${ahorroPesitos || offset === 0 ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos en ${monthLabel(mk).split(' ')[0]}</b><span class="small">${ahorroPesitos ? `${reintMes ? `Reintegros ${money(reintMes)} · ` : ''}promos y desafíos` : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
-    <div class="mov-accesos">
-      <a class="card mov-acceso ${tm || td ? 'activa' : ''}" href="#/deudas">
-        <span class="cat-icon ${tm || td ? 'amber' : 'green'}">${icon('people', 19)}</span>
-        <span class="grow"><b class="t">Deudas y préstamos</b><span class="small">${tm || td ? `${tm ? `Te deben <b class="pos">${money(tm)}</b>` : ''}${tm && td ? '<br>' : ''}${td ? `Debés <b>${money(td)}</b>` : ''}` : 'Prestaste o te prestaron'}</span></span>
-      </a>
-      <a class="card mov-acceso" href="#/proyectos">
-        <span class="cat-icon green">${icon('folder', 19)}</span>
-        <span class="grow"><b class="t">Proyectos</b><span class="small">${nProy ? `${nProy} en curso` : 'Obras, viajes, eventos'}</span></span>
-      </a>
-    </div>
 
     <div class="tabs" role="tablist" aria-label="Sección">
       <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>

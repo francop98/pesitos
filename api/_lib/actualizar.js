@@ -5,7 +5,7 @@
 // Todo se guarda en Firestore (colección "publico").
 
 import { db } from './firebase.js';
-import { FUENTE, promosFuente } from './fuente.js';
+import { FUENTE, promosFuente, menosDias, DIAS_RENOVAR } from './fuente.js';
 import { complementoActivo, promosComplemento } from './complemento.js';
 import { enviarAvisos, avisarDueno } from './avisos.js';
 
@@ -35,13 +35,18 @@ async function ipcOficial(today) {
 
 // Control de calidad de los datos: qué tan nuevos son y si algo se ve raro.
 const diasEntre = (a, b) => Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000);
-export function revisarSalud({ today, promos, fuenteOk, fuenteFecha, ipc, ipcOk, status }) {
+export function revisarSalud({ today, promos, fuenteOk, fuenteFecha, ipc, ipcOk, status, reportes = [] }) {
   const problemas = [];
   const atraso = fuenteFecha ? diasEntre(String(fuenteFecha).slice(0, 10), today) : null;
   if (!fuenteOk) problemas.push(`La fuente de promos falló (${String(status.fuente || '').slice(0, 60)})`);
   else if (atraso !== null && atraso >= 2) problemas.push(`La fuente de promos no se actualiza hace ${atraso} días`);
   const vigentes = promos.filter((p) => p.validTo >= today).length;
   if (vigentes < 80) problemas.push(`Hay pocas promos vigentes (${vigentes})`);
+  if (reportes.length) {
+    const MOT = { noExiste: 'no existe', pct: 'el % está mal', tope: 'el tope está mal', dias: 'los días están mal', otro: 'otro' };
+    const txt = reportes.slice(0, 3).map((r) => `${r.medio || '?'} ${r.pct || ''}% ${r.comercio ? `en ${String(r.comercio).slice(0, 25)}` : ''}: ${MOT[r.motivo] || r.motivo}`).join('; ');
+    problemas.push(`${reportes.length} aviso${reportes.length === 1 ? '' : 's'} de error en promos (${txt})`);
+  }
   const meses = Object.keys(ipc || {}).sort(); const ultimoIpc = meses[meses.length - 1] || null;
   // el INDEC publica a mitad de mes el dato del mes anterior: más de 2 meses de atraso es raro
   const [y, m] = today.split('-').map(Number); const hace2 = `${m <= 2 ? y - 1 : y}-${String(((m + 9) % 12) + 1).padStart(2, '0')}`;
@@ -50,7 +55,7 @@ export function revisarSalud({ today, promos, fuenteOk, fuenteFecha, ipc, ipcOk,
   return {
     revisado: new Date().toISOString(),
     fuente: { ok: fuenteOk, fecha: fuenteFecha || null, atraso },
-    promos: { vigentes, topeSinConfirmar: promos.filter((p) => p.capUnknown && !p.cap).length },
+    promos: { vigentes, topeSinConfirmar: promos.filter((p) => p.validTo >= today && p.capUnknown && !p.cap).length, reportes: reportes.length },
     ipc: { ok: ipcOk, ultimo: ultimoIpc },
     problemas,
   };
@@ -92,9 +97,22 @@ export async function actualizar({ turno = 'manana' } = {}) {
   // avisos de la mañana (solo en la corrida de las 9)
   if (turno !== 'tarde') { try { status.avisos = await enviarAvisos(today); } catch (e) { status.avisos = `error: ${e.message}`; } }
 
-  const base = promos || (prev.promos || []).filter((p) => !p.auto && p.validTo >= today); // si la fuente falló, se conservan las anteriores vigentes
+  const desde = menosDias(today, DIAS_RENOVAR);
+  const mismo = (a, b) => a.wallet === b.wallet && norm(a.walletName) === norm(b.walletName) && norm(a.merchant) === norm(b.merchant);
+  let base = promos || (prev.promos || []).filter((p) => !p.auto && p.validTo >= desde); // si la fuente falló, se conservan las anteriores
+  // las que vencieron hace poco y la fuente ya no trae: quedan para preguntar si las renuevan
+  if (promos) base = [...promos, ...(prev.promos || []).filter((p) => !p.auto && p.validTo < today && p.validTo >= desde && !promos.some((q) => mismo(p, q)))];
+  // si ya salió la renovada, la vencida sobra
+  base = base.filter((p) => p.validTo >= today || !base.some((q) => q !== p && q.validTo >= today && mismo(p, q)));
   const todas = [...base, ...extraPromos];
-  const salud = revisarSalud({ today, promos: todas, fuenteOk: !!promos, fuenteFecha, ipc, ipcOk: status.ipc === 'ok', status });
+  // errores que avisaron los usuarios desde la app (últimas 24 h)
+  let reportes = [];
+  try {
+    const snap = await db().collection('reportes').where('creado', '>', new Date(Date.now() - 24 * 3600 * 1000)).limit(50).get();
+    reportes = snap.docs.map((d) => d.data());
+    status.reportes = `ok: ${reportes.length}`;
+  } catch (e) { status.reportes = `error: ${e.message}`; }
+  const salud = revisarSalud({ today, promos: todas, fuenteOk: !!promos, fuenteFecha, ipc, ipcOk: status.ipc === 'ok', status, reportes });
   const doc = {
     promos: todas,
     ipc,

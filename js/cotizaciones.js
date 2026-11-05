@@ -58,13 +58,22 @@ export async function refreshRates(ctx, force = false) {
   return ok;
 }
 
-// Cuántos pesos vale 1 unidad del activo
+// Todos los dólares que trae DolarApi (id = "casa" de la API)
+export const DOLARES = [['oficial', 'Dólar oficial'], ['blue', 'Dólar blue'], ['bolsa', 'Dólar MEP'], ['contadoconliqui', 'Dólar CCL'], ['tarjeta', 'Dólar tarjeta'], ['mayorista', 'Dólar mayorista'], ['cripto', 'Dólar cripto']];
+export const dolarRef = (s) => ((s.settings || {}).dolarRef && DOLARES.some(([id]) => id === s.settings.dolarRef) ? s.settings.dolarRef : 'blue');
+export const nombreDolar = (id) => (DOLARES.find(([x]) => x === id) || [, 'Dólar'])[1];
+
+// Cuántos pesos vale 1 unidad del activo.
+// 'USD' usa el dólar que elegiste como referencia (blue si no elegiste); 'USD:oficial', 'USD:bolsa'… un dólar puntual.
 export function arsPer(s, asset) {
   if (!asset || asset === 'ARS') return 1;
   const manual = (s.settings.manualRates || {})[asset];
   if (manual) return manual;
   const r = s.rates || {};
-  const usd = (r.USD && r.USD.venta) || Number(s.settings.usdRate) || 0;
+  const dol = r.dolares || {};
+  if (asset.startsWith('USD:')) { const d = dol[asset.slice(4)]; return (d && d.venta) || 0; }
+  const ref = dol[dolarRef(s)];
+  const usd = (ref && ref.venta) || (r.USD && r.USD.venta) || Number(s.settings.usdRate) || 0;
   if (asset === 'USD') return usd;
   if (r[asset] && r[asset].venta) return r[asset].venta;
   const c = r.crypto || {};
@@ -93,3 +102,15 @@ export function ratesAge(s) {
   const h = Math.round(min / 60);
   return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} días`;
 }
+
+// ---------- moneda principal de la persona (pesos o dólares) ----------
+export const monedaBase = (s) => (s && s.settings && s.settings.moneda === 'USD' ? 'USD' : 'ARS');
+/** Cuántas unidades de tu moneda principal vale 1 unidad de `cur` (null si no hay cotización). */
+export function aBase(s, cur) {
+  const b = monedaBase(s);
+  if (!cur || cur === b) return 1;
+  const v = convert(s, 1, cur, b);
+  return v || null;
+}
+/** Un monto en pesos llevado a tu moneda (para topes de promos, que siempre están en pesos). */
+export const pesosABase = (s, ars) => (monedaBase(s) === 'ARS' ? ars : Math.round((ars * (aBase(s, 'ARS') || 0)) * 100) / 100);

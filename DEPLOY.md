@@ -22,6 +22,7 @@ Se configura **una sola vez**. Después, cada vez que subís cambios a GitHub, V
 - **App web:** ⚙️ Configuración del proyecto → General → *Tus apps* → **`</>`** → sobrenombre `Pesitos` → Registrar app. Copiá el bloque `firebaseConfig` a `js/firebaseconfig.js`.
 - **Authentication:** Compilación → Authentication → Comenzar → *Método de acceso*: activá **Correo electrónico/contraseña** y **Google**. En *Configuración → Dominios autorizados* agregá `pesitos-one.vercel.app`.
 - **Reglas:** Firestore Database → Reglas → pegá el contenido de `firestore.rules` → **Publicar**. (Cada vez que cambie ese archivo hay que volver a publicarlo.)
+  La versión 4 suma los **espacios compartidos** (modo familiar: `espacios/`, `invitaciones/`) y los **avisos de error en promos** (`reportes/`). El servidor lee los avisos de las últimas 24 h y, con `OWNER_EMAIL` cargado, te los manda por notificación junto con los demás problemas de los datos.
 - **Cuenta de servicio:** Consola de Firebase → ⚙️ Configuración del proyecto → *Cuentas de servicio* → **Generar nueva clave privada**. Se descarga un archivo `.json`. **No lo subas a GitHub.**
 
 ### 2. Complemento de promos (opcional, gratis, sin tarjeta)
@@ -68,7 +69,7 @@ package.json            Dependencia firebase-admin para las funciones
 
 ## Si algo falla
 
-- En la app: Menú → **Estado de los datos** muestra cada fuente, cuándo se actualizó y si hay problemas. El servidor revisa la calidad de los datos en cada actualización (fuente atrasada, pocas promos, inflación sin dato nuevo) y, con `OWNER_EMAIL` cargado, avisa al dueño una vez por día.
+- El servidor revisa la calidad de los datos en cada actualización (fuente atrasada, pocas promos, inflación sin dato nuevo) y, con `OWNER_EMAIL` cargado, le avisa al dueño por notificación una vez por día con el detalle del problema. Esto no se muestra en la app.
 - **Vercel → Logs** muestra el error de cada función.
 - La respuesta de `/api/actualizar` (y Firestore → `publico/datos` → `status`) dice si cada parte anduvo: fuente, complemento e inflación.
 - Si una actualización falla, la app sigue usando las promos guardadas (las vencidas se ocultan solas) y se reintenta en la próxima corrida.

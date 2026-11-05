@@ -48,7 +48,7 @@ const barra = (pct) => `<div class="pres-barra ${pct >= 1 ? 'mal' : pct >= 0.8 ?
 export function render(s) {
   const p = abierto && proyectoDe(s, abierto);
   return `<section class="screen">
-    ${p ? screenHead(p.nombre, '', tipoDe(p)[1]).replace('data-action="goBack" aria-label="Volver"', 'data-action="verProyecto" data-id="" aria-label="Volver a todos los proyectos"') : screenHead('Proyectos', '<button class="btn small" data-action="nuevoProyecto">+ Nuevo</button>', 'Gastos agrupados por objetivo')}
+    ${p ? screenHead(p.nombre, '', p.tipo && p.tipo !== 'otro' ? tipoDe(p)[1] : 'Proyecto').replace('data-action="goBack" aria-label="Volver"', 'data-action="verProyecto" data-id="" aria-label="Volver a todos los proyectos"') : screenHead('Proyectos', '<button class="btn small" data-action="nuevoProyecto">+ Nuevo</button>', 'Gastos agrupados por objetivo')}
     ${cuerpo(s)}
   </section>`;
 }
@@ -120,13 +120,11 @@ function detalle(s, p) {
 }
 
 function form(p = {}) {
-  const tipo = p.tipo || 'obra';
+  const tipo = p.tipo || 'otro';
   return `<form class="form" data-submit="guardarProyecto">
     <input type="hidden" name="id" value="${esc(p.id || '')}">
     <input type="hidden" name="tipo" value="${esc(tipo)}">
-    <div class="field"><span class="small" style="font-weight:700">Tipo</span>
-      <div class="proy-tipos" role="radiogroup" aria-label="Tipo de proyecto">${TIPOS.map(([v, l, ic]) => `<button type="button" class="medio-chip" role="radio" data-action="tipoProyecto" data-v="${v}" aria-checked="${v === tipo}">${icon(ic, 15)} ${l}</button>`).join('')}</div></div>
-    <div class="field"><label for="pr-n">Nombre</label><input id="pr-n" name="nombre" value="${esc(p.nombre || '')}" placeholder="Nombre del proyecto" required maxlength="40"></div>
+    <div class="field"><label for="pr-n">Nombre</label><input id="pr-n" name="nombre" value="${esc(p.nombre || '')}" placeholder="Ej: Vacaciones en Bariloche, Arreglo del baño" required maxlength="40"></div>
     <div class="field-row">
       <div class="field"><label for="pr-p">Presupuesto (opcional)</label><input id="pr-p" name="presupuesto" inputmode="decimal" value="${p.presupuesto || ''}" placeholder="$ 0"></div>
       <div class="field"><label for="pr-f">Fecha objetivo (opcional)</label><input id="pr-f" name="fin" type="date" value="${esc(p.fin || '')}"></div>

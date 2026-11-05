@@ -146,7 +146,8 @@ export function render(s) {
   const cov = coverage(s, pr);
   const prov = provisions(s);
   // cobros que vienen: del sueldo, solo el próximo
-  const ins = (() => { let sal = false; return inflows(s, startOfToday(), addDays(startOfToday(), 62)).filter((i) => (i.kind === 'salary' ? (sal ? false : (sal = true)) : true)); })();
+  // solo lo que entra en lo que queda de este mes
+  const ins = (() => { const t = startOfToday(); const fin = new Date(t.getFullYear(), t.getMonth() + 1, 0); let sal = false; return inflows(s, t, fin).filter((i) => (i.kind === 'salary' ? (sal ? false : (sal = true)) : true)); })();
   const weekItems = items.filter((i) => !i.paid && i.days <= 7);
   const accounts = byAccount(weekItems, accountName);
   const h = history(s);
@@ -185,8 +186,8 @@ export function render(s) {
       ${section('Hoy', g.today)}
       ${section('Esta semana', g.week)}
       ${section('Más adelante', g.later)}
-      ${ins.length ? `<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div><div class="card tight">${ins.map(inRow).join('')}</div>`
-        : '<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div>'}
+      ${ins.length ? `<div class="section-title"><span>Vas a cobrar este mes</span><button data-action="newIncome">+ Cobro</button></div><div class="card tight">${ins.map(inRow).join('')}</div>`
+        : '<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div><p class="small muted" style="margin:0">No tenés más cobros este mes.</p>'}
     `}
 
     ${accounts.length ? `<div class="section-title"><span>Esta semana, por cuenta</span></div>

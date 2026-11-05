@@ -6,10 +6,23 @@ export const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', '
 export const MONTHS_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 export const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
+// Moneda en la que la persona maneja su plata ('ARS' o 'USD'); la fija main.js en cada render.
+let MONEDA = 'ARS';
+const nf2 = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const setMoneda = (m) => { MONEDA = m === 'USD' ? 'USD' : 'ARS'; };
+export const monedaActual = () => MONEDA;
+export const simbolo = () => (MONEDA === 'USD' ? 'US$ ' : '$');
 export function money(n) {
+  if (MONEDA === 'USD') {
+    const a = Math.abs(n || 0);
+    const t = a < 100 && Math.round(a * 100) % 100 ? nf2.format(Math.round(a * 100) / 100) : nf.format(Math.round(a));
+    return ((n || 0) < -0.004 ? '−US$ ' : 'US$ ') + t;
+  }
   const v = Math.round(n || 0);
   return (v < 0 ? '−$' : '$') + nf.format(Math.abs(v));
 }
+/** Monto en pesos, siempre con $ (cotizaciones, topes de promos). */
+export function pesos(n) { const v = Math.round(n || 0); return (v < 0 ? '−$' : '$') + nf.format(Math.abs(v)); }
 export const usd = (n) => 'US$ ' + nf.format(Math.round(n || 0));
 export function pct(n, digits = 1, sign = true) {
   const v = (n * 100).toFixed(digits).replace('.', ',');

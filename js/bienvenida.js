@@ -4,18 +4,18 @@
 // Preguntas: nombre → sueldo → cuándo cobrás → cómo ahorrar → provincia → ciudad → medios de pago.
 
 import { uid } from './almacenamiento.js';
-import { todayISO, esc, money, normalize } from './formato.js';
+import { todayISO, esc, money, normalize, setMoneda } from './formato.js';
 import { parseAmount } from './interprete.js';
 import { wordmark, icon, sprout } from './interfaz.js';
 import { PROVINCES, provinceLabel, WALLETS } from './categorias.js';
 import { entenderCobro, textoDeCobro, fechaDeCobro } from './feriados.js';
 import { campoCiudad, activarCiudades } from './ciudades.js';
 
-const ALL_STEPS = ['nombre', 'sueldo', 'cobro', 'ahorro', 'provincia', 'ciudad', 'medios'];
+const ALL_STEPS = ['nombre', 'moneda', 'sueldo', 'cobro', 'ahorro', 'provincia', 'ciudad', 'medios'];
 const mainSteps = () => (knownName ? ALL_STEPS.slice(1) : ALL_STEPS);
 const WALLET_GROUPS = ['Billeteras', 'Bancos', 'Tarjetas'];
 
-const fresh = () => ({ name: '', salary: 0, payRule: null, savingMode: '', savingPct: 0, savingAmount: 0, province: '', city: '', wallets: [], customWallets: [] });
+const fresh = () => ({ name: '', moneda: 'ARS', salary: 0, payRule: null, savingMode: '', savingPct: 0, savingAmount: 0, province: '', city: '', wallets: [], customWallets: [] });
 let step = 'hola';
 let trail = []; // [{ step, q, a }]
 let draft = fresh();
@@ -24,8 +24,9 @@ let nota = '';      // aclaración de Pesitos (por ejemplo, "no entendí")
 
 function nextStep(cur) {
   switch (cur) {
-    case 'hola': return knownName ? 'sueldo' : 'nombre';
-    case 'nombre': return 'sueldo';
+    case 'hola': return knownName ? 'moneda' : 'nombre';
+    case 'nombre': return 'moneda';
+    case 'moneda': return 'sueldo';
     case 'sueldo': return 'cobro';
     case 'cobro': return 'ahorro';
     case 'ahorro': return draft.savingMode === 'fixed' ? 'ahorroMonto' : 'provincia';
@@ -64,9 +65,13 @@ function current() {
       bubbles: ['¿Cómo te llamo?'],
       controls: `${inputForm('name', 'Tu nombre')}<div class="chips">${chip('', 'Saltear')}</div>`,
     };
+    case 'moneda': return {
+      bubbles: [`Buenísimo${n}. ¿En qué moneda manejás tu plata del día a día?`],
+      controls: `<div class="ahorro-ops">${opAhorro('ARS', 'Pesos', 'Cobrás, gastás y ahorrás en pesos.')}${opAhorro('USD', 'Dólares', 'Cobrás y manejás tu plata en dólares. Los gastos en pesos los paso solos.')}</div>`,
+    };
     case 'sueldo': return {
-      bubbles: [`Buenísimo${n}. ¿Cuánto cobrás por mes, más o menos?`],
-      controls: `${inputForm('salary', 'Ej: 900.000', 'decimal')}<p class="small muted guide-hint">Con eso calculo cuánto podés gastar por día. Queda guardado en tu cuenta: solo lo ves vos.</p><div class="chips">${chip('', 'Prefiero no decirlo ahora')}</div>`,
+      bubbles: [`¿Cuánto cobrás por mes, más o menos${draft.moneda === 'USD' ? ', en dólares' : ''}?`],
+      controls: `${inputForm('salary', draft.moneda === 'USD' ? 'Ej: 1.500' : 'Ej: 900.000', 'decimal')}<p class="small muted guide-hint">Con eso calculo cuánto podés gastar por día. Queda guardado en tu cuenta: solo lo ves vos.</p><div class="chips">${chip('', 'Prefiero no decirlo ahora')}</div>`,
     };
     case 'cobro': return {
       bubbles: ['¿Cuándo cobrás? Tocá una opción o escribilo como te salga: "el 5", "4.º día hábil", "último día hábil"…'],
@@ -86,7 +91,7 @@ function current() {
     };
     case 'ahorroMonto': return {
       bubbles: ['¿Cuánto querés apartar por mes?'],
-      controls: `${inputForm('ahorro', 'Ej: 100.000', 'decimal')}<div class="chips">${chip('', 'Lo decido después')}</div>`,
+      controls: `${inputForm('ahorro', draft.moneda === 'USD' ? 'Ej: 200' : 'Ej: 100.000', 'decimal')}<div class="chips">${chip('', 'Lo decido después')}</div>`,
     };
     case 'provincia': return {
       bubbles: ['¿En qué provincia vivís? Muchas promos valen solo en una provincia, así te muestro las tuyas.'],
@@ -124,6 +129,7 @@ const OTROS_CONOCIDOS = ['Banco Patagonia', 'Banco Comafi', 'Banco Hipotecario',
 export function render(s) {
   knownName = ((s && s.profile && s.profile.name) || '').trim().split(' ')[0].slice(0, 30);
   if (knownName && !draft.name) draft.name = knownName;
+  setMoneda(draft.moneda);
   const c = current();
   const MAIN_STEPS = mainSteps();
   const total = MAIN_STEPS.length;
@@ -162,6 +168,7 @@ function answer(ctx, raw, fromInput) {
   switch (step) {
     case 'hola': step = nextStep(step); ctx.render(); return;
     case 'nombre': draft.name = value.slice(0, 30); shown = value || 'Prefiero saltearlo'; break;
+    case 'moneda': draft.moneda = value === 'USD' ? 'USD' : 'ARS'; setMoneda(draft.moneda); shown = draft.moneda === 'USD' ? 'Dólares' : 'Pesos'; break;
     case 'sueldo': {
       const n = value ? parseAmount(value) : 0;
       if (fromInput && !n) { nota = 'No entendí el monto. Probá así: 900.000'; ctx.render(); return; }
@@ -232,6 +239,7 @@ export const actions = {
     const d = draft;
     ctx.commit((s) => {
       s.ready = true;
+      s.settings = { ...(s.settings || {}), moneda: d.moneda === 'USD' ? 'USD' : 'ARS' };
       const regla = d.payRule || { tipo: 'dia', dia: 1 };
       s.profile = { ...s.profile, name: d.name || s.profile.name, payRule: regla, paydayVaries: regla.tipo === 'varia', payday: regla.tipo === 'dia' ? regla.dia : regla.tipo === 'ultimo' ? 31 : 1, province: d.province, city: d.city };
       if (d.salary) s.incomes.push({ id: uid(), date: todayISO(), amount: d.salary, type: 'sueldo', note: 'Sueldo' });

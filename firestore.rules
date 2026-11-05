@@ -1,6 +1,6 @@
 rules_version = '2';
 // =========================================================
-// Pesitos — reglas de seguridad de Firestore (versión 3: sin cifrado de extremo a extremo)
+// Pesitos — reglas de seguridad de Firestore (versión 4: con espacios compartidos y avisos de error)
 // Pegalas en Firebase → Firestore Database → Reglas → Publicar.
 //
 //   usuarios/{uid}           fechas y el PIN de seguridad (solo su hash). Sin nombre ni mail.
@@ -13,6 +13,12 @@ rules_version = '2';
 //                            (cantidades por día, sin montos, nombres ni comercios).
 //   publico/*                promos e inflación: los escribe solo el servidor (Vercel,
 //                            con su clave propia); la app los lee por /api/datos.
+//   espacios/{id}            modo compartido: { nombre, dueno, miembros, nombres, creado }.
+//                            Solo lo leen y escriben sus miembros. Para sumarse hace falta
+//                            el id, que solo se consigue con un código de invitación.
+//   espacios/{id}/estado/*   los datos del espacio (igual que usuarios/{uid}/estado).
+//   invitaciones/{código}    { esp, creado, vence }: se lee solo sabiendo el código (no se pueden listar).
+//   reportes/{id}            "Avisar un error" en una promo: solo se crean; los lee el servidor.
 // Todo lo demás está cerrado. Solo entra una cuenta con el mail verificado
 // (las de Google vienen verificadas).
 // =========================================================
@@ -71,6 +77,74 @@ service cloud.firestore {
           && request.resource.data.dias is map
           && request.resource.data.dias.size() <= 60;
       }
+    }
+
+    function verificado() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function esMiembro(espId) {
+      return verificado()
+        && request.auth.uid in get(/databases/$(database)/documents/espacios/$(espId)).data.miembros;
+    }
+
+    match /espacios/{espId} {
+      allow read: if verificado() && request.auth.uid in resource.data.miembros;
+      allow create: if verificado()
+        && espId.matches('^[0-9a-f]{20}$')
+        && request.resource.data.keys().hasOnly(['nombre', 'dueno', 'miembros', 'nombres', 'creado'])
+        && request.resource.data.dueno == request.auth.uid
+        && request.resource.data.miembros == [request.auth.uid]
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() <= 40;
+      // sumarse (agregarse a uno mismo), salir (sacarse a uno mismo) o, siendo miembro, cambiar el nombre
+      allow update: if verificado()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros', 'nombres', 'nombre'])
+        && request.resource.data.miembros.size() <= 8
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() <= 40
+        && (
+          (!(request.auth.uid in resource.data.miembros)
+            && request.resource.data.miembros.hasAll(resource.data.miembros)
+            && request.resource.data.miembros.size() == resource.data.miembros.size() + 1
+            && request.auth.uid in request.resource.data.miembros
+            && request.resource.data.nombre == resource.data.nombre)
+          || (request.auth.uid in resource.data.miembros
+            && resource.data.miembros.hasAll(request.resource.data.miembros)
+            && (request.resource.data.miembros.size() == resource.data.miembros.size()
+              || (request.resource.data.miembros.size() == resource.data.miembros.size() - 1 && !(request.auth.uid in request.resource.data.miembros))))
+        );
+      allow delete: if verificado() && request.auth.uid in resource.data.miembros && resource.data.miembros.size() == 1;
+
+      match /estado/{docId} {
+        allow read, delete: if esMiembro(espId);
+        allow create, update: if esMiembro(espId)
+          && docId.matches('^(general|(expenses|incomes|transfers)-([0-9]{4}|sin-fecha))(~[0-9]{1,2})?$')
+          && request.resource.data.keys().hasOnly(['json', 'actualizado'])
+          && request.resource.data.json is string
+          && request.resource.data.json.size() < 1000000;
+      }
+    }
+
+    match /invitaciones/{codigo} {
+      allow get: if verificado() && resource.data.vence > request.time;
+      allow list: if false;
+      allow create: if verificado()
+        && codigo.matches('^[A-Z0-9]{8}$')
+        && request.resource.data.keys().hasOnly(['esp', 'creado', 'vence'])
+        && request.resource.data.esp is string
+        && esMiembro(request.resource.data.esp)
+        && request.resource.data.vence is timestamp
+        && request.resource.data.vence < request.time + duration.value(8, 'd');
+      allow delete: if verificado() && esMiembro(resource.data.esp);
+    }
+
+    match /reportes/{id} {
+      allow create: if verificado()
+        && id.matches('^[0-9a-f]{20}$')
+        && request.resource.data.keys().hasOnly(['uid', 'medio', 'comercio', 'pct', 'motivo', 'texto', 'creado'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.medio is string && request.resource.data.medio.size() <= 40
+        && request.resource.data.comercio is string && request.resource.data.comercio.size() <= 80
+        && request.resource.data.motivo is string && request.resource.data.motivo.size() <= 20
+        && request.resource.data.texto is string && request.resource.data.texto.size() <= 300;
     }
 
     match /{document=**} {

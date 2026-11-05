@@ -24,7 +24,10 @@ import { aplicarTema, aplicarLetra } from './js/tema.js';
 import { commonActions, addPendingFromText } from './js/acciones.js';
 import { guideActions } from './js/guia.js';
 import { habitosActions } from './js/habitos.js';
+import { monedaActions } from './js/moneda.js';
+import { espacioActions, misEspacios, recordarEspacios, kModo } from './js/espacios.js';
 import { refreshRates } from './js/cotizaciones.js';
+import { setMoneda } from './js/formato.js';
 import { refreshLive } from './js/datosvivos.js';
 import { refreshRendimientos } from './js/rendimientos.js';
 import { refreshFeriados, usarFeriados } from './js/feriados.js';
@@ -46,7 +49,6 @@ import * as deudas from './js/deudas.js';
 import * as estadisticas from './js/estadisticas.js';
 import * as proyectos from './js/proyectos.js';
 import * as reintegros from './js/reintegros.js';
-import * as estado from './js/estado.js';
 import { actions as inversionesActions } from './js/inversiones.js';
 import { notifyDue } from './js/agenda.js';
 import { setCustomCategories, setCustomWallets } from './js/categorias.js';
@@ -54,7 +56,7 @@ import { setCustomCategories, setCustomWallets } from './js/categorias.js';
 // rutas viejas que ahora son pestañas de otra pantalla
 const vistaDe = (mod, v) => ({ render: (s) => mod.renderVista(s, v) });
 const views = { inicio, movimientos, ahorro, asesor, beneficios, herramientas, pagos, buscar, presupuestos,
-  cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas, proyectos, estadisticas, reintegros, estado };
+  cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas, proyectos, estadisticas, reintegros };
 const NAV_ORDER = ['inicio', 'movimientos', 'pagos', 'ahorro', 'herramientas'];
 
 let state = emptyState();
@@ -75,6 +77,8 @@ const ctx = {
   get state() { return state; },
   get syncStatus() { return syncStatus; },
   get uid() { return uidActual; },
+  get miNombre() { const u = cuenta.usuarioActual(); return ((u && u.displayName) || '').split(' ')[0]; },
+  abrirModo: (id, nombre, op) => abrirModo(id, nombre, op),
   commit(mutate) { mutate(state); persist(); render(); },
   // Guarda sin redibujar si estás escribiendo
   update(mutate) { mutate(state); persist(); if (!isTyping()) render(); },
@@ -93,6 +97,7 @@ function currentRoute() {
 
 function render() {
   if (!ready) return;
+  setMoneda((state.settings || {}).moneda);
   usarFeriados(state);
   setCustomCategories(state.customCategories, (state.catPrefs || {}).eliminadas || []);
   setCustomWallets(state.customWallets);
@@ -120,7 +125,7 @@ function render() {
   goingBack = false;
   lastRoute = route;
 
-  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', deudas: 'movimientos', proyectos: 'movimientos', reintegros: 'ahorro', estado: 'inicio', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
+  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', deudas: 'herramientas', proyectos: 'herramientas', reintegros: 'ahorro', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
@@ -128,7 +133,7 @@ function render() {
   if (route === 'inicio') tutorialPendiente(ctx);
 }
 
-const actions = Object.assign({ recargar: () => location.reload() }, commonActions, habitosActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, proyectos.actions, inversionesActions, reintegros.actions, reintegros.confirmarActions, estado.actions, {
+const actions = Object.assign({ recargar: () => location.reload() }, commonActions, habitosActions, monedaActions, espacioActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, proyectos.actions, inversionesActions, reintegros.actions, reintegros.confirmarActions, {
   goBack() {
     trail.pop();
     const prev = trail.pop() || 'inicio';
@@ -209,7 +214,7 @@ function refreshAll(force = false) {
   refreshRendimientos(ctx, force);
   refreshFeriados(ctx);
   notifyDue(ctx);
-  publicarAgenda(state, uidActual);
+  if (!state.espacio) publicarAgenda(state, uidActual); // los avisos al celular son de tu plata personal
 }
 // al volver a la app: cambios hechos desde otro dispositivo
 async function traerDeOtroDispositivo() {
@@ -221,6 +226,51 @@ document.addEventListener('visibilitychange', () => { refreshAll(); traerDeOtroD
 window.addEventListener('focus', () => refreshAll());
 window.addEventListener('online', () => refreshAll(true));
 setInterval(() => refreshAll(), 5 * 60 * 1000);
+// en un espacio compartido, cada 20 segundos me fijo si la otra persona cargó algo
+setInterval(() => { if (state.espacio) traerDeOtroDispositivo(); }, 20000);
+
+// ---------- modos: tu plata personal o un espacio compartido ----------
+async function abrirModo(espId, nombre = null, { nuevo = false, quitar = null } = {}) {
+  const u = cuenta.usuarioActual(); if (!u) return;
+  const antes = state;
+  if (!antes.espacio) recordarEspacios(u.uid, misEspacios(u.uid, antes));
+  ready = false;
+  pantallaCarga(espId ? `Abriendo ${nombre || 'el espacio compartido'}…` : 'Abriendo tu plata…');
+  save(state);
+  await nube.detener();
+  useAccount(espId ? `esp_${espId}` : u.uid);
+  const local = hasLocal() ? load() : null;
+  let r;
+  try {
+    r = await nube.iniciar(u, { local, espacio: espId, onStatus: (st) => { syncStatus = st; },
+      onRemoto: (m) => { state = m; save(state); if (!isTyping() && document.getElementById('modal').hidden) render(); } });
+  } catch (e) {
+    console.warn(e); toast('No pude abrir ese modo. Revisá tu conexión.');
+    useAccount(u.uid); r = await nube.iniciar(u, { local: load(), onStatus: (st) => { syncStatus = st; } }); espId = null;
+  }
+  state = r.state;
+  if (espId) {
+    // espacio nuevo o recién sumado: arranca listo, con tu provincia y tu día de cobro como punto de partida
+    if (!state.ready || nuevo) {
+      state.ready = true; state.tutorialVisto = true;
+      state.profile = { ...state.profile, name: nombre || 'Familia', payRule: antes.profile.payRule, payday: antes.profile.payday, paydayVaries: antes.profile.paydayVaries, province: antes.profile.province, city: antes.profile.city };
+      state.settings = { ...state.settings, moneda: (antes.settings || {}).moneda || 'ARS' };
+    }
+    state.espacio = { id: espId, nombre: nombre || (state.espacio && state.espacio.nombre) || 'Familia' };
+    for (const k of ['rates', 'live', 'rendimientos', 'feriados', 'ipcAuto']) if (antes[k] !== undefined && state[k] === undefined) state[k] = antes[k];
+    persist();
+  } else {
+    delete state.espacio;
+    if (quitar) { state.espacios = (state.espacios || []).filter((e) => e.id !== quitar); persist(); }
+    else { const lista = misEspacios(u.uid, state); if (JSON.stringify(lista) !== JSON.stringify(state.espacios || [])) { state.espacios = lista; persist(); } }
+  }
+  try { if (espId) localStorage.setItem(kModo(u.uid), espId); else localStorage.removeItem(kModo(u.uid)); } catch { /* nada */ }
+  save(state);
+  ready = true;
+  trail.length = 0; location.hash = '#/inicio'; trail.push('inicio');
+  render();
+  refreshAll(true);
+}
 
 // ---------- arranque con cuenta ----------
 let uidActual = null;
@@ -326,6 +376,12 @@ async function conSesion(u) {
   refreshAll(true);
   handleShare();
   handleAtajo();
+  // si la última vez estabas en un espacio compartido, vuelvo a abrirlo
+  try {
+    const m = localStorage.getItem(kModo(u.uid));
+    const e = m && misEspacios(u.uid, state).find((x) => x.id === m);
+    if (e && !state.demo) await abrirModo(e.id, e.nombre);
+  } catch (err) { console.warn(err); }
 }
 
 async function arrancar() {

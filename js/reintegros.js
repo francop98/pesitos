@@ -14,6 +14,7 @@ import { normalize, toISO, parseISO, addDays, todayISO, money } from './formato.
 import { currentPromos } from './economista.js';
 import { walletName, allWallets, catReal } from './categorias.js';
 import { statementOf, statementDates } from './agenda.js';
+import { pesosABase } from './cotizaciones.js';
 
 const share = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);
 const GENERICO = /supermercado|farmacia|librer|rubro|todos los|gastronom|combustible|estaciones de servicio|tiendas adheridas|locales adheridos|comercios adheridos/;
@@ -74,7 +75,13 @@ function fechaAcredita(s, fechaGasto, wallet, ctx) {
 function reglas(s) {
   const out = [];
   for (const p of currentPromos(s).items || []) {
-    out.push({ key: `p:${p.wallet}:${normalize(p.merchant || '').slice(0, 30)}:${p.pct}`, wallet: p.wallet, nombre: p.wallet === 'todos' ? 'Cualquier medio' : (p.walletName || walletName(p.wallet)), pct: Number(p.pct) || 0, cap: Number(p.cap) || 0, capPeriodo: p.capPeriod || 'semana', dias: p.days || [], categoria: catReal(p.category || ''), comercio: p.merchant || '', minimo: p.minPurchase || 0, cond: p.cond || '', origen: 'promo', ...(p.capUnknown && !p.cap ? { capDudoso: true } : {}), ...(p.verified ? { verificado: p.verified } : {}), validTo: p.validTo || '' });
+    out.push({ key: `p:${p.wallet}:${normalize(p.merchant || '').slice(0, 30)}:${p.pct}`, wallet: p.wallet, nombre: p.wallet === 'todos' ? 'Cualquier medio' : (p.walletName || walletName(p.wallet)), pct: Number(p.pct) || 0, cap: pesosABase(s, Number(p.cap) || 0), capPeriodo: p.capPeriod || 'semana', dias: p.days || [], categoria: catReal(p.category || ''), comercio: p.merchant || '', minimo: pesosABase(s, p.minPurchase || 0), cond: p.cond || '', origen: 'promo', ...(p.capUnknown && !p.cap ? { capDudoso: true } : {}), ...(p.verified ? { verificado: p.verified } : {}), validTo: p.validTo || '' });
+  }
+  // topes que aprendí de lo que de verdad te devolvieron
+  const ap = s.topesAprendidos || {};
+  for (const r of out) {
+    const t = ap[r.key]; if (!t || !(t.cap > 0)) continue;
+    if (!r.cap || t.cap < r.cap) { r.cap = t.cap; r.capPeriodo = t.periodo || r.capPeriodo; r.capAprendido = true; delete r.capDudoso; }
   }
   for (const b of s.misBeneficios || []) {
     out.push({ key: `b:${b.id}`, wallet: b.wallet, nombre: b.nombre || walletName(b.wallet), pct: Number(b.pct) || 0, cap: Number(b.cap) || 0, capPeriodo: b.capPeriodo || 'mes', dias: b.dias && b.dias.length ? b.dias : [0, 1, 2, 3, 4, 5, 6], categoria: b.categoria || '', comercio: b.comercio || '', minimo: 0, cond: b.cond || '', origen: 'mio' });
@@ -107,6 +114,8 @@ function periodoDe(fecha, p) { return p === 'mes' ? fecha.slice(0, 7) : periodo(
 export function detectarReintegro(s, e) {
   if (!e || e.pending || !e.amount || e.fromPayment) return null;
   const w = walletDeGasto(s, e); if (!w) return null;
+  // una transferencia no entra en las promos (casi todas piden pagar con QR o con la tarjeta)
+  if (/\btransf/i.test(normalize(e.note || ''))) return null;
   const dia = parseISO(e.date).getDay();
   const monto = share(e) === e.amount ? e.amount : e.amount; // el reintegro va sobre el total de la compra
   let mejor = null;
@@ -125,7 +134,7 @@ export function detectarReintegro(s, e) {
       const usado = per ? (s.expenses || []).filter((x) => x.id !== e.id && x.reintegro && !x.reintegro.no && x.reintegro.key === r.key && periodoDe(x.date, r.capPeriodo) === per).reduce((a, x) => a + x.reintegro.monto, 0) : 0;
       v = Math.max(0, Math.min(v, r.cap - usado));
     }
-    v = Math.round(v);
+    v = Math.round(v * 100) / 100; // centavos: en dólares importan
     if (v > 0 && (!mejor || v > mejor.monto)) mejor = { monto: v, pct: r.pct, key: r.key, wallet: r.wallet === 'todos' ? w.wallets[0] : r.wallet, nombre: r.nombre, origen: r.origen, ...(r.capDudoso ? { aprox: true } : {}) };
   }
   if (!mejor) return null;
@@ -157,14 +166,14 @@ export function conQuePagar(s, { texto, categoria, monto }) {
   const porWallet = new Map();
   for (const r of reglas(s)) {
     if (!coincide(r, texto, categoria)) continue;
-    const v = Math.round(Math.min(monto * r.pct / 100, r.cap || Infinity));
-    if (r.minimo && monto < r.minimo) continue;
+    const v = monto ? Math.round(Math.min(monto * r.pct / 100, r.cap || Infinity) * 100) / 100 : 0;
+    if (monto && r.minimo && monto < r.minimo) continue;
     const tuyo = r.wallet === 'todos' || mias.has(r.wallet);
     const k = r.wallet;
     const prev = porWallet.get(k);
-    if (!prev || v > prev.ahorro) porWallet.set(k, { wallet: r.wallet, nombre: r.nombre, tuyo, pct: r.pct, cap: r.cap, capPeriodo: r.capPeriodo, capDudoso: r.capDudoso, ahorro: v, dias: r.dias, cond: r.cond, comercio: r.comercio, origen: r.origen });
+    if (!prev || v > prev.ahorro || (!monto && r.pct > prev.pct)) porWallet.set(k, { wallet: r.wallet, nombre: r.nombre, tuyo, pct: r.pct, cap: r.cap, capPeriodo: r.capPeriodo, capDudoso: r.capDudoso, ahorro: v, dias: r.dias, cond: r.cond, comercio: r.comercio, origen: r.origen });
   }
-  return [...porWallet.values()].filter((x) => x.ahorro > 0).sort((a, b) => b.ahorro - a.ahorro || b.tuyo - a.tuyo);
+  return [...porWallet.values()].filter((x) => x.ahorro > 0 || !monto).sort((a, b) => b.ahorro - a.ahorro || b.pct - a.pct || b.tuyo - a.tuyo);
 }
 
 const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
@@ -206,13 +215,12 @@ export function topesDeTusMedios(s) {
 function topesHtml(s) {
   const l = topesDeTusMedios(s);
   if (!l.length) return '';
-  const hoyDia = new Date().getDay();
   const fila = (r) => {
     const donde = r.comercio ? esc(r.comercio) : r.categoria ? esc(catLabel(r.categoria)) : 'En todas tus compras';
     const tope = r.cap ? `<span class="tope-barra" role="img" aria-label="Usaste ${money(r.usado)} de ${money(r.cap)}"><span style="width:${Math.min(100, Math.round((r.usado / r.cap) * 100))}%"></span></span>
       <span class="meta"><b>Te queda ${money(r.queda)}</b> de ${money(r.cap)} ${PER_TXT[r.capPeriodo] || ''}${r.usado ? ` (usaste ${money(r.usado)})` : ''}</span>` : `<span class="meta">${r.capDudoso ? '⚠️ Tope sin confirmar: el banco no lo publica' : 'Sin tope'}</span>`;
-    return `<div class="row tope-fila"><span class="grow"><span class="name">${esc(r.nombre)} · ${r.pct}%${(r.dias || []).includes(hoyDia) ? ' <span class="chip-mini">Hoy</span>' : ''}</span>
-      <span class="meta">${donde} · ${diasTxt(r.dias)}${r.minimo ? ` · compra mínima ${money(r.minimo)}` : ''}${r.verificado ? ` · verificada el ${fecha(r.verificado)}` : ''}${r.validTo ? ` · hasta el ${fecha(r.validTo)}` : ''}</span>${tope}</span></div>`;
+    const aprendidoTxt = r.capAprendido ? '<span class="meta">Tope aprendido de lo que te devolvieron</span>' : '';
+    return `<div class="row tope-fila"><span class="grow"><span class="name">${esc(r.nombre)} · ${r.pct}% <span class="tope-donde">${donde}</span></span>${tope}${aprendidoTxt}</span></div>`;
   };
   const primeras = l.slice(0, 6); const resto = l.slice(6);
   return `<div class="section-title"><span>Tus descuentos y topes</span></div>
@@ -248,7 +256,6 @@ export function render(s) {
     <div class="section-title"><span>Por cobrar</span></div>
     ${pend.length ? `<div class="card tight">${pend.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(fila).join('')}</div>`
       : '<p class="empty">Nada pendiente. Cuando anotes una compra con un medio que tiene promo o cashback, lo calculo solo.</p>'}
-    <button class="btn block" data-action="openConQuePagar">${icon('ticket', 18)} ¿Con qué conviene pagar?</button>
     ${topesHtml(s)}
     <div class="section-title"><span>Tus cashback y beneficios propios</span><button data-action="nuevoBeneficio">+ Agregar</button></div>
     ${(s.misBeneficios || []).length ? `<div class="card tight">${s.misBeneficios.map((b) => `<button class="row" data-action="editarBeneficio" data-id="${esc(b.id)}">
@@ -256,11 +263,11 @@ export function render(s) {
         ${icon('chevron', 16)}</button>`).join('')}</div>`
       : '<p class="small muted" style="margin:0">Las promos de bancos y billeteras las traigo solas. Acá cargás las que no aparecen: por ejemplo, el cashback de una billetera (Claro Pay, Personal Pay…) o un reintegro de tu banco.</p>'}
     <div class="section-title"><span>Cuándo te devuelve cada uno</span></div>
+    <p class="small muted" style="margin:0">Personalizá cuándo te devuelve cada uno: tocá el banco o la billetera y cambiá el día.</p>
     <div class="card tight">${misMedios(s).map((m) => { const r = reglaAcredita(s, m.id, m.tarjeta); return `<button class="row" data-action="editarAcredita" data-id="${esc(m.id)}">
         <span class="grow"><span class="name">${esc(m.nombre)}</span><span class="meta">${textoAcredita(r)}</span></span>${icon('chevron', 16)}</button>`; }).join('') || '<p class="empty">Cargá tus bancos y billeteras en Menú → Mis medios de pago.</p>'}</div>
     ${cob.length ? `<details class="card"><summary><strong>Cobrados (últimos 45 días)</strong> · ${money(totalReintegros(cob))}</summary><div class="card tight" style="margin-top:8px">${cob.map(fila).join('')}</div></details>` : ''}
     <p class="small muted" style="margin:0">Cuando llega la fecha te pregunto si te llegó y por cuánto. Recién ahí se suma a tu saldo (o baja el resumen si pagaste con tarjeta), a "Hoy podés gastar" y a "Te ahorraste". Así el saldo de Pesitos no se separa del de tu banco.</p>
-    <button class="link-btn" data-action="irEstado" style="align-self:flex-start">Ver de cuándo son las promos y qué tan confiables son ›</button>
   </section>`;
 }
 
@@ -319,26 +326,34 @@ function aPagar(s) {
   return out;
 }
 function opcionHtml(o, monto) {
-  return `<div class="cqp-op ${o.tuyo ? 'tuyo' : ''}"><span class="grow"><b>${esc(o.nombre)}</b>${o.tuyo ? '' : ' <span class="pill">No lo tenés</span>'}<span class="small muted">${o.pct}% · ${diasTxt(o.dias)} · ${capTxt(o)}${o.cond ? ` · ${esc(o.cond.slice(0, 90))}` : ''}</span></span>
-    <b class="pos">−${money(o.ahorro)}</b></div>`;
+  const hoy = (o.dias || []).includes(new Date().getDay());
+  return `<div class="cqp-op ${o.tuyo ? 'tuyo' : ''}"><span class="grow"><span><b>${esc(o.nombre)}</b> · ${o.pct}%${o.tuyo ? '' : ' <span class="pill">No la tenés</span>'}${hoy ? ' <span class="chip-mini">Hoy</span>' : ''}</span><span class="small muted">${diasTxt(o.dias)} · ${capTxt(o)}${o.comercio ? ` · ${esc(o.comercio)}` : ''}${o.cond ? ` · ${esc(o.cond.slice(0, 90))}` : ''}</span></span>
+    ${monto ? `<b class="pos">−${money(o.ahorro)}</b>` : ''}</div>`;
 }
-function cqpResultados(s, item) {
+function cqpResultados(s, item, todo = false) {
   const ops = conQuePagar(s, item);
-  if (!ops.length) return '<p class="small muted" style="margin:0">No encontré promos ni cashback para esto. Si tu billetera tiene uno, cargalo en Reintegros → + Cashback.</p>';
-  const tuyas = ops.filter((o) => o.tuyo).slice(0, 2); const otras = ops.filter((o) => !o.tuyo).slice(0, 2);
-  return `${tuyas.map((o) => opcionHtml(o, item.monto)).join('')}${otras.length && (!tuyas.length || otras[0].ahorro > tuyas[0].ahorro) ? otras.map((o) => opcionHtml(o, item.monto)).join('') : ''}`;
+  if (!ops.length) return '<p class="small muted" style="margin:0">No encontré reintegros, cashback ni beneficios para esto en ningún banco o billetera. Si tenés uno que no aparece, cargalo en Reintegros → + Cashback.</p>';
+  const tuyas = ops.filter((o) => o.tuyo); const otras = ops.filter((o) => !o.tuyo);
+  if (!todo) return `${tuyas.slice(0, 2).map((o) => opcionHtml(o, item.monto)).join('')}${otras.length && (!tuyas.length || otras[0].ahorro > tuyas[0].ahorro) ? otras.slice(0, 1).map((o) => opcionHtml(o, item.monto)).join('') : ''}`;
+  const mejorTuya = tuyas[0];
+  const conviene = otras.filter((o) => !mejorTuya || (item.monto ? o.ahorro > mejorTuya.ahorro : o.pct > mejorTuya.pct));
+  return `<span class="cqp-sub">Con lo que tenés</span>
+    ${tuyas.length ? tuyas.slice(0, 5).map((o) => opcionHtml(o, item.monto)).join('') : '<p class="small muted" style="margin:0">Con tus bancos y billeteras no hay nada para esto.</p>'}
+    ${conviene.length ? `<span class="cqp-sub">Con otra billetera o banco que no tenés</span>${conviene.slice(0, 4).map((o) => opcionHtml(o, item.monto)).join('')}
+    <span class="small muted">Muchas billeteras (MODO, Mercado Pago, Ualá…) se abren gratis en minutos. Fijate si te conviene por lo que gastás.</span>` : ''}`;
 }
 export function mejorConTusMedios(s, item) {
   const o = conQuePagar(s, item).find((x) => x.tuyo);
   return o && o.ahorro > 0 ? o : null;
 }
+const cqpItem = (s, q, m) => ({ texto: q, categoria: guessCategory(q, s.learned), monto: m || 0 });
 function cqpBody(s, q = '', m = 0) {
   const lista = aPagar(s);
-  return `<div class="card"><div class="field"><label for="cqp-q">¿Qué vas a pagar?</label><input id="cqp-q" value="${esc(q)}" placeholder="Ej: Claro, Coto, nafta" data-input="cqpBuscar" autocomplete="off"></div>
-      <div class="field"><label for="cqp-m">¿Cuánto?</label><input id="cqp-m" inputmode="decimal" value="${m || ''}" placeholder="Ej: 30.000" data-input="cqpBuscar"></div>
-      <div data-cqp-res>${q && m ? cqpResultados(s, { texto: q, categoria: guessCategory(q, s.learned), monto: m }) : '<span class="small muted">Escribí el comercio o servicio y el monto.</span>'}</div></div>
-    ${lista.length ? `<div class="section-title"><span>Tus pagos y compras de siempre</span></div>
-    ${lista.map((it) => `<div class="card cqp"><div class="split"><strong>${esc(it.texto)}</strong><span class="small muted">${esc(it.tipo)} · ${money(it.monto)}</span></div>${cqpResultados(s, it)}</div>`).join('')}` : ''}
+  return `<div class="card"><div class="field"><label for="cqp-q">¿Qué vas a pagar?</label><input id="cqp-q" value="${esc(q)}" placeholder="Ej: Coto, nafta, farmacia, Claro" data-input="cqpBuscar" autocomplete="off" enterkeyhint="search"></div>
+      <div class="field"><label for="cqp-m">¿Cuánto? <span class="muted">(opcional)</span></label><input id="cqp-m" inputmode="decimal" value="${m || ''}" placeholder="Para calcular cuánto te devuelven" data-input="cqpBuscar"></div>
+      <div data-cqp-res>${q ? cqpResultados(s, cqpItem(s, q, m), true) : '<span class="small muted">Escribí el comercio, rubro o servicio y te busco reintegros, cashback y beneficios en tus bancos y billeteras, y en las que no tenés.</span>'}</div></div>
+    ${lista.length ? `<details class="card"><summary><strong>Tus pagos y compras de siempre</strong></summary>
+    ${lista.map((it) => `<div class="cqp" style="margin-top:10px"><div class="split"><strong>${esc(it.texto)}</strong><span class="small muted">${esc(it.tipo)} · ${money(it.monto)}</span></div>${cqpResultados(s, it)}</div>`).join('')}</details>` : ''}
     <p class="small muted" style="margin:0">Uso las promos vigentes de bancos y billeteras (se actualizan solas todos los días) y los cashback que cargaste vos. Revisá las condiciones antes de pagar.</p>`;
 }
 
@@ -357,13 +372,23 @@ export const confirmarActions = {
       <button class="btn primary block" type="submit">Guardar</button></form>`);
   },
   reintOtroGuardar(ctx, d) {
-    const v = Math.round(num(d.monto)); if (!(v >= 0)) return;
+    const v = Math.round(num(d.monto) * 100) / 100; if (!(v >= 0)) return;
+    let aprendido = 0;
     ctx.commit((s) => {
       const e = reintDe(s, d.id); if (!e) return;
       e.reintegro.esperado = e.reintegro.esperado || e.reintegro.monto;
       if (v === 0) { e.reintegro.no = true; e.reintegro.noLlego = true; } else { e.reintegro.monto = v; e.reintegro.ok = true; if (e.reintegro.fecha > todayISO()) e.reintegro.fecha = todayISO(); }
+      // te devolvieron menos de lo calculado: lo más probable es que el banco tenga un tope (o uno más bajo).
+      // Aprendo ese tope: lo que te devolvieron en total en ese período con esa promo.
+      if (v > 0 && v < e.reintegro.esperado - 1 && e.reintegro.key && !e.reintegro.manual) {
+        const regla = reglas(s).find((x) => x.key === e.reintegro.key);
+        const per = (regla && regla.capPeriodo) || 'semana';
+        const p0 = periodoDe(e.date, per);
+        const total = (s.expenses || []).filter((x) => x.reintegro && x.reintegro.ok && !x.reintegro.no && x.reintegro.key === e.reintegro.key && periodoDe(x.date, per) === p0).reduce((a, x) => a + x.reintegro.monto, 0);
+        if (total > 0) { s.topesAprendidos = { ...(s.topesAprendidos || {}), [e.reintegro.key]: { cap: Math.round(total * 100) / 100, periodo: per, desde: todayISO() } }; aprendido = total; }
+      }
     });
-    closeModal(); toast(v ? `Listo: sumé ${money(v)} a tu saldo` : 'Listo: no te llegó nada');
+    closeModal(); toast(v ? `Listo: sumé ${money(v)} a tu saldo${aprendido ? `. Anoto que el tope de esa promo es ${money(aprendido)}: lo uso la próxima` : ''}` : 'Listo: no te llegó nada');
   },
   reintNoLlego(ctx, el) {
     ctx.commit((s) => { const e = reintDe(s, el.dataset.id); if (e) { e.reintegro.no = true; e.reintegro.noLlego = true; } });
@@ -376,7 +401,7 @@ export const actions = {
   cqpBuscar(ctx) {
     const q = document.getElementById('cqp-q')?.value.trim() || ''; const m = num(document.getElementById('cqp-m')?.value);
     const r = document.querySelector('[data-cqp-res]'); if (!r) return;
-    r.innerHTML = q && m ? cqpResultados(ctx.state, { texto: q, categoria: guessCategory(q, ctx.state.learned), monto: m }) : '<span class="small muted">Escribí el comercio o servicio y el monto.</span>';
+    r.innerHTML = q.length >= 2 ? cqpResultados(ctx.state, cqpItem(ctx.state, q, m), true) : '<span class="small muted">Escribí el comercio, rubro o servicio.</span>';
   },
   nuevoBeneficio(ctx) { openModal('Cashback o reintegro', beneficioForm(ctx.state), { push: true }); },
   editarBeneficio(ctx, el) { const b = (ctx.state.misBeneficios || []).find((x) => x.id === el.dataset.id); if (b) openModal('Cashback o reintegro', beneficioForm(ctx.state, b)); },

@@ -11,7 +11,7 @@ import { alerts, dueLabel, closings, agenda } from './agenda.js';
 import { promosForDay } from './economista.js';
 import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo, patrimonio } from './cuentas.js';
 import { projection, coverage } from './flujo.js';
-import { reglaDeCobro } from './feriados.js';
+import { reglaDeCobro, fechaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
 import { mediosRapidos } from './acciones.js';
 import { instalada } from './menu.js';
@@ -20,6 +20,7 @@ import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal
 import { uid } from './almacenamiento.js';
 import { reintegrosPorConfirmar } from './reintegros.js';
 import { compararCard } from './miscuentas.js';
+import { chipModo } from './espacios.js';
 
 const MODE_TEXT = {
   payFirst: (s) => `Elegiste apartar el ${s.rules.payFirst.pct}% apenas cobrás`,
@@ -265,7 +266,7 @@ function widget(s, b, payText) {
   const cyclePct = Math.min(1, Math.max(0, 1 - b.cycle.daysLeft / Math.max(1, Math.round((b.cycle.next - b.cycle.start) / 86400000))));
   const slides = [
     `<div class="card green hero slide">
-      <span class="hero-label">${b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}<button class="hero-info" data-action="openDiario" aria-label="Cómo se calcula y cómo se reparte lo que no gastás">${icon('info', 15)}</button></span>
+      <span class="hero-label">${b.noIncome || b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}<button class="hero-info" data-action="openDiario" aria-label="Cómo se calcula y cómo se reparte lo que no gastás">${icon('info', 15)}</button></span>
       <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
       ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(s, b, payText)}
@@ -278,19 +279,55 @@ function widget(s, b, payText) {
     </div>`,
     ritmoSlide(s, b),
   ].filter(Boolean);
-  const i = Math.min(slides.length - 1, widgetGuardado());
-  requestAnimationFrame(() => { const c = document.querySelector('[data-widget]'); if (c && i) c.scrollLeft = c.clientWidth * i; });
-  return `<div class="hero-wrap"><div class="hero-carrusel" data-widget aria-roledescription="carrusel" aria-label="Resumen de tu plata">${slides.join('')}</div>
-    <div class="hero-puntos" role="tablist">${slides.map((_, n) => `<button role="tab" data-action="widgetIr" data-i="${n}" aria-label="Ver ${['hoy', 'hasta el cobro', 'tu ritmo'][n]}" aria-selected="${n === i}"></button>`).join('')}</div></div>`;
+  // carrusel infinito: copia de la última al principio y de la primera al final;
+  // al llegar a una copia salta (sin animación) a la real.
+  const n = slides.length;
+  const i = Math.min(n - 1, widgetGuardado());
+  const vueltas = n > 1;
+  const copia = (h) => h.replace('class="card green hero slide"', 'class="card green hero slide copia" aria-hidden="true" inert');
+  const todas = vueltas ? [copia(slides[n - 1]), ...slides, copia(slides[0])] : slides;
+  requestAnimationFrame(() => { const c = document.querySelector('[data-widget]'); if (c) c.scrollLeft = paso(c) * (i + (vueltas ? 1 : 0)); });
+  return `<div class="hero-wrap"><div class="hero-carrusel" data-widget data-n="${n}" data-vueltas="${vueltas ? 1 : 0}" aria-roledescription="carrusel" aria-label="Resumen de tu plata">${todas.join('')}</div>
+    <div class="hero-puntos" role="tablist">${slides.map((_, k) => `<button role="tab" data-action="widgetIr" data-i="${k}" aria-label="Ver ${['hoy', 'hasta el cobro', 'tu ritmo'][k]}" aria-selected="${k === i}"></button>`).join('')}</div></div>`;
 }
-// al deslizar el widget, se marca el puntito y se recuerda
+// al deslizar el widget, se marca el puntito, se recuerda y se da la vuelta
+// (paso = ancho de una tarjeta + el espacio entre tarjetas)
+const paso = (c) => { const a = c.children[0]; const b = c.children[1]; return a && b ? b.offsetLeft - a.offsetLeft : Math.max(1, c.clientWidth); };
+const posReal = (c) => {
+  const n = Number(c.dataset.n) || 1; const v = c.dataset.vueltas === '1';
+  const p = Math.round(c.scrollLeft / Math.max(1, paso(c)));
+  return v ? (p - 1 + n) % n : p;
+};
+let finScroll = 0;
+const darVuelta = (c) => {
+  if (c.dataset.vueltas !== '1') return;
+  const n = Number(c.dataset.n); const w = paso(c);
+  const p = Math.round(c.scrollLeft / Math.max(1, w));
+  if (p === 0) c.scrollLeft = w * n;
+  else if (p === n + 1) c.scrollLeft = w;
+};
 document.addEventListener('scroll', (e) => {
   const c = e.target;
   if (!c || !c.matches || !c.matches('[data-widget]')) return;
-  const i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth));
-  c.parentElement.querySelectorAll('.hero-puntos button').forEach((b, n) => b.setAttribute('aria-selected', String(n === i)));
+  const i = posReal(c);
+  c.parentElement.querySelectorAll('.hero-puntos button').forEach((b, k) => b.setAttribute('aria-selected', String(k === i)));
   try { localStorage.setItem(K_WIDGET, String(i)); } catch { /* nada */ }
+  clearTimeout(finScroll); finScroll = setTimeout(() => darVuelta(c), 140);
 }, true);
+document.addEventListener('scrollend', (e) => { const c = e.target; if (c && c.matches && c.matches('[data-widget]')) { clearTimeout(finScroll); darVuelta(c); } }, true);
+
+// Día de cobro: si ya cobraste este mes y todavía no cargaste el sueldo, te lo recuerdo (hasta 5 días después)
+function sueldoPorCargar(s) {
+  if (reglaDeCobro(s.profile).tipo === 'varia') return null;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const pd = fechaDeCobro(s.profile, t.getFullYear(), t.getMonth()); pd.setHours(0, 0, 0, 0);
+  const dias = Math.round((t - pd) / 86400000);
+  if (dias < 0 || dias > 5) return null;
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const desde = new Date(pd); desde.setDate(desde.getDate() - 5);
+  if ((s.incomes || []).some((i) => i.type === 'sueldo' && i.date >= iso(desde))) return null;
+  return { mk: iso(pd).slice(0, 7), hoy: dias === 0, dia: `${pd.getDate()}/${pd.getMonth() + 1}` };
+}
 
 // "Tu día": el próximo pago, la promo de hoy y cuánto tenés en tus cuentas
 function tuDia(s) {
@@ -301,7 +338,9 @@ function tuDia(s) {
   const con = cuentasConSaldo(s).length;
   const tm = totalMeDeben(s); const td = totalDebo(s);
   const fila = (href, ic, k, v, sub) => `<a class="dia-fila" href="${href}"><span class="cat-icon">${icon(ic, 18)}</span><span class="grow"><span class="k">${k}${sub ? ` · ${sub}` : ''}</span><span class="v">${v}</span></span>${icon('chevron', 16)}</a>`;
+  const sueldo = sueldoPorCargar(s);
   return `<div class="card tight tu-dia"><span class="tu-dia-t">Tu día</span>
+    ${sueldo ? `<button class="dia-fila sueldo-fila" data-action="newSalary" data-mk="${sueldo.mk}"><span class="cat-icon green">${icon('up', 18)}</span><span class="grow"><span class="k">${sueldo.hoy ? 'Hoy cobrás' : `Cobraste el ${sueldo.dia}`}</span><span class="v">Cargá tu sueldo</span></span>${icon('chevron', 16)}</button>` : ''}
     ${fila('#/pagos', 'calendar', 'Próximo pago', prox ? `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}` : 'Nada por pagar este mes', prox ? esc(dueLabel(prox)) : '')}
     ${rec ? fila('#/pagos', 'bell', 'Recordatorio', esc(rec.name), rec.days === 0 ? 'hoy' : rec.days === 1 ? 'mañana' : rec.days < 0 ? 'pendiente' : `en ${rec.days} días`) : ''}
     ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
@@ -324,7 +363,7 @@ export function render(s) {
 
   return `<section class="screen">
     <div class="topbar">
-      <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${wordmark(26)}</div>
+      <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${s.espacio ? '' : wordmark(26)}${chipModo(s)}</div>
       <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><a class="icon-btn" href="#/asesor" aria-label="Asesor y ayuda">${icon('help', 22)}</a></span>
     </div>
 
@@ -465,7 +504,7 @@ export const actions = {
     ctx.commit((s) => { s.diario = { ...(s.diario || {}), destino: el.value }; });
     setModalBody('.modal-body', diarioBody(ctx.state));
   },
-  widgetIr(ctx, el) { const c = document.querySelector('[data-widget]'); if (c) c.scrollTo({ left: c.clientWidth * Number(el.dataset.i), behavior: 'smooth' }); },
+  widgetIr(ctx, el) { const c = document.querySelector('[data-widget]'); if (c) c.scrollTo({ left: paso(c) * (Number(el.dataset.i) + (c.dataset.vueltas === '1' ? 1 : 0)), behavior: 'smooth' }); },
   openAtajos() { openModal('Más secciones', `<div class="tiles">${ATAJOS.slice(3).map(tile).join('')}</div>`); },
   async huellaSi(ctx) { await bloqueoActions.bloqueoBio(); ctx.render(); },
   huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → PIN de seguridad y huella'); },

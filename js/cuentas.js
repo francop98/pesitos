@@ -7,7 +7,7 @@
 //   s.cuentaPrincipal id de la cuenta que se usa por defecto
 //   s.transferencias [{ id, date, from, to, amount, note }]
 //   s.deudas         [{ id, tipo: 'meDeben' | 'debo', persona, monto, date, nota, vence,
-//                       cuenta, pagos: [{ id, date, monto, cuenta }], origen }]
+//                       cuenta, pagos: [{ id, date, monto, cuenta, tc? }], origen, moneda?, tc? }]
 // Ids de cuenta: 'efectivo' o el id de un banco/billetera de "Mis medios de pago".
 // =========================================================
 
@@ -16,6 +16,7 @@ import { allWallets } from './categorias.js';
 import { todayISO, monthKey, monthDiff, toISO, parseISO } from './formato.js';
 import { BILLETERAS_QUE_RINDEN, crecer } from './rendimientos.js';
 import { holdingsTotal, cardSummary, fixedActive } from './calculos.js';
+import { aBase, monedaBase } from './cotizaciones.js';
 
 const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + f(x), 0);
 
@@ -59,8 +60,8 @@ export function movimientosDeCuenta(s, id, desde = '0000-00-00', hasta = todayIS
   for (const e of reintegrosDeCuenta(s, id, desde, hasta)) out.push({ date: e.reintegro.fecha, monto: e.reintegro.monto, texto: `Reintegro: ${e.note}`, tipo: 'reintegro', ref: e.id });
   for (const t of s.transfers || []) if (t.accountId === id && en(t.date)) out.push({ date: t.date, monto: -t.amount, texto: t.note || 'A ahorros', tipo: 'ahorro', ref: t.id });
   for (const d of s.deudas || []) {
-    if (d.cuenta === id && en(d.date) && !d.origen) out.push({ date: d.date, monto: d.tipo === 'meDeben' ? -d.monto : d.monto, texto: d.tipo === 'meDeben' ? `Le prestaste a ${d.persona}` : `Te prestó ${d.persona}`, tipo: 'deuda', ref: d.id });
-    for (const p of d.pagos || []) if (p.cuenta === id && en(p.date)) out.push({ date: p.date, monto: d.tipo === 'meDeben' ? p.monto : -p.monto, texto: d.tipo === 'meDeben' ? `${d.persona} te devolvió` : `Le devolviste a ${d.persona}`, tipo: 'deuda', ref: d.id });
+    if (d.cuenta === id && en(d.date) && !d.origen) out.push({ date: d.date, monto: d.tipo === 'meDeben' ? -enBaseDeuda(s, d, d.monto, d.tc) : enBaseDeuda(s, d, d.monto, d.tc), texto: d.tipo === 'meDeben' ? `Le prestaste a ${d.persona}` : `Te prestó ${d.persona}`, tipo: 'deuda', ref: d.id });
+    for (const p of d.pagos || []) if (p.cuenta === id && en(p.date)) out.push({ date: p.date, monto: d.tipo === 'meDeben' ? enBaseDeuda(s, d, p.monto, p.tc) : -enBaseDeuda(s, d, p.monto, p.tc), texto: d.tipo === 'meDeben' ? `${d.persona} te devolvió` : `Le devolviste a ${d.persona}`, tipo: 'deuda', ref: d.id });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }
@@ -100,8 +101,14 @@ export const totalCuentas = (s) => sum(cuentasConSaldo(s), (c) => saldoCuenta(s,
 export const pagadoDeuda = (d) => sum(d.pagos || [], (p) => p.monto);
 export const saldoDeuda = (d) => Math.max(0, Number(d.monto || 0) - pagadoDeuda(d));
 export const deudasAbiertas = (s, tipo) => (s.deudas || []).filter((d) => (!tipo || d.tipo === tipo) && saldoDeuda(d) > 0.5);
-export const totalMeDeben = (s) => sum(deudasAbiertas(s, 'meDeben'), saldoDeuda);
-export const totalDebo = (s) => sum(deudasAbiertas(s, 'debo'), saldoDeuda);
+// deudas en otra moneda (por ejemplo, dólares): d.moneda y d.tc (cotización al hacerla)
+export const deudaEnOtraMoneda = (s, d) => !!d.moneda && d.moneda !== monedaBase(s);
+/** Un monto de la deuda llevado a tu moneda con la cotización de ese momento (para el saldo de la cuenta). */
+export const enBaseDeuda = (s, d, monto, tc) => (deudaEnOtraMoneda(s, d) ? monto * (tc || d.tc || aBase(s, d.moneda) || 0) : monto);
+/** Lo que falta, en tu moneda, a la cotización de hoy. */
+export const saldoDeudaBase = (s, d) => (deudaEnOtraMoneda(s, d) ? saldoDeuda(d) * (aBase(s, d.moneda) || d.tc || 0) : saldoDeuda(d));
+export const totalMeDeben = (s) => sum(deudasAbiertas(s, 'meDeben'), (d) => saldoDeudaBase(s, d));
+export const totalDebo = (s) => sum(deudasAbiertas(s, 'debo'), (d) => saldoDeudaBase(s, d));
 
 /** Lo que falta pagar de créditos (gastos fijos con cuotas) */
 export function restaCreditos(s, mk = monthKey()) {

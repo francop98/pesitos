@@ -2,11 +2,11 @@
 // en vivo, conversor y metas.
 
 import { reintegrosCobrados, totalReintegros } from './reintegros.js';
-import { money, esc, num, todayISO, monthName } from './formato.js';
+import { money, pesos, esc, num, todayISO, monthName, monedaActual } from './formato.js';
 import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
 import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
 import { insights } from './economista.js';
-import { arsPer, convert, refreshRates, ratesAge, ratesStale } from './cotizaciones.js';
+import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar } from './cotizaciones.js';
 import { planAhorroHtml } from './asesor.js';
 import { cuerpo as cuerpoCuentas, patrimonioHtml } from './miscuentas.js';
 import { cuerpo as sueldoCuerpo } from './sueldo.js';
@@ -18,30 +18,49 @@ import { parseAmount } from './interprete.js';
 
 const nf = (d) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: d, minimumFractionDigits: 0 });
 export function fmtAsset(amount, assetId) {
+  if (String(assetId).startsWith('USD')) return `US$ ${nf(2).format(amount)}`;
   const a = assetById(assetId);
-  if (a.id === 'ARS') return money(amount);
+  if (a.id === 'ARS') return pesos(amount);
   return `${a.sym} ${nf(a.decimals).format(amount)}`;
 }
 
+// Cotizaciones que se pueden mostrar (vos elegís cuáles)
+export const COTIZ_OPCIONES = [
+  ...DOLARES.map(([id, nombre]) => ({ id, nombre, grupo: 'Dólares' })),
+  { id: 'EUR', nombre: 'Euro', grupo: 'Otras monedas' }, { id: 'BRL', nombre: 'Real', grupo: 'Otras monedas' },
+  { id: 'UYU', nombre: 'Peso uruguayo', grupo: 'Otras monedas' }, { id: 'CLP', nombre: 'Peso chileno', grupo: 'Otras monedas' },
+  { id: 'BTC', nombre: 'Bitcoin', grupo: 'Cripto y oro' }, { id: 'ETH', nombre: 'Ethereum', grupo: 'Cripto y oro' },
+  { id: 'USDT', nombre: 'USDT', grupo: 'Cripto y oro' }, { id: 'XAU', nombre: 'Oro (gramo)', grupo: 'Cripto y oro' },
+];
+const COTIZ_DEF = ['oficial', 'blue', 'bolsa', 'tarjeta', 'EUR', 'BTC'];
+const cotizElegidas = (s) => ((s.settings || {}).cotizVer && s.settings.cotizVer.length ? s.settings.cotizVer : COTIZ_DEF);
+function filaCotiz(s, id) {
+  const r = s.rates || {}; const c = r.crypto || {}; const dol = r.dolares || {};
+  const o = COTIZ_OPCIONES.find((x) => x.id === id); if (!o) return null;
+  if (dol[id] || DOLARES.some(([x]) => x === id)) { const d = dol[id] || (id === 'blue' ? r.USD : null); return { label: o.nombre, main: d ? `${d.compra ? `${pesos(d.compra)} / ` : ''}${pesos(d.venta)}` : null, sub: d && d.compra ? 'compra / venta' : 'venta', ref: id === dolarRef(s) }; }
+  if (['EUR', 'BRL', 'UYU', 'CLP'].includes(id)) return { label: o.nombre, main: r[id] ? pesos(r[id].venta) : null, sub: 'venta' };
+  const usdV = c[id]; const ars = usdV ? arsPer(s, id) : 0;
+  return { label: o.nombre, main: usdV ? `US$ ${nf(id === 'BTC' || id === 'ETH' ? 0 : 2).format(usdV)}` : null, sub: ars ? pesos(ars) : '' };
+}
 function quotes(s) {
-  const r = s.rates || {};
-  const c = r.crypto || {};
-  const rows = [
-    { label: 'Dólar blue', main: r.USD ? `${money(r.USD.compra)} / ${money(r.USD.venta)}` : null, sub: 'compra / venta' },
-    { label: 'Euro', main: r.EUR ? money(r.EUR.venta) : null, sub: 'venta' },
-    { label: 'Real', main: r.BRL ? money(r.BRL.venta) : null, sub: 'venta' },
-    { label: 'Bitcoin', main: c.BTC ? `US$ ${nf(0).format(c.BTC)}` : null, sub: c.BTC && arsPer(s, 'BTC') ? money(arsPer(s, 'BTC')) : '' },
-    { label: 'Oro (gramo)', main: c.XAU ? `US$ ${nf(2).format(c.XAU)}` : null, sub: c.XAU && arsPer(s, 'XAU') ? money(arsPer(s, 'XAU')) : '' },
-  ];
+  const rows = cotizElegidas(s).map((id) => filaCotiz(s, id)).filter(Boolean);
   const any = rows.some((x) => x.main);
   return `<div class="card">
     <div class="topbar"><strong style="font-size:14px">Cotizaciones</strong>
-      <button class="chip" data-action="refreshQuotes">${icon('refresh', 14, 2.2)} Actualizar</button></div>
-    ${any ? `<div class="quotes">${rows.map((x) => `<div class="quote"><span class="k">${x.label}</span><span class="v">${x.main || '—'}</span><span class="small muted">${x.sub || ''}</span></div>`).join('')}</div>`
+      <span class="head-actions"><button class="chip" data-action="elegirCotiz">${icon('grid', 14, 2.2)} Elegir</button><button class="chip" data-action="refreshQuotes" aria-label="Actualizar cotizaciones">${icon('refresh', 14, 2.2)}</button></span></div>
+    ${any ? `<div class="quotes">${rows.map((x) => `<div class="quote"><span class="k">${x.label}${x.ref ? ' <span class="chip-mini">Tu referencia</span>' : ''}</span><span class="v">${x.main || '—'}</span><span class="small muted">${x.sub || ''}</span></div>`).join('')}</div>`
       : '<p class="text muted">Todavía no pude traer las cotizaciones (sin conexión). Se cargan solas apenas haya internet.</p>'}
     ${any && ratesStale(s) ? `<span class="pill warn" style="align-self:flex-start">Sin conexión: valores de ${ratesAge(s)}</span>` : ''}
-    <span class="small muted">Se actualizan solas cada 5 minutos · dólar blue de DolarHoy y monedas vía DolarApi · cripto y oro vía CoinGecko · ${ratesAge(s)}</span>
+    <span class="small muted">Se actualizan solas cada 5 minutos · dólares y monedas vía DolarApi · cripto y oro vía CoinGecko · ${ratesAge(s)}</span>
   </div>`;
+}
+function elegirCotizBody(s) {
+  const sel = new Set(cotizElegidas(s));
+  const grupos = [...new Set(COTIZ_OPCIONES.map((o) => o.grupo))];
+  return `<p class="small muted" style="margin:0">Tocá las que querés ver en Ahorros.</p>
+    ${grupos.map((g) => `<span class="small" style="font-weight:800">${g}</span><div class="chips">${COTIZ_OPCIONES.filter((o) => o.grupo === g).map((o) => `<button class="chip toggle" data-action="toggleCotiz" data-id="${o.id}" aria-pressed="${sel.has(o.id)}">${esc(o.nombre)}</button>`).join('')}</div>`).join('')}
+    <div class="field"><label for="dol-ref">Dólar para pasar tus ahorros y gastos en dólares a pesos</label><select id="dol-ref" data-change="setDolarRef">${DOLARES.map(([id, n]) => `<option value="${id}" ${id === dolarRef(s) ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <span class="hint">Si cobrás o ahorrás en dólares por el banco, el MEP o el oficial suelen ser los más reales.</span></div>`;
 }
 
 let vista = 'cuentas'; // 'cuentas' | 'mis' | 'sueldo' | 'plan'
@@ -81,7 +100,7 @@ export function render(s) {
     ${taparMontos(cuerpoCuentas(s), 'ahorro')}` : ''}
 
     ${vista === 'mis' ? taparMontos(`<div class="card green" style="gap:12px;padding:20px">
-      <span class="hero-label">Tenés ahorrado (en pesos)</span>
+      <span class="hero-label">Tenés ahorrado (en ${monedaActual() === 'USD' ? 'dólares' : 'pesos'})</span>
       <span style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">${money(total)}</span>
       ${total > 0 ? `<div class="dist" role="img" aria-label="Distribución de tus ahorros">${items.filter((h) => h.ars > 0).map((h) => `<span style="width:${(h.ars / total) * 100}%;background:${holdingType(h.type).color}"></span>`).join('')}</div>` : ''}
       <div style="display:flex;flex-direction:column;gap:2px">
@@ -163,8 +182,11 @@ function holdingForm(h = {}, s = {}) {
   </form>`;
 }
 
-function converterBody(s, d = { amount: '', from: 'USD', to: 'ARS' }) {
-  const opts = (sel) => ASSETS.map((a) => `<option value="${a.id}" ${a.id === sel ? 'selected' : ''}>${a.label}</option>`).join('');
+// conversor: pesos, todos los dólares, otras monedas, cripto y oro
+const CONV = () => [['ARS', 'Pesos'], ...DOLARES.map(([id, n]) => [`USD:${id}`, n]), ...ASSETS.filter((a) => !['ARS', 'USD'].includes(a.id)).map((a) => [a.id, a.label])];
+const convLabel = (id) => (CONV().find(([x]) => x === id) || [, assetById(id).label])[1];
+function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS' }) {
+  const opts = (sel) => CONV().map(([id, l]) => `<option value="${id}" ${id === sel ? 'selected' : ''}>${l}</option>`).join('');
   const r = convert(s, d.amount, d.from, d.to);
   return `<form class="form" data-submit="convert">
     <div class="field"><label for="cv-a">Cantidad</label><input id="cv-a" name="amount" inputmode="decimal" value="${d.amount === '' ? '' : esc(String(d.amount))}" placeholder="Ej: 100"></div>
@@ -175,7 +197,7 @@ function converterBody(s, d = { amount: '', from: 'USD', to: 'ARS' }) {
     </div>
     <button class="btn primary block" type="submit">Convertir</button>
   </form>
-  <div class="result ok"><span class="small">${esc(String(d.amount).replace('.', ','))} ${assetById(d.from).label} =</span><strong style="font-size:24px">${r == null ? 'Sin cotización' : fmtAsset(r, d.to)}</strong><span class="small">Con cotización de venta · ${ratesAge(s)}</span></div>`;
+  <div class="result ok"><span class="small">${esc(String(d.amount).replace('.', ','))} ${esc(convLabel(d.from))} =</span><strong style="font-size:24px">${r == null ? 'Sin cotización' : fmtAsset(r, d.to)}</strong><span class="small">Con cotización de venta · ${ratesAge(s)}</span></div>`;
 }
 
 export const actions = {
@@ -185,6 +207,17 @@ export const actions = {
     toast('Actualizando cotizaciones…');
     refreshRates(ctx, true).then((ok) => toast(ok ? 'Cotizaciones actualizadas' : 'Sin conexión: uso las últimas guardadas'));
   },
+  elegirCotiz(ctx) { openModal('Cotizaciones', `<div id="cotiz-body" class="form">${elegirCotizBody(ctx.state)}</div>`); },
+  toggleCotiz(ctx, el) {
+    ctx.commit((s) => {
+      s.settings = s.settings || {};
+      const cur = new Set(cotizElegidas(s)); const id = el.dataset.id;
+      if (cur.has(id)) { if (cur.size > 1) cur.delete(id); } else cur.add(id);
+      s.settings.cotizVer = COTIZ_OPCIONES.map((o) => o.id).filter((x) => cur.has(x));
+    });
+    setModalBody('#cotiz-body', elegirCotizBody(ctx.state));
+  },
+  setDolarRef(ctx, el) { ctx.commit((s) => { s.settings.dolarRef = el.value; }); toast(`Uso el ${nombreDolar(el.value).toLowerCase()} para tus dólares`); },
   openConverter(ctx) { openModal('Conversor de monedas', `<div id="conv-body">${converterBody(ctx.state)}</div>`); },
   convert(ctx, d) {
     const raw = String(d.amount || '').trim();

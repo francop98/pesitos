@@ -35,6 +35,10 @@ const cut = (t, n) => { t = String(t || '').trim(); return t.length <= n ? t : t
 // "Tope de $5.000" escrito en las condiciones, cuando el dato no viene cargado aparte
 const topeDelTexto = (t) => { const m = String(t || '').match(/tope (?:de reintegro |unificado |mensual |semanal )?(?:de )?\$\s?(\d{1,3}(?:\.\d{3})+|\d+)/i); return m ? Number(m[1].replace(/\./g, '')) : 0; };
 const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+// fecha AAAA-MM-DD menos n días
+export const menosDias = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - n)).toISOString().slice(0, 10); };
+// las que vencieron hace hasta 10 días se guardan igual: la app las muestra como "¿la renuevan?"
+export const DIAS_RENOVAR = 10;
 const endOfMonth = (today) => { const [y, m] = today.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
 
 export async function promosFuente(today) {
@@ -49,7 +53,7 @@ export async function promosFuente(today) {
     const days = [...new Set((x.dias || []).map((d) => DIAS[String(d).toLowerCase()]).filter((d) => d !== undefined))];
     if (!days.length) continue;
     const validTo = isDate(x.vigencia_hasta) ? x.vigencia_hasta : endOfMonth(today);
-    if (validTo < today) continue;
+    if (validTo < menosDias(today, DIAS_RENOVAR)) continue;
     const wallet = MEDIOS[x.medio] || 'otro';
     const extraName = x.medio === 'mercado_pago_tarjeta' ? 'Con Tarjeta Mercado Pago. ' : (x.medio === 'brubank' && x.medio_nombre !== 'Brubank' ? `${x.medio_nombre}. ` : '');
     out.push({

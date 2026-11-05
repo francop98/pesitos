@@ -918,18 +918,23 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .diario-medida input[type=range] { width: 100%; accent-color: var(--green); }
 .card.suggest.alerta { border-color: var(--amber, #F2B33D); }
 .aprendi { gap: 6px; padding: 14px 16px; }
-.estado-fila { align-items: flex-start; }
-.estado-fila .meta { white-space: normal; }
-.estado-ic { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
-.estado-ic.ok { background: var(--green-soft, #E3F4EA); color: var(--green); }
-.estado-ic.warn { background: #FFF1D6; color: #9A6200; }
-.estado-ic.bad { background: #FDE2E2; color: #B42318; }
-.estado-txt { font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px; margin-left: 4px; vertical-align: 1px; }
-.estado-txt.ok { background: var(--green-soft, #E3F4EA); color: var(--green); }
-.estado-txt.warn { background: #FFF1D6; color: #9A6200; }
-.estado-txt.bad { background: #FDE2E2; color: #B42318; }
 .tope-fila .meta { white-space: normal; }
 .tope-barra { display: block; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 6px 0 2px; }
 .tope-barra > span { display: block; height: 100%; background: var(--green); border-radius: 999px; }
-.estado-fila .name, .tope-fila .name { white-space: normal; }
-.estado-txt { display: inline-block; }
+.tope-donde { font-weight: 500; color: var(--muted); font-size: 13px; }
+.cqp-sub { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 10px 0 2px; display: block; }
+.ahorro-op { position: relative; }
+.ahorro-op:has(input:checked) { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.sueldo-fila { width: 100%; background: var(--green-soft, #E3F4EA); border: none; font: inherit; text-align: left; cursor: pointer; }
+.rule-presets { display: flex; flex-direction: column; gap: 8px; }
+.pf-zona { margin: 2px 0 8px; }
+.riesgo-k { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-right: 4px; }
+.riesgo-ayuda .small { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inv-sim { background: var(--green-soft); border-radius: 10px; padding: 8px 10px; }
+.modo-chip { min-height: 32px; padding: 4px 10px; font-size: 13px; font-weight: 800; gap: 5px; display: inline-flex; align-items: center; }
+.modo-chip.compartido { background: var(--green); color: #fff; border-color: var(--green); }
+.modo-op { width: 100%; background: none; border: none; font: inherit; text-align: left; color: inherit; cursor: pointer; }
+.modo-op.activo { background: var(--green-soft); border-radius: 12px; }
+.codigo-esp { font-family: ui-monospace, monospace; letter-spacing: .12em; font-size: 20px; }
+.promo-acciones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.promo-acciones .link-btn { font-size: 12px; color: var(--muted); }

@@ -4,10 +4,27 @@
 import { money, esc, num, WEEKDAYS } from './formato.js';
 import { allCategories, catLabel, walletName } from './categorias.js';
 import { promosForDay, promosStatus } from './economista.js';
-import { fuentes } from './estado.js';
 import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
+import { promoKey, promosARenovar } from './datosvivos.js';
+import * as nube from './sincronizacion.js';
+
+const vistas = new Map(); // promos que se muestran, por clave (para "Avisar un error")
+const fechaCorta = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const finDeMes = () => { const t = new Date(); const f = new Date(t.getFullYear(), t.getMonth() + 1, 0); return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`; };
+
+// Promos de tus medios que vencieron hace poco: ¿las renovaron?
+function renovarHtml(s) {
+  const l = promosARenovar(s);
+  if (!l.length) return '';
+  return `<div class="section-title"><span>¿Las renovaron?</span></div>
+    <p class="small muted" style="margin:0">Vencieron hace poco y todavía no apareció la nueva. Mientras no me confirmes, no las uso para calcular reintegros.</p>
+    <div class="card tight">${l.map((p) => { const k = promoKey(p); vistas.set(k, p); return `<div class="row renovar-fila"><span class="promo-pct">${p.pct}%</span>
+      <span class="grow"><span class="name" style="white-space:normal">${esc(p.merchant || catLabel(p.category))}</span><span class="meta">${esc(p.walletName || walletName(p.wallet))} · venció el ${fechaCorta(p.validTo)}</span>
+      <span class="btn-row"><button class="btn small green" data-action="promoSigue" data-k="${esc(k)}">Sigue vigente</button><button class="btn small ghost" data-action="promoYaNo" data-k="${esc(k)}">Ya no está</button></span></span></div>`; }).join('')}</div>
+    <span class="small muted">Fijate en la app de tu banco o billetera. Si sigue, la uso hasta fin de mes o hasta que aparezca la nueva.</span>`;
+}
 
 let catFilter = 'all';
 let medioFilter = 'all';
@@ -30,7 +47,7 @@ function dayBlock(s, offset) {
       <span class="grow"><span class="name" style="white-space:normal">${esc(p.merchant || catLabel(p.category))}</span>
         <span class="meta">${esc(p.name)} · ${esc(catLabel(p.category))}${p.cap ? ` · tope ${money(p.cap)}${p.capPeriod ? ` por ${esc(p.capPeriod)}` : ''}` : (p.capUnknown ? ' · tope sin publicar' : ' · sin tope')}${p.minPurchase ? ` · compra mínima ${money(p.minPurchase)}` : ''}${esc(zone(p))}</span>
         ${p.cond ? `<span class="meta">${esc(p.cond)}</span>` : ''}
-        ${offset === 0 ? `<button class="chip promo-usada" data-action="promoUsed" data-id="${esc(String(p.cap || ''))}">Lo aproveché</button>` : ''}</span>
+        <span class="promo-acciones">${offset === 0 ? `<button class="chip promo-usada" data-action="promoUsed" data-id="${esc(String(p.cap || ''))}">Lo aproveché</button>` : ''}${p.source === 'catalog' ? (() => { const k = promoKey(p); vistas.set(k, p); return `<button class="link-btn small" data-action="avisarError" data-k="${esc(k)}">Avisar un error</button>`; })() : ''}</span></span>
     </div>`).join('')}
     ${ps.length > PER_DAY ? `<button class="btn ghost small" data-action="promoMore" data-day="${day}">${open ? 'Ver menos' : `Ver ${ps.length - PER_DAY} más`}</button>` : ''}</div>`;
 }
@@ -53,8 +70,9 @@ export function render(s) {
 
     ${week || (has ? '<div class="card"><p class="text muted">No encontré promos para tus medios de pago con este filtro.</p></div>' : '')}
 
-    ${(() => { const f = fuentes(s).find((x) => x.id === 'promos'); return f && f.est !== 'ok' ? `<button class="card amber" data-action="irEstado" style="border:none;text-align:left"><strong>Las promos pueden estar desactualizadas</strong><span class="text">${esc(f.det)}</span></button>` : ''; })()}
-    <span class="small muted">${esc(promosStatus(s))} Antes de pagar, confirmá las condiciones en la app de tu banco o billetera. <button class="link-btn" data-action="irEstado">Estado de los datos</button></span>
+    ${has ? renovarHtml(s) : ''}
+
+    <span class="small muted">${esc(promosStatus(s))} Antes de pagar, confirmá las condiciones en la app de tu banco o billetera.</span>
 
     <div class="section-title"><span>Promos que cargaste</span><button data-action="newPromo">+ Agregar</button></div>
     <div class="card tight">
@@ -66,7 +84,26 @@ export function render(s) {
   </section>`;
 }
 
+const MOTIVOS = [['noExiste', 'Ya no existe o terminó'], ['pct', 'El % está mal'], ['tope', 'El tope está mal'], ['dias', 'Los días están mal'], ['otro', 'Otra cosa']];
 export const actions = {
+  promoSigue(ctx, el) { ctx.commit((s) => { s.promosRenovadas = { ...(s.promosRenovadas || {}), [el.dataset.k]: finDeMes() }; }); toast('Listo: la uso hasta fin de mes'); },
+  promoYaNo(ctx, el) { ctx.commit((s) => { s.promosOcultas = { ...(s.promosOcultas || {}), [el.dataset.k]: new Date().toISOString().slice(0, 10) }; }); toast('Listo: no la muestro más'); },
+  avisarError(ctx, el) {
+    const p = vistas.get(el.dataset.k); if (!p) return;
+    openModal('Avisar un error', `<form class="form" data-submit="enviarError"><input type="hidden" name="k" value="${esc(el.dataset.k)}">
+      <div class="card"><strong>${p.pct}% · ${esc(p.merchant || catLabel(p.category))}</strong><span class="small muted">${esc(p.walletName || walletName(p.wallet))}</span></div>
+      <div class="field"><span class="label-like">¿Qué está mal?</span><div class="ahorro-ops">${MOTIVOS.map(([v, l], i) => `<label class="ahorro-op"><input type="radio" name="motivo" value="${v}" ${i === 0 ? 'checked' : ''} style="position:absolute;opacity:0"><b>${l}</b></label>`).join('')}</div></div>
+      <div class="field"><label for="ae-t">Contame más (opcional)</label><input id="ae-t" name="texto" maxlength="300" placeholder="Ej: el tope es $8.000, no $10.000"></div>
+      <span class="hint">Le llega al equipo de Pesitos para corregirlo. Si ya no existe, deja de aparecerte a vos enseguida.</span>
+      <button class="btn primary block" type="submit">Enviar</button></form>`);
+  },
+  async enviarError(ctx, d) {
+    const p = vistas.get(d.k); if (!p) return;
+    if (d.motivo === 'noExiste') ctx.commit((s) => { s.promosOcultas = { ...(s.promosOcultas || {}), [d.k]: new Date().toISOString().slice(0, 10) }; });
+    closeModal();
+    try { await nube.enviarReporte({ uid: ctx.uid }, { medio: p.walletName || walletName(p.wallet), comercio: p.merchant || catLabel(p.category), pct: p.pct, motivo: d.motivo, texto: d.texto }); toast('¡Gracias! Lo vamos a revisar'); }
+    catch (e) { console.warn(e); toast('No pude enviarlo ahora. Probá más tarde.'); }
+  },
   promoFilter(ctx, el) { catFilter = el.dataset.id; ctx.render(); },
   promoCat(ctx, el) { catFilter = el.value; ctx.render(); },
   promoMedio(ctx, el) { medioFilter = el.value; ctx.render(); },

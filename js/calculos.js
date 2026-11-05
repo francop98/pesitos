@@ -3,7 +3,7 @@
 
 import { reintegrosCobrados, totalReintegros } from './reintegros.js';
 import { toISO, parseISO, monthKey, addMonthKey, monthDiff, startOfToday, daysBetween, MONTHS_LONG, money, addDays } from './formato.js';
-import { arsPer } from './cotizaciones.js';
+import { arsPer, aBase } from './cotizaciones.js';
 import { valorHoy } from './rendimientos.js';
 import { fechaDeCobro } from './feriados.js';
 import { ipcMap, expectedInflation } from './datosvivos.js';
@@ -69,6 +69,11 @@ export function plannedSaving(s, salary, extras = 0, expenses = []) {
     if (c.type === 'pctSalary') v = (salary * c.value) / 100;
     else if (c.type === 'fixedMonthly') v = c.value;
     else if (c.type === 'catPct') v = (sum(expenses.filter((e) => e.category === c.category), share) * c.value) / 100;
+    else if (c.type === 'porGasto') v = expenses.filter((e) => e.category === c.category).length * c.value;
+    else if (c.type === 'bajoTope') v = Math.max(0, c.value - sum(expenses.filter((e) => e.category === c.category), share));
+    else if (c.type === 'pctIngresos') v = ((salary + extras) * c.value) / 100;
+    else if (c.type === 'porSemana') v = c.value * 4.33;
+    else if (c.type === 'porDia') v = c.value * 30;
     if (v) parts.push({ name: c.name, amount: v });
   }
   return { total: sum(parts, (p) => p.amount), parts };
@@ -296,7 +301,8 @@ export function salaryStats(s) {
 
 // ---------- ahorro ----------
 // incluye los intereses ganados desde que cargaste el monto (ver js/rendimientos.js)
-export const holdingArs = (s, h) => valorHoy(s, h) * arsPer(s, h.currency || 'ARS');
+// valor de lo que tenés, en tu moneda principal (pesos o dólares)
+export const holdingArs = (s, h) => valorHoy(s, h) * (aBase(s, h.currency || 'ARS') || 0);
 export const holdingsTotal = (s) => sum(s.holdings, (h) => holdingArs(s, h));
 export const savedThisMonth = (s) => s.savedByApp[monthKey()] || 0;
 

@@ -119,7 +119,26 @@ export function livePromos(s) {
   const city = (s.profile && s.profile.city) || '';
   const list = ((s.live && s.live.promos) || []).map((p) => (p.walletName && custom[nameKey(p.walletName)] ? { ...p, wallet: custom[nameKey(p.walletName)] } : p))
     .map((p) => (catReal(p.category) !== p.category ? { ...p, category: catReal(p.category) } : p));
-  return list.filter((p) => (!p.validFrom || p.validFrom <= today) && (!p.validTo || p.validTo >= today) && inZone(p.zone, prov, city));
+  const ocultas = s.promosOcultas || {}; const renovadas = s.promosRenovadas || {};
+  return list.map((p) => { const r = renovadas[promoKey(p)]; return r && r >= today && p.validTo < today ? { ...p, validTo: r, renovadaPorVos: true } : p; })
+    .filter((p) => (!p.validFrom || p.validFrom <= today) && (!p.validTo || p.validTo >= today) && inZone(p.zone, prov, city) && !ocultas[promoKey(p)]);
+}
+
+/** Identificador estable de una promo (medio + comercio + %). */
+export const promoKey = (p) => `${p.wallet}|${nameKey(p.walletName || '')}|${norm(p.merchant || '').slice(0, 40)}|${p.pct}`;
+
+/** Promos de tus medios que vencieron hace poco (hasta 10 días) y todavía no salió la renovada: ¿siguen? */
+export function promosARenovar(s) {
+  const today = todayISO();
+  const mias = new Set(s.wallets || []);
+  const prov = (s.profile && s.profile.province) || ''; const city = (s.profile && s.profile.city) || '';
+  const vigentes = livePromos(s);
+  const ocultas = s.promosOcultas || {}; const renovadas = s.promosRenovadas || {};
+  const vistas = new Set();
+  return ((s.live && s.live.promos) || []).filter((p) => p.validTo && p.validTo < today && mias.has(p.wallet) && inZone(p.zone, prov, city)
+    && !ocultas[promoKey(p)] && !(renovadas[promoKey(p)] >= today)
+    && !vigentes.some((q) => q.wallet === p.wallet && norm(q.merchant) === norm(p.merchant))
+    && !vistas.has(promoKey(p)) && vistas.add(promoKey(p)));
 }
 
 export function liveAge(s) {

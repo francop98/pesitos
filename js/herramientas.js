@@ -25,8 +25,12 @@ const GRUPOS = [
   ['Invertir', [
     { action: 'openInversiones', icon: 'chart', title: 'Letras, bonos y acciones', text: 'Qué es cada inversión, su riesgo y dónde se compra. Con las tasas de las letras de hoy.' },
   ]],
+  ['Organizar', [
+    { action: 'irProyectos', icon: 'folder', title: 'Proyectos', text: 'Lo que gastás en una obra, un viaje o un evento, aparte.' },
+    { action: 'irDeudas', icon: 'people', title: 'Deudas y préstamos', text: 'Lo que te deben y lo que debés, en pesos o en dólares.' },
+  ]],
   ['Monedas', [
-    { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Dólar, euro, real, bitcoin y oro, con cotización del día.' },
+    { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Todos los dólares (oficial, blue, MEP, CCL, tarjeta, cripto), euro, real, pesos uruguayos y chilenos, bitcoin y oro.' },
   ]],
 ];
 
@@ -67,19 +71,41 @@ function opcionesPlata(s, monto = 0) {
   out.push(['otra', 'Otra tasa (la escribo)', 'Otra tasa', null]);
   return out;
 }
+// si no sabe dónde juntarlo: la billetera que más paga hoy y cuánto menos tendría que ahorrar
+function sugerirDonde(s, future, have, months, monthly) {
+  const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
+  const mejor = BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id] && tasas[b.id].tna).sort((a, b) => tasas[b.id].tna - tasas[a.id].tna)[0];
+  if (!mejor) return '';
+  const r = tasas[mejor.id].tna / 100 * 30 / 365; const g = Math.pow(1 + r, months);
+  const conR = Math.max(0, (future - have * g) * r / (g - 1));
+  return monthly - conR >= 1 ? `<span class="text">Tip: si lo vas juntando en <b>${esc(mejor.nombre)}</b> (hoy paga ${tasaTxt(tasas[mejor.id].tna)}% anual), alcanza con <b>${money(conR)} por mes</b>.</span>` : '';
+}
 const tnaDeModo = (d, campo = 'modo') => (d[campo] === 'otra' ? parseFloat(String(d.tnaOtra || '0').replace(',', '.')) || 0 : Number(String(d[campo] || '').split(':')[1]) || 0);
 function mejorPlazoFijo(s) {
-  const pf = Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {});
+  const pf = plazosFijos(s);
   if (!pf.length) return null;
   const prov = pf.find(([n]) => /provincia de buenos aires/i.test(n));
   const [entidad, tna] = prov || pf.sort((a, b) => b[1] - a[1])[0];
   return { entidad, tna };
 }
 
+// Bancos provinciales: solo atienden en su provincia. Los demás (Nación, Galicia, Macro…) en todo el país.
+const BANCO_PROV = [[/provincia de buenos aires/, 'Buenos Aires'], [/ciudad de buenos aires/, 'CABA'], [/cordoba|bancor/, 'Córdoba'], [/santa fe/, 'Santa Fe'], [/entre rios/, 'Entre Ríos'], [/san juan/, 'San Juan'], [/santa cruz/, 'Santa Cruz'], [/chubut/, 'Chubut'], [/corrientes/, 'Corrientes'], [/neuquen/, 'Neuquén'], [/la pampa/, 'La Pampa'], [/tierra del fuego/, 'Tierra del Fuego'], [/formosa/, 'Formosa'], [/rioja/, 'La Rioja'], [/chaco/, 'Chaco'], [/santiago del estero/, 'Santiago del Estero'], [/tucuman/, 'Tucumán'], [/catamarca/, 'Catamarca'], [/jujuy/, 'Jujuy'], [/salta/, 'Salta'], [/misiones/, 'Misiones'], [/mendoza/, 'Mendoza'], [/san luis/, 'San Luis'], [/rio negro/, 'Río Negro']];
+const provDeBanco = (n) => { const t = sinTildes(n); const x = BANCO_PROV.find(([re]) => re.test(t)); return x ? x[1] : ''; };
+let pfZona = 'mia'; // 'mia' (nacionales + los de tu provincia) | 'todos'
+const tuProv = (s) => (s.profile && s.profile.province) || '';
+/** Plazos fijos [entidad, tna] que podés usar según tu provincia (o todos). */
+function plazosFijos(s) {
+  const pf = Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {});
+  const prov = tuProv(s);
+  if (pfZona === 'todos' || !prov) return pf;
+  return pf.filter(([n]) => { const p = provDeBanco(n); return !p || p === prov; });
+}
+const zonaSeg = (s) => (tuProv(s) ? `<div class="seg pf-zona" role="radiogroup" aria-label="Qué bancos ver"><button type="button" role="radio" data-action="pfZona" data-v="mia" aria-checked="${pfZona === 'mia'}">Los de ${esc(tuProv(s) === 'Buenos Aires' ? 'Provincia de Bs. As.' : tuProv(s))}</button><button type="button" role="radio" data-action="pfZona" data-v="todos" aria-checked="${pfZona === 'todos'}">Todos</button></div>` : '<span class="small muted">Contame tu provincia (Menú → Mi cuenta) y te muestro solo los bancos que atienden donde vivís.</span>');
 const nombreBanco = (n) => n.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase()).replace(/\b(De|Del|La|Las|Los|Y)\b/g, (w) => w.toLowerCase()).replace(/\bS\.a\.(u\.)?/gi, (w) => w.toUpperCase());
 const sinTildes = (x) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 function bancosHtml(s, q) {
-  const pf = Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).sort((a, b) => b[1] - a[1]);
+  const pf = plazosFijos(s).sort((a, b) => b[1] - a[1]);
   const qq = sinTildes(String(q || '').trim());
   const lista = pf.filter(([n]) => !qq || sinTildes(n).includes(qq) || sinTildes(nombreBanco(n)) === qq);
   const todos = qq && lista.length === 1 && sinTildes(nombreBanco(lista[0][0])) === qq ? pf : lista; // ya elegido: mostrar todos
@@ -103,7 +129,7 @@ function bancoPicker(s, def, { destino = 'pd-t', calc = false } = {}) {
   if (!pf.length) return '';
   return `<div class="field banco-picker" data-destino="${destino}" ${calc ? 'data-calc="1"' : ''}><span class="label-like">Banco</span>
     <button type="button" class="banco-actual" data-action="pfAbrirBancos"><span data-banco-elegido>${def ? `${esc(nombreBanco(def.entidad))} · <b>${tasaTxt(def.tna)}%</b>` : 'Elegí un banco'}</span>${icon('chevron', 16, 2.4)}</button>
-    <div class="banco-panel"><input placeholder="Escribí para buscar (ej: Galicia)" autocomplete="off" data-input="pfFiltrar" aria-label="Buscar banco">
+    <div class="banco-panel">${zonaSeg(s)}<input placeholder="Escribí para buscar (ej: Galicia)" autocomplete="off" data-input="pfFiltrar" aria-label="Buscar banco">
       <div class="ciudad-lista banco-lista" data-banco-lista></div></div>
     <span class="hint">Tasas para clientes que publica el BCRA.</span></div>`;
 }
@@ -113,11 +139,11 @@ function rindeLista(s, monto) {
   const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
   const filas = rindeTab === 'billeteras'
     ? BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id]).map((b) => { const t = tasas[b.id]; return { n: b.nombre, t, g30: gananciaEn(t, monto, 30), g1: gananciaEn(t, monto, 1) }; })
-    : Object.entries((s.rendimientos && s.rendimientos.plazoFijo) || {}).map(([n, v]) => ({ n: nombreBanco(n), t: { tna: Number(v) }, g30: monto * Number(v) / 100 * 30 / 365 }));
+    : plazosFijos(s).map(([n, v]) => ({ n: nombreBanco(n), t: { tna: Number(v) }, g30: monto * Number(v) / 100 * 30 / 365 }));
   filas.sort((a, b) => b.g30 - a.g30);
   if (!filas.length) return '<p class="empty">Todavía no pude traer las tasas. Se cargan solas apenas haya conexión.</p>';
   const at = s.rendimientos && s.rendimientos.at;
-  return `<div class="card tight">${filas.map((f, i) => `<div class="row"><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="grow"><span class="name">${esc(f.n)}</span><span class="meta">${rindeTab === 'billeteras' ? `${textoTasa(f.t, money)} · ${money(f.g1)} por día${f.t.condiciones ? ` · ${esc(f.t.condiciones)}` : ''}` : `${tasaTxt(f.t.tna)}% anual`}</span>${f.t.control ? `<span class="meta">ℹ️ ${esc(f.t.control)}</span>` : ''}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount pos">+${money(f.g30)}</span><span class="small muted">en 30 días</span></span></div>`).join('')}</div>
+  return `${rindeTab === 'pf' ? zonaSeg(s) : ''}<div class="card tight">${filas.map((f, i) => `<div class="row"><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="grow"><span class="name">${esc(f.n)}</span><span class="meta">${rindeTab === 'billeteras' ? `${textoTasa(f.t, money)} · ${money(f.g1)} por día${f.t.condiciones ? ` · ${esc(f.t.condiciones)}` : ''}` : `${tasaTxt(f.t.tna)}% anual`}</span>${f.t.control ? `<span class="meta">ℹ️ ${esc(f.t.control)}</span>` : ''}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount pos">+${money(f.g30)}</span><span class="small muted">en 30 días</span></span></div>`).join('')}</div>
     <span class="small muted">${rindeTab === 'billeteras' ? 'Ordenadas por lo que ganás con el monto que pusiste: si una paga más pero tiene tope, lo tengo en cuenta. Las de tasa fija son las que publica cada billetera; las que invierten en un fondo, el rendimiento de los últimos 7 días (criterio del BCRA). Fuente: ArgentinaDatos (los mismos datos que comparatasas.ar).' : 'El plazo fijo paga todo al final y la plata queda inmovilizada esos días. Tasas para clientes que publica el BCRA para cada banco.'} ${at ? `Actualizado ${new Date(at).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}</span>`;
 }
 
@@ -307,6 +333,12 @@ export const actions = {
     const abierto = p.classList.toggle('abierto');
     if (abierto) { const i = p.querySelector('input'); if (i) { i.value = ''; p.querySelector('[data-banco-lista]').innerHTML = bancosHtml(ctx.state, ''); setTimeout(() => i.focus(), 50); } p.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
   },
+  pfZona(ctx, el) {
+    pfZona = el.dataset.v === 'todos' ? 'todos' : 'mia';
+    document.querySelectorAll('#modal [data-action=pfZona]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.v === pfZona)));
+    const l = el.closest('.banco-picker')?.querySelector('[data-banco-lista]');
+    if (l) { const i = el.closest('.banco-picker').querySelector('input'); l.innerHTML = bancosHtml(ctx.state, i ? i.value : ''); } else actions.calcRinde(ctx);
+  },
   pfFiltrar(ctx, el) { const l = el.closest('.banco-picker')?.querySelector('[data-banco-lista]'); if (l) l.innerHTML = bancosHtml(ctx.state, el.value); },
   pfElegirBanco(ctx, el) {
     const p = el.closest('.banco-picker');
@@ -394,9 +426,20 @@ export const actions = {
       titulo = `Pagás ${money(gasto - reint)} en vez de ${money(gasto)}`;
       lineas.length = 0;
       lineas.push(`Les devuelven <b>${money(reint)}</b> en total: un descuento real de <b>${pctTxt(reint / gasto, 1)}</b>${n > 1 && reint > solo + 1 ? ` (si pagara una sola persona serían ${money(solo)})` : ''}.`);
-      if (necesitan > n) lineas.push(`Para que toda la compra tenga el ${pctTxt(p, 0)} necesitan <b>${necesitan} personas</b> (o cuentas distintas) pagando hasta ${money(ideal)} cada una.`);
-      else if (gasto < ideal * n * 0.99) lineas.push(`Les sobra tope: podrían sumar ${money(ideal * n - gasto)} más de compras con descuento.`);
-      if (n > 1) reparto = `<div class="card"><strong>Cómo dividir el pago</strong>${pagos.map((x, i) => `<div class="split small"><span>Persona ${i + 1} paga</span><b>${money(x)} · le devuelven ${money(Math.min(x * p, tope))}</b></div>`).join('')}
+      if (gasto < ideal * n * 0.99 && necesitan <= n) lineas.push(`Les sobra tope: podrían sumar ${money(ideal * n - gasto)} más de compras con descuento.`);
+      // si con los que son no alcanza: sumar gente, o que uno pague por encima del tope
+      if (necesitan > n) {
+        const extra = necesitan - n;
+        const plan = []; let r2 = gasto;
+        for (let i = 0; i < necesitan; i++) { const x = i === necesitan - 1 ? r2 : Math.min(ideal, r2); plan.push(Math.max(0, x)); r2 -= x; }
+        const reintPlan = plan.reduce((a, x) => a + Math.min(x * p, tope), 0);
+        const sobra = gasto - ideal * n;
+        reparto += `<div class="card amber"><strong>${extra === 1 ? 'Sumá una persona más' : `Sumá ${extra} personas más`} y aprovechan todo el descuento</strong>
+          ${plan.map((x, i) => `<div class="split small"><span>${i < n ? `Persona ${i + 1}` : `<b>Persona ${i + 1} (la que se suma)</b>`} paga</span><b>${money(x)} · le devuelven ${money(Math.min(x * p, tope))}</b></div>`).join('')}
+          <span class="text">Así les devuelven <b>${money(reintPlan)}</b> en vez de ${money(reint)}: ${money(reintPlan - reint)} más.</span>
+          <span class="small">Si no consiguen a nadie más, ${n === 1 ? 'pagás' : `la persona ${n} paga`} <b>${money(pagos[n - 1])}</b>: los primeros ${money(ideal)} con descuento y ${money(sobra)} por encima del tope, sin descuento.</span></div>`;
+      }
+      if (n > 1) reparto += `<div class="card"><strong>Cómo dividir el pago</strong>${pagos.map((x, i) => `<div class="split small"><span>Persona ${i + 1} paga</span><b>${money(x)} · le devuelven ${money(Math.min(x * p, tope))}</b></div>`).join('')}
         <span class="small muted">${pagos[n - 1] > ideal + 1 ? `La última persona paga más del tope: ${money(pagos[n - 1] - ideal)} van sin descuento. ` : ''}Cada uno paga con su propio medio (tarjeta, cuenta o billetera) y el comercio tiene que aceptar dividir el pago.</span></div>`;
     }
     const tabla = [0.5, 1, 1.5, 2].map((k) => { const g = Math.round(ideal * k); const r = Math.min(g * p, tope); return `<div class="split small"><span>Gastando ${money(g)}</span><b>${money(r)} · ${pctTxt(r / g, 0)} real</b></div>`; }).join('');
@@ -425,9 +468,9 @@ export const actions = {
       <div class="field"><label for="gc-h" data-gc-lh>¿Cuánto ya tenés? (en pesos)</label><input id="gc-h" name="have" inputmode="decimal" placeholder="Ej: 0"></div>
       <div class="field" data-gc="dolares" hidden><label for="gc-v">Precio del dólar (MEP)</label><input id="gc-v" name="venta" inputmode="decimal" value="${venta ? Math.round(venta) : ''}" placeholder="Ej: 1.200"><span class="hint">Se actualiza solo. Comprar un poco cada mes promedia el precio.</span></div>
       <label class="check" data-gc="fecha cuanto"><input type="checkbox" name="adjust" checked> <span>Ajustar el monto por inflación<br><span class="small muted">Si es algo que se compra en pesos y va a aumentar.</span></span></label>
-      <div class="field" data-gc="fecha cuanto"><label for="gc-r">¿Dónde lo vas juntando?</label><select id="gc-r" name="rinde" data-change="gcRinde">${opcionesPlata(s).map(([v, l], i) => `<option value="${esc(v)}" ${v === (opcionesPlata(s).find((o) => o[0] !== 'otra') || [])[0] ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-        <span class="hint">Si rinde, el interés compuesto hace que necesites ahorrar menos.</span></div>
-      <div class="field" data-gc-otra hidden><label for="gc-o">Tasa anual (TNA %)</label><input id="gc-o" name="tnaOtra" inputmode="decimal" placeholder="Ej: 30"></div>
+      <div class="field" data-gc="fecha cuanto"><label for="gc-r">¿Dónde lo vas juntando?</label><select id="gc-r" name="rinde" data-change="gcRinde"><option value="nose" selected>No sé / me da igual</option>${opcionesPlata(s).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>
+        <span class="hint">Importa porque algunas cuentas te pagan intereses por tener la plata ahí (el % anual que ves al lado de cada una): si rinde, llegás ahorrando menos por mes. Si no sabés, te calculo sin intereses y te digo dónde rendiría más.</span></div>
+      <div class="field" data-gc-otra hidden><label for="gc-o">¿Cuánto te paga por año? (%)</label><input id="gc-o" name="tnaOtra" inputmode="decimal" placeholder="Ej: 30"><span class="hint">Es la TNA que te muestra el banco o la billetera.</span></div>
       <button class="btn primary block" type="submit">Calcular</button>
     </form><div id="gc-result"></div>`);
   },
@@ -488,6 +531,7 @@ export const actions = {
       <strong>${money(monthly)} por mes durante ${months} ${months === 1 ? 'mes' : 'meses'}</strong>
       ${d.adjust ? `<span class="text">Con la inflación esperada, en ${MONTHS_LONG[m - 1]} ${y} eso costaría cerca de ${money(future)}.</span>` : ''}
       ${r && sinRendir > monthly + 1 ? `<span class="text">Poniéndolo a rendir ahorrás ${money(sinRendir - monthly)} por mes (sin rendir serían ${money(sinRendir)}).</span>` : ''}
+      ${d.rinde === 'nose' ? sugerirDonde(s, future, have, months, monthly) : ''}
       ${pctSueldo(monthly)}
     </div>`);
   },

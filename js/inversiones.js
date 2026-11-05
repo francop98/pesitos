@@ -6,8 +6,9 @@
 // en cada día hábil). Se guarda 6 horas en el dispositivo.
 // =========================================================
 
-import { money, esc } from './formato.js';
+import { pesos as money, esc } from './formato.js';
 import { openModal, setModalBody } from './interfaz.js';
+import { expectedInflation } from './datosvivos.js';
 
 const URL_LETRAS = 'https://api.argentinadatos.com/v1/finanzas/letras';
 const K_LETRAS = 'pesitos_letras';
@@ -29,7 +30,41 @@ export const INSTRUMENTOS = [
 ];
 
 const riesgoTxt = ['', 'Muy bajo', 'Bajo', 'Medio', 'Alto', 'Muy alto'];
-const barraRiesgo = (r) => `<span class="riesgo r${r}" aria-label="Riesgo ${riesgoTxt[r].toLowerCase()}">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= r ? 'on' : ''}"></i>`).join('')}<b>${riesgoTxt[r]}</b></span>`;
+const barraRiesgo = (r) => `<span class="riesgo r${r}" aria-label="Riesgo ${riesgoTxt[r].toLowerCase()}"><span class="riesgo-k">Riesgo</span>${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= r ? 'on' : ''}"></i>`).join('')}<b>${riesgoTxt[r]}</b></span>`;
+// qué quiere decir cada nivel de riesgo
+const RIESGO_EXPLICA = `<details class="card riesgo-ayuda"><summary><strong>¿Qué es "Riesgo: muy bajo, medio, alto"?</strong></summary>
+  <span class="small">Es la chance de que <b>pierdas plata</b> o de que valga menos cuando la necesites:</span>
+  <span class="small">${barraRiesgo(1)} Casi no puede bajar. Sabés de antemano cuánto ganás.</span>
+  <span class="small">${barraRiesgo(2)} Ganancia bastante segura, pero el precio se mueve un poco si vendés antes.</span>
+  <span class="small">${barraRiesgo(3)} Depende de que una empresa pague. Puede bajar algo en el camino.</span>
+  <span class="small">${barraRiesgo(4)} Puede bajar bastante en semanas (por el riesgo país o el dólar).</span>
+  <span class="small">${barraRiesgo(5)} Puede subir o bajar mucho, incluso a la mitad. Solo con plata que no vas a usar en años.</span>
+</details>`;
+
+// ---------- simulación con tu monto ----------
+let est = null; // estado de la app (para tasas, dólar e inflación)
+const tasaPF = () => { const pf = Object.entries((est && est.rendimientos && est.rendimientos.plazoFijo) || {}).sort((a, b) => b[1] - a[1]); return pf.length ? { banco: pf[0][0], tna: Number(pf[0][1]) } : null; };
+const tasaMM = () => { const t = Object.entries((est && est.rendimientos && est.rendimientos.tasas) || {}).filter(([, v]) => v && v.tna).sort((a, b) => b[1].tna - a[1].tna); return t.length ? Number(t[0][1].tna) : 0; };
+const mep = () => { const r = (est && est.rates) || {}; return ((r.dolares || {}).bolsa || {}).venta || (r.USD || {}).venta || 0; };
+const usdTxt = (v) => `US$ ${Math.round(v).toLocaleString('es-AR')}`;
+const nombreB = (n) => n.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase());
+function simulacion(i, M) {
+  if (!M) return '';
+  const linea = (t) => `<div class="inv-sim"><span class="small"><b>Con ${money(M)}:</b> ${t}</span></div>`;
+  const g = (tna, dias) => M * tna / 100 * dias / 365;
+  switch (i.id) {
+    case 'pf': { const t = tasaPF(); return t ? linea(`en 30 días ganarías <b>${money(g(t.tna, 30))}</b> (${String(t.tna).replace('.', ',')}% anual, ${esc(nombreB(t.banco))}, la mejor tasa de hoy).`) : ''; }
+    case 'mm': { const t = tasaMM(); return t ? linea(`ganarías unos <b>${money(g(t, 1))} por día</b> y ${money(g(t, 30))} en un mes (la billetera que más paga hoy, ${String(t).replace('.', ',')}% anual).`) : ''; }
+    case 'caucion': { const t = tasaPF(); return t ? linea(`suele pagar parecido al plazo fijo: en 30 días, algo menos de ${money(g(t.tna, 30))} después de la comisión del broker.`) : ''; }
+    case 'cer': { const inf = est ? expectedInflation(est) : 0; return inf ? linea(`si la inflación va a ${String(inf).replace('.', ',')}% por mes, en 6 meses tu plata se ajusta a ≈ <b>${money(M * Math.pow(1 + inf / 100, 6))}</b>, más la tasa del bono.`) : ''; }
+    case 'soberanos': case 'on': case 'mep': { const v = mep(); return v ? linea(`comprás ≈ <b>${usdTxt(M / v)}</b> (dólar MEP a ${money(v)}).${i.id === 'mep' ? '' : ' Esos dólares cobran intereses en dólares.'}`) : ''; }
+    case 'acciones': case 'cedear': case 'cripto': {
+      const [sube, baja] = i.riesgo >= 5 ? [0.4, 0.4] : [0.25, 0.25];
+      return linea(`si sube ${Math.round(sube * 100)}% tendrías ${money(M * (1 + sube))}; si baja ${Math.round(baja * 100)}%, ${money(M * (1 - baja))}. Es un ejemplo de cuánto se puede mover en un año, no un pronóstico.`);
+    }
+    default: return '';
+  }
+}
 
 // ---------- letras en vivo ----------
 function letrasGuardadas() {
@@ -86,21 +121,25 @@ function letrasHtml(x, monto = 1000000) {
 // ---------- pantalla ----------
 let filtro = 'todos';
 let montoInv = 1000000;
+let montoUsuario = 0; // lo que escribiste (opcional): simula en todos los instrumentos
 function cuerpo() {
   const grupos = [...new Set(INSTRUMENTOS.map((i) => i.grupo))];
   const lista = INSTRUMENTOS.filter((i) => filtro === 'todos' || i.grupo === filtro);
   return `<div class="chips inv-filtros">${[['todos', 'Todos'], ...grupos.map((g) => [g, g])].map(([v, l]) => `<button class="chip toggle" data-action="invFiltro" data-v="${esc(v)}" aria-pressed="${filtro === v}">${esc(l)}</button>`).join('')}</div>
-    ${lista.map((i) => `<details class="card inv">
+    ${lista.map((i) => `<details class="card inv" data-id="${i.id}">
       <summary><span class="grow"><b>${esc(i.nombre)}</b><span class="small muted">${esc(i.moneda)} · ${esc(i.plazo)}</span></span>${barraRiesgo(i.riesgo)}</summary>
       <span class="text">${esc(i.que)}</span>
       <div class="split small"><span>Dónde se compra</span><b>${esc(i.donde)}</b></div>
       <span class="small">⚠️ ${esc(i.ojo)}</span>
+      ${i.id === 'lecap' ? '' : simulacion(i, montoUsuario)}
       ${i.id === 'lecap' ? '<div data-letras><p class="small muted" style="margin:0">Buscando las tasas de hoy…</p></div>' : ''}
     </details>`).join('')}`;
 }
 
-export function abrir() {
+export function abrir(s) {
+  est = s || est;
   openModal('Letras, bonos y acciones', `
+    <div class="card"><div class="field"><label for="inv-m">¿Cuánto invertirías? <span class="muted">(opcional, en pesos)</span></label><input id="inv-m" inputmode="decimal" value="${montoUsuario ? montoUsuario.toLocaleString('es-AR') : ''}" placeholder="Ej: 1.000.000" data-input="invMonto"><span class="hint">Lo uso para simular en todo lo que abras de esta sección. Si lo dejás vacío, las letras se calculan con $1.000.000.</span></div></div>
     <div class="card lime"><strong>¿Por dónde empiezo?</strong>
       <span class="small">Una regla simple según <b>cuándo vas a necesitar la plata</b>:</span>
       <div class="inv-plazos">
@@ -112,15 +151,15 @@ export function abrir() {
       <span class="small muted">Antes de invertir: tené un fondo de emergencia (3 a 6 meses de gastos) en algo líquido.</span>
     </div>
     <div class="card"><strong>Letras del Tesoro hoy</strong>
-      <div class="field"><label for="inv-m">¿Cuánto invertirías?</label><input id="inv-m" inputmode="decimal" value="${montoInv !== 1000000 ? montoInv.toLocaleString('es-AR') : ''}" placeholder="Ej: 1.000.000" data-input="invMonto"></div>
       <div data-letras-top><p class="small muted" style="margin:0">Buscando las tasas de hoy…</p></div></div>
     <div class="section-title"><span>Instrumentos</span><span class="small muted">Tocá para ver</span></div>
+    ${RIESGO_EXPLICA}
     <div id="inv-cuerpo">${cuerpo()}</div>
     <div class="card"><strong>Cómo empezar en la bolsa</strong>
       <span class="small">1. Abrí una cuenta en un broker (ALyC) registrado en la CNV, o usá la sección de inversiones de tu banco. Es gratis y se hace desde el celular.</span>
       <span class="small">2. Transferí pesos desde tu cuenta (a tu nombre).</span>
       <span class="small">3. Buscá el instrumento por su código (ticker) y comprá. Mirá las comisiones antes.</span>
-      <a class="small" href="https://www.cnv.gov.ar/SitioWeb/RegistrosPublicos/AgentesyOtros" target="_blank" rel="noopener">Ver el registro oficial de brokers de la CNV ›</a>
+      <a class="small" href="https://www.argentina.gob.ar/cnv/proteccion-al-inversor/agentes" target="_blank" rel="noopener">Cómo verificar que un broker esté registrado en la CNV ›</a>
     </div>
     <p class="small muted" style="margin:0">Es información general para entender las opciones, no una recomendación personal. Cada inversión tiene riesgos: informate bien o consultá a un asesor matriculado.</p>`);
   pintarLetras();
@@ -137,12 +176,18 @@ async function pintarLetras() {
 }
 
 export const actions = {
-  openInversiones() { abrir(); },
+  openInversiones(ctx) { abrir(ctx.state); },
   invMonto(ctx, el) {
     const v = Number(String(el.value).replace(/\./g, '').replace(',', '.')) || 0;
+    montoUsuario = v > 0 ? v : 0;
     montoInv = v > 0 ? v : 1000000; // vacío: el ejemplo de $1.000.000
     const g = letrasGuardadas();
     document.querySelectorAll('#modal [data-letras-top], #modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(g, montoInv); });
+    // las simulaciones de cada instrumento (dejo abiertos los que estaban abiertos)
+    const abiertos = [...document.querySelectorAll('#modal details.inv[open]')].map((d) => d.dataset.id);
+    setModalBody('#inv-cuerpo', cuerpo());
+    abiertos.forEach((id) => { const d = document.querySelector(`#modal details.inv[data-id="${id}"]`); if (d) d.open = true; });
+    document.querySelectorAll('#modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(g, montoInv); });
   },
   invFiltro(ctx, el) { filtro = el.dataset.v; setModalBody('#inv-cuerpo', cuerpo()); const g = letrasGuardadas(); document.querySelectorAll('#modal [data-letras]').forEach((n) => { n.innerHTML = letrasHtml(g, montoInv); }); },
 };

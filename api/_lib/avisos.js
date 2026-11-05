@@ -64,7 +64,7 @@ export async function avisarDueno(titulo, texto) {
   let enviados = 0;
   for (const sd of subs.docs) {
     const sub = sd.data();
-    try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, JSON.stringify({ title: titulo, body: texto, url: './#/estado', tag: 'pesitos-estado' }), { TTL: 12 * 3600, urgency: 'normal' }); enviados++; }
+    try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, JSON.stringify({ title: titulo, body: texto, url: './', tag: 'pesitos-estado' }), { TTL: 12 * 3600, urgency: 'normal' }); enviados++; }
     catch (e) { if (e.statusCode === 404 || e.statusCode === 410) await sd.ref.delete(); }
   }
   return enviados ? `ok: ${enviados}` : 'el dueño no tiene avisos activados';

@@ -19,7 +19,7 @@ const BASE_IDS = ['salary', 'savingMode', 'fixedIntro', 'goal', 'goalTarget', 's
 function candidates(s) {
   const q = [];
   const focus = s.profile.focus;
-  if (!s.incomes.some((i) => i.type === 'sueldo')) q.push({ id: 'salary', p: 100, text: '¿Cuánto cobrás por mes? Sin ese dato no puedo calcular cuánto podés gastar por día.', kind: 'amount', placeholder: 'Ej: 900.000' });
+  if (!s.incomes.some((i) => i.type === 'sueldo')) q.push({ id: 'salary', p: 100, text: s.espacio ? '¿Cuánta plata entra por mes para la casa, sumando lo que pone cada uno? Con eso calculo cuánto pueden gastar por día.' : '¿Cuánto cobrás por mes? Sin ese dato no puedo calcular cuánto podés gastar por día.', kind: 'amount', placeholder: 'Ej: 900.000' });
   if (!s.fixed.length) q.push({ id: 'fixedIntro', p: 90, kind: 'info', title: 'Tus gastos fijos', text: 'Son los que pagás todos los meses por un monto parecido: alquiler, expensas, servicios, prepaga, cuotas, suscripciones… Cargalos una sola vez, con el nombre que quieras, y los descuento solos cada mes.', button: { label: 'Cargar mis gastos fijos', action: 'newFixed' } });
   // el objetivo se pregunta cuando ya hay movimientos: con eso la respuesta sirve más
   const actividad = (s.expenses || []).filter((e) => !e.pending).length;

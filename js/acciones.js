@@ -16,7 +16,7 @@ import { demoState } from './ejemplo.js';
 import { detectarReintegro } from './reintegros.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
-import { ratesAge, arsPer } from './cotizaciones.js';
+import { ratesAge, arsPer, aBase, monedaBase } from './cotizaciones.js';
 import { listaCuentas, cuentaPrincipal, nombreCuenta } from './cuentas.js';
 import { avancePresupuesto } from './presupuestos.js';
 import { ASSETS } from './categorias.js';
@@ -75,7 +75,8 @@ export const medioDe = (e) => (e.cardId ? `card:${e.cardId}` : e.accountId ? `ac
 
 export function entryForm(s, e, kind) {
   const isIncome = kind === 'income';
-  const cur = e.currency || 'ARS';
+  const B = monedaBase(s);
+  const cur = e.currency || B;
   const original = e.original || e.amount;
   const sh = e.shared || null;
   const splits = Array.isArray(e.splits) ? e.splits : [];
@@ -85,10 +86,10 @@ export function entryForm(s, e, kind) {
     <input type="hidden" name="id" value="${esc(e.id || '')}">
     <input type="hidden" name="kind" value="${kind}">
     <div class="field-row money-row">
-      <div class="field"><label for="f-amount">${sh ? 'Total del gasto' : 'Monto'}</label><input id="f-amount" name="amount" inputmode="decimal" required value="${montoTxt(sh ? (cur === 'ARS' ? sh.total : original) : original)}" placeholder="Ej: 48.000"></div>
+      <div class="field"><label for="f-amount">${sh ? 'Total del gasto' : 'Monto'}</label><input id="f-amount" name="amount" inputmode="decimal" required value="${montoTxt(sh ? (cur === B ? sh.total : original) : original)}" placeholder="${B === 'USD' ? 'Ej: 35' : 'Ej: 48.000'}"></div>
       <div class="field"><label for="f-cur">Moneda</label><select id="f-cur" name="currency" data-change="entryCurrency">${MONEDAS.map((a) => `<option value="${a.id}" ${a.id === cur ? 'selected' : ''}>${a.id === 'ARS' ? 'Pesos' : a.label}</option>`).join('')}</select></div>
     </div>
-    <div class="field" data-cur-box ${cur === 'ARS' ? 'hidden' : ''}><label for="f-rate">Cotización (pesos por unidad)</label><input id="f-rate" name="rate" inputmode="decimal" value="${e.rate && cur !== 'ARS' ? montoTxt(e.rate) : ''}" placeholder="${cur !== 'ARS' && arsPer(s, cur) ? `Hoy: ${montoTxt(arsPer(s, cur))}` : 'Ej: 1.200'}"><span class="hint">Si la dejás vacía, uso la cotización del día. Si pagaste con otra (por ejemplo, dólar tarjeta), escribila.</span></div>
+    <div class="field" data-cur-box ${cur === B ? 'hidden' : ''}><label for="f-rate">Cotización (${B === 'USD' ? 'dólares' : 'pesos'} por unidad)</label><input id="f-rate" name="rate" inputmode="decimal" value="${e.rate && cur !== B ? montoTxt(e.rate) : ''}" placeholder="${cur !== B && aBase(s, cur) ? `Hoy: ${montoTxt(aBase(s, cur))}` : B === 'USD' ? 'Ej: 0,0007' : 'Ej: 1.200'}"><span class="hint">Si la dejás vacía, uso la cotización del día. Si pagaste con otra (por ejemplo, dólar tarjeta), escribila.</span></div>
     <div class="field"><label for="f-note">Descripción</label><input id="f-note" name="note" value="${esc(e.note || '')}" placeholder="Ej: Coto, nafta, cena con amigos"></div>
     ${isIncome
       ? `<div class="field-row"><div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Sueldo</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>
@@ -108,7 +109,7 @@ export function entryForm(s, e, kind) {
       <div class="field"><label for="f-rf">Llega el</label><input id="f-rf" name="reintFecha" type="date" value="${r && !r.no ? esc(r.fecha) : ''}"></div></div>
       ${r && !r.no ? `<span class="hint">${r.manual ? 'Lo cargaste vos.' : `Calculado con ${esc(r.nombre)} (${r.pct}%).`} Se suma a tu saldo cuando confirmás que llegó${r.cardId ? ' (baja el resumen de la tarjeta)' : ''}.</span>` : '<span class="hint">Si lo dejás vacío, lo calculo con las promos y los cashback de tus medios de pago.</span>'}
       ${r && !r.no ? `<label class="check"><input type="checkbox" name="reintOk" ${r.ok ? 'checked' : ''}> <span>Ya me llegó (se suma a mi saldo)</span></label>` : ''}
-      <label class="check"><input type="checkbox" name="reintNo" ${e.sinReintegro ? 'checked' : ''}> <span>No me devuelven nada por esta compra</span></label>
+      <label class="check"><input type="checkbox" name="reintNo" ${e.sinReintegro ? 'checked' : ''}> <span>No usé la promo<br><span class="small muted">Pagué con transferencia, sin QR o no cumplía las condiciones.</span></span></label>
     </details>`; })()}
     <div class="field-row">
       <div class="field"><label for="f-date">Fecha</label><input id="f-date" name="date" type="date" value="${esc(e.date || todayISO())}"></div>
@@ -118,7 +119,7 @@ export function entryForm(s, e, kind) {
     <div class="split-box" data-box-id="shared" ${sh ? '' : 'hidden'}>
       <div class="field-row"><div class="field"><label for="f-with">Con quién</label><input id="f-with" name="with" value="${esc((sh && sh.with) || '')}" placeholder="Ej: Juan"></div>
       <div class="field"><label for="f-payer">¿Quién pagó?</label><select id="f-payer" name="payer"><option value="yo" ${!sh || sh.paidByMe ? 'selected' : ''}>Yo</option><option value="otro" ${sh && !sh.paidByMe ? 'selected' : ''}>La otra persona</option></select></div></div>
-      <div class="field"><label for="f-mine">Mi parte</label><input id="f-mine" name="mine" inputmode="decimal" value="${montoTxt(sh ? (cur === 'ARS' ? e.amount : e.amount / (e.rate || 1)) : '')}" placeholder="Ej: la mitad">
+      <div class="field"><label for="f-mine">Mi parte</label><input id="f-mine" name="mine" inputmode="decimal" value="${montoTxt(sh ? (cur === B ? e.amount : e.amount / (e.rate || 1)) : '')}" placeholder="Ej: la mitad">
         <div class="chips" style="margin-top:6px">${[2, 3, 4].map((n) => `<button type="button" class="chip" data-action="entryParte" data-n="${n}">Entre ${n}</button>`).join('')}</div></div>
     </div>`}
     <button class="btn primary block" type="submit">${e.pending ? 'Confirmar' : 'Guardar'}</button>
@@ -383,21 +384,22 @@ export const commonActions = {
     const category = chosenCat || p.category;
     // gastos en otra moneda: "Netflix US$ 10", "hotel 200 reales", "50 usd"
     const t = normalize(texto);
-    const currency = /\b(us\$|u\$s|usd|dolar(es)?)\b|us\$|u\$s/.test(t) ? 'USD' : /\b(euros?|eur)\b|€/.test(t) ? 'EUR' : /\b(reales?|brl)\b|r\$/.test(t) ? 'BRL' : 'ARS';
-    const rate = currency === 'ARS' ? 1 : arsPer(ctx.state, currency);
-    if (currency !== 'ARS' && !rate) { toast('No tengo la cotización ahora: cargalo desde "Gasto detallado"'); return; }
+    const B = monedaBase(ctx.state);
+    const currency = /\b(us\$|u\$s|usd|dolar(es)?)\b|us\$|u\$s/.test(t) ? 'USD' : /\b(euros?|eur)\b|€/.test(t) ? 'EUR' : /\b(reales?|brl)\b|r\$/.test(t) ? 'BRL' : /\b(pesos|ars)\b/.test(t) ? 'ARS' : B;
+    const rate = currency === B ? 1 : aBase(ctx.state, currency);
+    if (currency !== B && !rate) { toast('No tengo la cotización ahora: cargalo desde "Gasto detallado"'); return; }
     const amount = Math.round(p.amount * rate * 100) / 100;
-    const moneda = currency === 'ARS' ? {} : { currency, original: p.amount, rate };
-    const note = p.note.replace(/\b(us\$|u\$s|usd|dolares|dolar|euros?|reales?)\b/gi, '').replace(/\s+/g, ' ').trim() || p.note;
+    const moneda = { ...(currency === B ? {} : { currency, original: p.amount, rate }), ...(ctx.state.espacio && ctx.miNombre ? { por: ctx.miNombre } : {}) };
+    const note = p.note.replace(/\b(us\$|u\$s|usd|dolares|dolar|euros?|reales?|pesos)\b/gi, '').replace(/\s+/g, ' ').trim() || p.note;
     // la fecha elegida en el selector manda; si quedó en hoy, vale la del texto ("ayer", "15/10")
     const date = data.date && data.date !== todayISO() ? data.date : p.date;
     const antes = kind === 'expense' ? avancePresupuesto(ctx.state, category) : null;
-    let reint = null;
+    let reint = null; let nuevoId = '';
     ctx.commit((s) => {
       if (kind === 'income') s.incomes.push({ id: uid(), date, amount, type: /sueldo/i.test(texto) ? 'sueldo' : 'extra', note: note === 'Gasto' ? 'Ingreso' : note, ...(accountId ? { accountId } : {}), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
       else {
         s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
-        { const ex = s.expenses[s.expenses.length - 1]; const r = detectarReintegro(s, ex); if (r) { ex.reintegro = r; reint = r; } }
+        { const ex = s.expenses[s.expenses.length - 1]; nuevoId = ex.id; const r = detectarReintegro(s, ex); if (r) { ex.reintegro = r; reint = r; } }
         if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
         // recuerdo con qué pagaste en ese comercio, para proponértelo la próxima vez
         const kMedio = merchantKey(note);
@@ -405,7 +407,7 @@ export const commonActions = {
       }
     });
     const when = date !== todayISO() ? ` (${relDay(date).toLowerCase()})` : '';
-    const enMoneda = currency !== 'ARS' ? ` (${currency} ${String(p.amount).replace('.', ',')})` : '';
+    const enMoneda = currency !== B ? ` (${currency} ${String(p.amount).replace('.', ',')})` : '';
     let msg = kind === 'income'
       ? `Ingreso anotado: ${money(amount)}${enMoneda}${when}`
       : `Anotado en ${catLabel(category)}: ${money(amount)}${enMoneda}${p.installments > 1 && cardId ? ` en ${p.installments} cuotas` : ''}${cardId ? ' con tarjeta' : ''}${when}`;
@@ -415,7 +417,12 @@ export const commonActions = {
       if (ahora && ahora.pct >= 1 && antes.pct < 1) msg += `. Ojo: te pasaste del presupuesto de ${catLabel(category)}`;
       else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
     }
-    if (reint) msg += `. Te devuelven ${reint.aprox ? 'hasta ' : ''}${money(reint.monto)} (${reint.nombre} ${reint.pct}%${reint.aprox ? ', tope sin confirmar' : ''}) el ${reint.fecha.slice(8)}/${reint.fecha.slice(5, 7)}`;
+    if (reint) {
+      msg += `. Te devuelven ${reint.aprox ? 'hasta ' : ''}${money(reint.monto)} (${reint.nombre} ${reint.pct}%${reint.aprox ? ', tope sin confirmar' : ''}) el ${reint.fecha.slice(8)}/${reint.fecha.slice(5, 7)}`;
+      // si pagó por transferencia o sin la promo, lo saca con un toque
+      toast(msg, { label: 'No usé la promo', fn: () => { ctx.commit((s) => { const ex = s.expenses.find((x) => x.id === nuevoId); if (ex) { delete ex.reintegro; ex.sinReintegro = true; } }); toast('Listo: sin reintegro para esta compra'); } });
+      return;
+    }
     toast(msg);
   },
   alternarMontos(ctx, el) { const o = alternarMontos(el.dataset.clave); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles'); },
@@ -593,9 +600,10 @@ export const commonActions = {
   entryCurrency(ctx, el) {
     const f = el.closest('form');
     const box = f.querySelector('[data-cur-box]');
-    box.hidden = el.value === 'ARS';
-    const r = arsPer(ctx.state, el.value);
-    if (el.value !== 'ARS' && r) { const inp = f.querySelector('[name=rate]'); inp.value = ''; inp.placeholder = `Hoy: ${String(Math.round(r * 100) / 100).replace('.', ',')}`; }
+    const B = monedaBase(ctx.state);
+    box.hidden = el.value === B;
+    const r = aBase(ctx.state, el.value);
+    if (el.value !== B && r) { const inp = f.querySelector('[name=rate]'); inp.value = ''; inp.placeholder = `Hoy: ${String(Math.round(r * 100) / 100).replace('.', ',')}`; }
   },
   entryToggle(ctx, el) {
     const box = el.closest('form').querySelector(`[data-box-id="${el.dataset.box}"]`);
@@ -610,13 +618,14 @@ export const commonActions = {
   saveEntry(ctx, d) {
     const original = num(d.amount);
     if (!original) { toast('Ingresá un monto válido'); return; }
-    const currency = d.currency || 'ARS';
-    const rate = currency === 'ARS' ? 1 : (num(d.rate) || arsPer(ctx.state, currency));
+    const B = monedaBase(ctx.state);
+    const currency = d.currency || B;
+    const rate = currency === B ? 1 : (num(d.rate) || aBase(ctx.state, currency));
     if (!rate) { toast('Poné la cotización de esa moneda'); return; }
     const ars = (v) => Math.round(v * rate * 100) / 100;
     const tags = etiquetasDeTexto(d.tags);
     const [medioTipo, medioId] = String(d.medio || '').split(':');
-    const moneda = currency === 'ARS' ? {} : { currency, original, rate };
+    const moneda = currency === B ? {} : { currency, original, rate };
     let msg = 'Guardado';
     ctx.commit((s) => {
       s.deudas = s.deudas || [];
@@ -651,6 +660,7 @@ export const commonActions = {
       }
       const main = splits && splits.length ? splits.slice().sort((a, b) => b.amount - a.amount)[0].category : d.category;
       const item = { id, date: d.date || todayISO(), amount, category: main, note: d.note || catLabel(main), installments: Math.max(1, parseInt(d.installments, 10) || 1), ...moneda };
+      { const pr = s.expenses.find((x) => x.id === id); if (pr && pr.por) item.por = pr.por; else if (!pr && s.espacio && ctx.miNombre) item.por = ctx.miNombre; }
       if (medioTipo === 'card') item.cardId = medioId; else if (medioTipo === 'acc') item.accountId = medioId;
       if (!item.cardId) item.installments = 1;
       if (splits && splits.length > 1) item.splits = splits;

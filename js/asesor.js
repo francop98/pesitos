@@ -3,7 +3,8 @@
 // (planAhorroHtml), pero sus acciones siguen acá.
 
 import { money, esc, num, monthKey, todayISO } from './formato.js';
-import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES } from './categorias.js';
+import { allCategories, catLabel, CHALLENGE_TYPES, CUSTOM_RULE_TYPES, RULE_PRESETS } from './categorias.js';
+import { monedaBase, arsPer } from './cotizaciones.js';
 import { challengeStatus, allChallenges, answer, DISCLAIMER } from './economista.js';
 import { LESSONS } from './aprender.js';
 import { aprendizajes, loQueSe } from './habitos.js';
@@ -40,6 +41,11 @@ const catOpts = (sel) => allCategories().filter((c) => !['varios', 'otros'].incl
 function customText(c) {
   if (c.type === 'pctSalary') return `El ${c.value}% del sueldo`;
   if (c.type === 'fixedMonthly') return `${money(c.value)} por mes`;
+  if (c.type === 'porGasto') return `${money(c.value)} cada vez que gastás en ${catLabel(c.category).toLowerCase()}`;
+  if (c.type === 'bajoTope') return `Lo que no gastes de ${money(c.value)} en ${catLabel(c.category).toLowerCase()}`;
+  if (c.type === 'pctIngresos') return `El ${c.value}% de todo lo que entra`;
+  if (c.type === 'porSemana') return `${money(c.value)} por semana (≈ ${money(c.value * 4.33)} por mes)`;
+  if (c.type === 'porDia') return `${money(c.value)} por día (≈ ${money(c.value * 30)} por mes)`;
   return `El ${c.value}% de lo que gastás en ${catLabel(c.category).toLowerCase()}`;
 }
 
@@ -134,14 +140,19 @@ export function render(s) {
   </section>`;
 }
 
-function ruleForm(c = {}) {
+// los montos de las ideas están pensados en pesos: si manejás dólares, los paso
+const enTuMoneda = (s, v) => { const u = monedaBase(s) === 'USD' ? arsPer(s, 'USD') : 0; return u ? Math.max(1, Math.round(v / u)) : v; };
+function ruleForm(c = {}, s = null) {
   return `<form class="form" data-submit="saveCustomRule">
     <input type="hidden" name="id" value="${esc(c.id || '')}">
+    ${c.id ? '' : `<span class="small" style="font-weight:800">Ideas listas para usar</span>
+    <div class="rule-presets">${RULE_PRESETS.map((p, i) => `<button type="button" class="ahorro-op" data-action="usarPreset" data-i="${i}"><b>${esc(p.name)}</b><span>${esc(p.txt((v) => money(s ? enTuMoneda(s, v) : v)))}</span></button>`).join('')}</div>
+    <span class="small" style="font-weight:800">O armala a tu medida</span>`}
     <div class="field"><label for="r-n">Nombre</label><input id="r-n" name="name" value="${esc(c.name || '')}" placeholder="Ej: Impuesto al antojo" required></div>
     <div class="field"><label for="r-t">¿Cuánto apartar?</label><select id="r-t" name="type">${CUSTOM_RULE_TYPES.map((t) => `<option value="${t.id}" ${t.id === c.type ? 'selected' : ''}>${t.label}</option>`).join('')}</select></div>
     <div class="field-row">
-      <div class="field"><label for="r-v">Valor (% o $)</label><input id="r-v" name="value" inputmode="decimal" value="${c.value || ''}" placeholder="Ej: 10" required></div>
-      <div class="field"><label for="r-c">Categoría</label><select id="r-c" name="category">${catOpts(c.category)}</select><span class="hint">Solo para la opción por categoría.</span></div>
+      <div class="field"><label for="r-v">Valor (% o monto)</label><input id="r-v" name="value" inputmode="decimal" value="${c.value || ''}" placeholder="Ej: 10" required></div>
+      <div class="field"><label for="r-c">Categoría</label><select id="r-c" name="category">${catOpts(c.category)}</select><span class="hint">Solo para las opciones con categoría.</span></div>
     </div>
     <button class="btn primary block" type="submit">Guardar regla</button>
     ${c.id ? `<button class="btn ghost block" type="button" data-action="deleteCustomRule" data-id="${c.id}">Borrar regla</button>` : ''}
@@ -173,10 +184,38 @@ function ask(ctx, q) {
 export const actions = {
   asesorTab(ctx, el) { tab = el.dataset.v; ctx.render(); },
   masPreguntas(ctx) { masPreguntas = !masPreguntas; ctx.render(); },
+  // se cambia acá mismo, sin ir a Inicio
   changeMode(ctx) {
-    ctx.commit((s) => { s.savingMode = null; delete s.asked.savingMode; s.askLog = null; });
-    ctx.go('inicio');
-    toast('Elegí tu forma de ahorrar en Inicio');
+    const s = ctx.state;
+    const pf = s.rules.payFirst || {}; const fijo = (s.rules.custom || []).find((c) => c.id === 'r_fixed');
+    const act = s.savingMode === 'payFirst' ? `payFirst:${pf.pct}` : s.savingMode;
+    const op = (v, t, d) => `<label class="ahorro-op"><input type="radio" name="modo" value="${v}" ${v === act ? 'checked' : ''} style="position:absolute;opacity:0"><b>${t}</b><span>${d}</span></label>`;
+    openModal('Tu forma de ahorrar', `<form class="form" data-submit="guardarModoAhorro"><div class="ahorro-ops">
+      ${op('payFirst:10', 'Apartar el 10% apenas cobro', 'Lo que mejor funciona: primero ahorrás, después gastás.')}
+      ${op('payFirst:15', 'Apartar el 15% apenas cobro', 'Un poco más.')}
+      ${op('payFirst:20', 'Apartar el 20% apenas cobro', 'Más rápido.')}
+      ${op('fixed', 'Un monto fijo por mes', 'Vos elegís cuánto.')}
+      ${op('leftover', 'Lo que me sobre a fin de mes', 'Te aviso cuánto sobró para apartarlo.')}
+      ${op('roundup', 'Redondear cada gasto', 'Ahorro de a poquito, casi sin darte cuenta.')}
+      ${op('none', 'Por ahora no quiero ahorrar', 'Lo podés cambiar cuando quieras.')}</div>
+      <div class="field" data-fijo><label for="mo-f">Monto por mes (si elegiste monto fijo)</label><input id="mo-f" name="fijo" inputmode="decimal" value="${fijo ? fijo.value : ''}" placeholder="Ej: 100.000"></div>
+      <button class="btn primary block" type="submit">Guardar</button></form>`);
+  },
+  guardarModoAhorro(ctx, d) {
+    const [mode, pct] = String(d.modo || '').split(':');
+    if (!mode) { toast('Elegí una opción'); return; }
+    const fijo = num(d.fijo);
+    if (mode === 'fixed' && !fijo) { toast('Poné cuánto querés apartar por mes'); return; }
+    ctx.commit((s) => {
+      s.savingMode = mode;
+      s.rules.payFirst.on = mode === 'payFirst';
+      if (pct) s.rules.payFirst.pct = Number(pct);
+      s.rules.roundup.on = mode === 'roundup';
+      s.rules.custom = (s.rules.custom || []).filter((c) => c.id !== 'r_fixed');
+      if (mode === 'fixed') s.rules.custom.push({ id: 'r_fixed', name: 'Ahorro mensual fijo', type: 'fixedMonthly', value: fijo, on: true });
+      s.asked = s.asked || {}; s.asked.savingMode = { done: true };
+    });
+    closeModal(); toast('Listo, cambié tu forma de ahorrar');
   },
   toggleRule(ctx, el) { ctx.commit((s) => { s.rules[el.dataset.key].on = !s.rules[el.dataset.key].on; }); },
   editRule(ctx, el) {
@@ -193,7 +232,14 @@ export const actions = {
     ctx.commit((s) => { s.rules[r.key][r.param] = r.unit === '%' ? Math.min(100, v) : v; s.rules[r.key].on = true; });
     closeModal(); toast('Regla actualizada');
   },
-  newRule() { openModal('Crear regla de ahorro', ruleForm()); },
+  newRule(ctx) { openModal('Crear regla de ahorro', ruleForm({}, ctx.state)); },
+  usarPreset(ctx, el) {
+    const p = RULE_PRESETS[Number(el.dataset.i)]; if (!p) return;
+    // la de "lo que no gasto" necesita el tope: se lo propongo con lo que gastaste el mes pasado
+    if (p.type === 'bajoTope') { const f = el.closest('form'); f.querySelector('[name=name]').value = p.name; f.querySelector('[name=type]').value = p.type; f.querySelector('[name=category]').value = p.category; f.querySelector('[name=value]').focus(); toast('Poné el tope para el súper'); return; }
+    ctx.commit((s) => { s.rules.custom.push({ id: uid(), on: true, name: p.name, type: p.type, value: CUSTOM_RULE_TYPES.find((t) => t.id === p.type).unit === '$' ? enTuMoneda(s, p.value) : p.value, ...(p.category ? { category: p.category } : {}) }); });
+    closeModal(); toast(`"${p.name}" creada y activada`);
+  },
   editCustomRule(ctx, el) { const c = ctx.state.rules.custom.find((x) => x.id === el.dataset.id); if (c) openModal('Editar regla', ruleForm(c)); },
   saveCustomRule(ctx, d) {
     const value = num(d.value);

@@ -5,6 +5,7 @@
 
 import { refs, todayAR } from './_lib/actualizar.js';
 import { inZone } from './_lib/zona.js';
+import { menosDias, DIAS_RENOVAR } from './_lib/fuente.js';
 
 export default async function handler(req, res) {
   try {
@@ -22,7 +23,8 @@ export default async function handler(req, res) {
     const ciudad = String(req.query.ciudad || '').slice(0, 40);
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
     return res.status(200).json({
-      promos: (doc.promos || []).filter((p) => p.validTo >= today && (!prov || inZone(p.zone, prov, ciudad))),
+      // incluye las que vencieron hace hasta 10 días: la app pregunta si las renovaron
+      promos: (doc.promos || []).filter((p) => p.validTo >= menosDias(today, DIAS_RENOVAR) && (!prov || inZone(p.zone, prov, ciudad))),
       ipc: doc.ipc || {},
       sources: doc.sources || [],
       updatedAt: doc.updatedAt || null,
