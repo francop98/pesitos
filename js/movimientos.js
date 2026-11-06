@@ -35,7 +35,7 @@ export function expenseRow(s, e) {
   const cat = e.splits && e.splits.length > 1 ? `${e.splits.length} categorías` : c.label;
   return `<button class="row" data-action="openEntry" data-id="${e.id}" data-kind="expense">
     <span class="cat-icon ${green ? 'green' : ''}">${catIcon(c, 18)}</span>
-    <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${relDay(e.date)} · ${esc(cat)}${e.installments > 1 ? ` · ${e.installments} cuotas` : ''}${medio ? ` · ${medio}` : ''}${enMoneda(e)}${e.shared ? ` · tu parte (con ${esc(e.shared.with)})` : ''}${e.por ? ` · cargó ${esc(e.por)}` : ''}${e.proyectoId && proyectoDe(s, e.proyectoId) ? ` · 📁 ${esc(proyectoDe(s, e.proyectoId).nombre)}` : ''}</span>${tagsHtml(e.tags)}</span>
+    <span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${relDay(e.date)} · ${esc(cat)}${e.installments > 1 ? ` · ${e.installments} cuotas` : ''}${medio ? ` · ${medio}` : ''}${enMoneda(e)}${e.shared ? ` · tu parte (con ${esc(e.shared.with)})` : ''}${e.deEspacio ? ` · 👥 tu parte de ${esc(e.deEspacio.nombre)}` : e.por ? ` · cargó ${esc(e.por)}` : ''}${e.proyectoId && proyectoDe(s, e.proyectoId) ? ` · 📁 ${esc(proyectoDe(s, e.proyectoId).nombre)}` : ''}</span>${tagsHtml(e.tags)}</span>
     <span class="amount">−${money(e.amount)}</span>
   </button>`;
 }

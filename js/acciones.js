@@ -49,7 +49,51 @@ function elegirMedio(ctx, form, v, manual, sugerido = false) {
   }
   form.querySelectorAll('[data-action=pickMedio]').forEach((b) => { b.setAttribute('aria-checked', String(b === chip)); b.classList.toggle('sugerido', b === chip && sugerido); });
   chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  promoEnVivo(ctx, form);
 }
+
+// Mientras escribís en la carga rápida: si ese gasto tiene promo con el medio elegido,
+// te lo muestro y te pregunto ahí mismo si la usás (y el tope, si el banco no lo publica).
+// Si otro de tus medios te devuelve más, te lo sugiero.
+function gastoProvisorio(ctx, form, medio) {
+  const q = form.querySelector('[name=q]'); if (!q) return null;
+  if ((form.querySelector('[name=kind]') || {}).value === 'income') return null;
+  const texto = extraerEtiquetas(q.value).texto; if (!texto.trim()) return null;
+  const p = parseEntry(texto, ctx.state.learned); if (!p.amount) return null;
+  const [t, id] = String(medio ?? (form.querySelector('[name=medio]') || {}).value ?? '').split(':');
+  const cat = (form.querySelector('[name=category]') || {}).value;
+  const cardId = t === 'card' ? id : t === 'acc' ? undefined : detectCard(ctx.state, texto);
+  return { id: '__vivo', date: (form.querySelector('[name=date]') || {}).value || todayISO(), amount: p.amount, note: p.note, category: cat && cat !== 'auto' ? cat : p.category, installments: 1,
+    ...(cardId ? { cardId } : { accountId: t === 'acc' ? id : cuentaPrincipal(ctx.state) }) };
+}
+function promoEnVivo(ctx, form) {
+  const box = form.querySelector('[data-promo-live]'); if (!box) return;
+  const e = gastoProvisorio(ctx, form);
+  const r = e && detectarReintegro(ctx.state, e);
+  const uso = form.querySelector('[name=promoUso]');
+  // ¿otro medio tuyo devuelve más?
+  let mejor = null;
+  if (e) {
+    for (const m of mediosRapidos(ctx.state)) {
+      const e2 = gastoProvisorio(ctx, form, m.v); if (!e2) continue;
+      const r2 = detectarReintegro(ctx.state, e2);
+      if (r2 && r2.monto > ((r && r.monto) || 0) + 1 && (!mejor || r2.monto > mejor.r.monto)) mejor = { m, r: r2 };
+    }
+  }
+  if (!r && !mejor) { box.hidden = true; box.innerHTML = ''; if (uso) uso.value = ''; return; }
+  const clave = r ? r.key + '|' + r.monto : '';
+  if (box.dataset.clave !== clave && uso) uso.value = '';
+  box.dataset.clave = clave;
+  const v = uso ? uso.value : '';
+  box.hidden = false;
+  box.innerHTML = `${r ? `<span class="promo-live-txt">💸 <b>${esc(r.nombre)} ${r.pct}%</b>: te devuelven ${r.aprox ? 'hasta ' : ''}${money(r.monto)}${r.aprox ? ' (el banco no publica el tope)' : ''}</span>
+    <span class="promo-live-q"><span class="small">¿Pagás con la promo?</span>
+      <button type="button" class="chip ${v === 'si' ? 'on' : ''}" data-action="quickPromo" data-v="si" aria-pressed="${v === 'si'}">Sí</button>
+      <button type="button" class="chip ${v === 'no' ? 'on' : ''}" data-action="quickPromo" data-v="no" aria-pressed="${v === 'no'}">No, normal</button></span>
+    ${r.aprox && v !== 'no' ? `<span class="promo-live-q"><label class="small" for="ql-tope">Tope, si lo sabés</label><input id="ql-tope" name="promoTope" inputmode="decimal" placeholder="Ej: 10.000" class="promo-tope"></span>` : ''}` : ''}
+    ${mejor ? `<button type="button" class="link-btn" data-action="pickMedio" data-v="${esc(mejor.m.v)}">Con ${esc(mejor.m.label)} te devuelven ${money(mejor.r.monto)} ${icon('chevron', 12, 2.6)}</button>` : ''}`;
+}
+export { promoEnVivo };
 export function mediosRapidos(s) {
   const ppal = cuentaPrincipal(s);
   const todos = [
@@ -110,6 +154,7 @@ export function entryForm(s, e, kind) {
       ${r && !r.no ? `<span class="hint">${r.manual ? 'Lo cargaste vos.' : `Calculado con ${esc(r.nombre)} (${r.pct}%).`} Se suma a tu saldo cuando confirmás que llegó${r.cardId ? ' (baja el resumen de la tarjeta)' : ''}.</span>` : '<span class="hint">Si lo dejás vacío, lo calculo con las promos y los cashback de tus medios de pago.</span>'}
       ${r && !r.no ? `<label class="check"><input type="checkbox" name="reintOk" ${r.ok ? 'checked' : ''}> <span>Ya me llegó (se suma a mi saldo)</span></label>` : ''}
       <label class="check"><input type="checkbox" name="reintNo" ${e.sinReintegro ? 'checked' : ''}> <span>No usé la promo<br><span class="small muted">Pagué con transferencia, sin QR o no cumplía las condiciones.</span></span></label>
+      ${r && !r.no && r.key && r.key.startsWith('p:') ? `<button type="button" class="link-btn" data-action="editarTope" data-key="${esc(r.key)}" style="align-self:flex-start">${r.aprox ? 'Cargar el tope de la promo' : 'Cambiar el tope de la promo'} ${icon('chevron', 12, 2.6)}</button>` : ''}
     </details>`; })()}
     <div class="field-row">
       <div class="field"><label for="f-date">Fecha</label><input id="f-date" name="date" type="date" value="${esc(e.date || todayISO())}"></div>
@@ -389,7 +434,7 @@ export const commonActions = {
     const rate = currency === B ? 1 : aBase(ctx.state, currency);
     if (currency !== B && !rate) { toast('No tengo la cotización ahora: cargalo desde "Gasto detallado"'); return; }
     const amount = Math.round(p.amount * rate * 100) / 100;
-    const moneda = { ...(currency === B ? {} : { currency, original: p.amount, rate }), ...(ctx.state.espacio && ctx.miNombre ? { por: ctx.miNombre } : {}) };
+    const moneda = { ...(currency === B ? {} : { currency, original: p.amount, rate }), ...(ctx.state.espacio ? { por: ctx.miNombre || '', porUid: ctx.uid } : {}) };
     const note = p.note.replace(/\b(us\$|u\$s|usd|dolares|dolar|euros?|reales?|pesos)\b/gi, '').replace(/\s+/g, ' ').trim() || p.note;
     // la fecha elegida en el selector manda; si quedó en hoy, vale la del texto ("ayer", "15/10")
     const date = data.date && data.date !== todayISO() ? data.date : p.date;
@@ -399,7 +444,18 @@ export const commonActions = {
       if (kind === 'income') s.incomes.push({ id: uid(), date, amount, type: /sueldo/i.test(texto) ? 'sueldo' : 'extra', note: note === 'Gasto' ? 'Ingreso' : note, ...(accountId ? { accountId } : {}), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
       else {
         s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
-        { const ex = s.expenses[s.expenses.length - 1]; nuevoId = ex.id; const r = detectarReintegro(s, ex); if (r) { ex.reintegro = r; const u = usoPromoSegun(s, ex); if (u === 'no') { delete ex.reintegro; ex.sinReintegro = true; } else { if (!u) r.verificar = true; reint = r; } } }
+        {
+          const ex = s.expenses[s.expenses.length - 1]; nuevoId = ex.id;
+          let r = detectarReintegro(s, ex);
+          // tope que cargaste al anotar (la promo no lo publica)
+          const tope = num(data.promoTope);
+          if (r && tope > 0 && r.key && r.key.startsWith('p:')) { s.topesAprendidos = { ...(s.topesAprendidos || {}), [r.key]: { manual: true, cap: tope, periodo: 'semana', desde: todayISO() } }; r = detectarReintegro(s, ex); }
+          if (r) {
+            ex.reintegro = r;
+            const u = data.promoUso || usoPromoSegun(s, ex);
+            if (u === 'no') { delete ex.reintegro; ex.sinReintegro = true; } else { reint = { ...r, preguntar: !u }; }
+          }
+        }
         if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
         // recuerdo con qué pagaste en ese comercio, para proponértelo la próxima vez
         const kMedio = merchantKey(note);
@@ -417,7 +473,7 @@ export const commonActions = {
       if (ahora && ahora.pct >= 1 && antes.pct < 1) msg += `. Ojo: te pasaste del presupuesto de ${catLabel(category)}`;
       else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
     }
-    if (reint && reint.verificar) {
+    if (reint && reint.preguntar) {
       // ¿pagó con la promo o normal? le pregunto
       toast(msg);
       const ex = ctx.state.expenses.find((x) => x.id === nuevoId);
@@ -473,6 +529,7 @@ export const commonActions = {
   // mientras escribís: la categoría que detecto y el medio que usaste la última vez en ese comercio
   quickTexto(ctx, el) {
     const form = el.closest('form'); if (!form) return;
+    setTimeout(() => promoEnVivo(ctx, form), 0);
     const texto = extraerEtiquetas(el.value).texto;
     const auto = form.querySelector('[data-action=pickCat][data-id=auto] span:last-child');
     if (auto) {
@@ -483,6 +540,13 @@ export const commonActions = {
     const key = merchantKey(parseEntry(texto, ctx.state.learned).note || '');
     const m = key && (ctx.state.medioAprendido || {})[key];
     if (m !== undefined && m !== null && form.querySelector('[name=medio]') && mediosRapidos(ctx.state).some((x) => x.v === m)) elegirMedio(ctx, form, m, false, true);
+  },
+  quickPromo(ctx, el) {
+    const form = el.closest('form'); const uso = form.querySelector('[name=promoUso]');
+    uso.value = uso.value === el.dataset.v ? '' : el.dataset.v;
+    const tope = form.querySelector('[name=promoTope]'); const t = tope ? tope.value : '';
+    promoEnVivo(ctx, form);
+    const t2 = form.querySelector('[name=promoTope]'); if (t2) t2.value = t;
   },
   pickMedio(ctx, el) {
     const form = el.closest('form');
@@ -602,6 +666,14 @@ export const commonActions = {
     const list = kind === 'income' ? ctx.state.incomes : ctx.state.expenses;
     const e = list.find((x) => x.id === el.dataset.id);
     if (!e) return;
+    if (e.deEspacio) {
+      const x = e.deEspacio;
+      openModal(esc(e.note), `<div class="form"><div class="card lime"><span class="small">Tu parte (${String(x.pct).replace('.', ',')}%) de un gasto de "${esc(x.nombre)}"</span><strong style="font-size:24px">${money(e.amount)}</strong>
+        <span class="small">Gasto total: ${money(x.total)}${x.por ? ` · lo cargó ${esc(x.por)}` : ''} · ${relDay(e.date)}</span></div>
+        <p class="small muted" style="margin:0">Llega solo desde el espacio compartido, así no lo cargás dos veces. Cuenta en tus gastos y en "Hoy podés gastar", pero no toca el saldo de tus cuentas. Para cambiarlo o borrarlo, hacelo en "${esc(x.nombre)}".</p>
+        <button class="btn block" data-action="cambiarModo" data-id="${esc(x.id)}">Ir a "${esc(x.nombre)}"</button></div>`);
+      return;
+    }
     openModal(kind === 'income' ? 'Editar ingreso' : (e.pending ? 'Revisar comprobante' : 'Editar gasto'), entryForm(ctx.state, e, kind), { push: !!el.dataset.push });
   },
   entryCurrency(ctx, el) {
@@ -667,7 +739,7 @@ export const commonActions = {
       }
       const main = splits && splits.length ? splits.slice().sort((a, b) => b.amount - a.amount)[0].category : d.category;
       const item = { id, date: d.date || todayISO(), amount, category: main, note: d.note || catLabel(main), installments: Math.max(1, parseInt(d.installments, 10) || 1), ...moneda };
-      { const pr = s.expenses.find((x) => x.id === id); if (pr && pr.por) item.por = pr.por; else if (!pr && s.espacio && ctx.miNombre) item.por = ctx.miNombre; }
+      { const pr = s.expenses.find((x) => x.id === id); if (pr && pr.por) { item.por = pr.por; if (pr.porUid) item.porUid = pr.porUid; } else if (!pr && s.espacio) { item.por = ctx.miNombre || ''; item.porUid = ctx.uid; } }
       if (medioTipo === 'card') item.cardId = medioId; else if (medioTipo === 'acc') item.accountId = medioId;
       if (!item.cardId) item.installments = 1;
       if (splits && splits.length > 1) item.splits = splits;
@@ -699,10 +771,8 @@ export const commonActions = {
             ...(item.cardId ? { cardId: item.cardId, cuenta: undefined } : { cuenta: item.accountId || s.cuentaPrincipal, cardId: undefined }) };
         } else if (auto) {
           item.reintegro = auto;
-          // gasto nuevo: si no sé si usó la promo, le pregunto; si ya lo había respondido, lo respeto
-          if (prevR && !prevR.verificar && !prevR.no) delete item.reintegro.verificar;
-          else if (prevR && prevR.verificar) item.reintegro.verificar = true;
-          else if (!prev) { const u = usoPromoSegun(s, item); if (u === 'no') { delete item.reintegro; item.sinReintegro = true; } else if (!u) { item.reintegro.verificar = true; preguntar = id; } }
+          // gasto nuevo: si no sé si usó la promo, le pregunto al guardar
+          if (!prev) { const u = usoPromoSegun(s, item); if (u === 'no') { delete item.reintegro; item.sinReintegro = true; } else if (!u) preguntar = id; }
         }
         if (item.reintegro) { if (d.reintOk) item.reintegro.ok = true; else delete item.reintegro.ok; }
       }

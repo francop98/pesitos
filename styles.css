@@ -954,3 +954,22 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .cqp-semana .split.hoy { font-weight: 700; }
 .modo-con { font-weight: 500; opacity: .8; }
 .modo-select { width: 100%; margin-top: 6px; }
+/* v26: promo al cargar */
+.promo-live { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 10px 12px; border-radius: 14px; background: var(--lime-soft); color: var(--ink); }
+.promo-live-txt { font-size: 13.5px; }
+.promo-live-q { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.promo-live .chip.on { background: var(--green); color: #fff; border-color: var(--green); }
+.promo-live .promo-tope { flex: 1; min-width: 110px; height: 36px; padding: 0 10px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+.promo-live .link-btn { align-self: flex-start; }
+.nav.en-espacio { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.nav a[hidden] { display: none; }
+/* v26: espacio compartido */
+.esp-hero { gap: 6px; }
+.esp-personas { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.esp-persona { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; }
+/* v26: plan de la semana */
+.plan-semana { display: flex; flex-direction: column; gap: 8px; }
+.plan-dia { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.plan-dia-t { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--green-text); }
+.plan-item { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.plan-item .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

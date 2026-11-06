@@ -10,7 +10,7 @@ import { LESSONS } from './aprender.js';
 import { aprendizajes, loQueSe } from './habitos.js';
 import { renderSuggestion } from './guia.js';
 import { ayudaHtml } from './ayuda.js';
-import { budget } from './calculos.js';
+import { budget, monthIncome, monthExpenses, fixedTotal } from './calculos.js';
 import { sprout, icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 
@@ -49,46 +49,107 @@ function customText(c) {
   return `El ${c.value}% de lo que gastás en ${catLabel(c.category).toLowerCase()}`;
 }
 
-function aplicarModo(ctx, mode, pct, fijo) {
+function aplicarModo(ctx, mode, pct, fijo, silencio = false) {
   ctx.commit((s) => {
     s.savingMode = mode;
     s.rules.payFirst.on = mode === 'payFirst';
     if (pct) s.rules.payFirst.pct = Number(pct);
-    s.rules.roundup.on = mode === 'roundup';
     s.rules.custom = (s.rules.custom || []).filter((c) => c.id !== 'r_fixed');
     if (mode === 'fixed') s.rules.custom.push({ id: 'r_fixed', name: 'Ahorro mensual fijo', type: 'fixedMonthly', value: fijo, on: true });
     s.asked = s.asked || {}; s.asked.savingMode = { done: true };
   });
-  toast(`Listo: ${MODE_LABEL(ctx.state).replace(/\.$/, '').toLowerCase()}`);
+  if (!silencio) toast(`Listo: ${MODE_LABEL(ctx.state).replace(/\.$/, '').toLowerCase()}`);
 }
 
+// La forma principal (una sola). El redondeo, los ingresos extra y los aumentos son extras (se suman).
 const MODOS = [
   ['payFirst:10', 'Apartar el 10% apenas cobro', 'Lo que mejor funciona: primero ahorrás, después gastás.'],
   ['payFirst:15', 'Apartar el 15% apenas cobro', 'Un poco más.'],
   ['payFirst:20', 'Apartar el 20% apenas cobro', 'Más rápido.'],
-  ['fixed', 'Un monto fijo por mes', 'Vos elegís cuánto.'],
+  ['payFirst:otro', 'Apartar otro porcentaje', 'Vos elegís cuánto (por ejemplo, 5% para empezar).'],
+  ['fixed', 'Un monto fijo por mes', 'Ideal si tus ingresos cambian de un mes a otro.'],
   ['leftover', 'Lo que me sobre a fin de mes', 'Te aviso cuánto sobró para apartarlo.'],
-  ['roundup', 'Redondear cada gasto', 'Ahorro de a poquito, casi sin darte cuenta.'],
   ['none', 'Por ahora no quiero ahorrar', 'Lo podés cambiar cuando quieras.'],
 ];
-/** Pantalla #/formaahorro: el único lugar donde se elige cómo ahorrar. Se aplica al tocar. */
+const EXTRAS = [
+  { key: 'roundup', name: 'Redondear cada gasto', text: (r) => `Cada gasto se redondea a ${money(r.to)} y la diferencia va al ahorro`, param: 'to', unit: '$' },
+  { key: 'extraPct', name: 'Parte de los ingresos extra', text: (r) => `El ${r.pct}% de cada ingreso extra (aguinaldo, changas, ventas)`, param: 'pct', unit: '%' },
+  { key: 'raiseHalf', name: 'Parte de cada aumento', text: (r) => `El ${r.pct}% de lo que te aumenten el sueldo`, param: 'pct', unit: '%' },
+];
+
+// ---------- lo que te sugiero, según cómo manejás tu plata ----------
+const mesesAtras = (n) => { const d = new Date(); return Array.from({ length: n }, (_, i) => { const x = new Date(d.getFullYear(), d.getMonth() - 1 - i, 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`; }); };
+export function sugerenciaAhorro(s) {
+  const meses = mesesAtras(3).filter((mk) => monthIncome(s, mk) > 0);
+  if (meses.length < 2) return { listo: false, txt: `Todavía estoy aprendiendo cómo manejás tu plata. Con ${meses.length ? 'un mes más' : 'dos meses'} de ingresos y gastos cargados te digo qué forma te conviene.` };
+  const datos = meses.map((mk) => {
+    const ing = monthIncome(s, mk);
+    const extra = s.incomes.filter((x) => x.date.slice(0, 7) === mk && x.type !== 'sueldo').reduce((a, x) => a + x.amount, 0);
+    const gas = monthExpenses(s, mk).total + fixedTotal(s, mk);
+    const chicos = s.expenses.filter((e) => !e.pending && e.date.slice(0, 7) === mk && e.amount < ing * 0.01).length;
+    return { ing, extra, sobra: ing - gas, pct: (ing - gas) / ing, chicos };
+  });
+  const prom = (f) => datos.reduce((a, x) => a + f(x), 0) / datos.length;
+  const ingProm = prom((x) => x.ing);
+  const varia = Math.sqrt(prom((x) => (x.ing - ingProm) ** 2)) / ingProm;
+  const pctMin = Math.min(...datos.map((x) => x.pct)); const pctProm = prom((x) => x.pct);
+  const sobraMin = Math.min(...datos.map((x) => x.sobra));
+  const r5 = (x) => Math.max(5, Math.min(30, Math.floor(x * 20) * 5));
+  let modo; let pct = 0; let fijo = 0; let por;
+  if (varia > 0.25 && sobraMin > 0) { modo = 'fixed'; fijo = Math.round((sobraMin * 0.8) / 1000) * 1000 || Math.round(sobraMin * 0.8); por = `tus ingresos cambian bastante de un mes a otro, y aun en el peor mes te sobraron ${money(sobraMin)}`; }
+  else if (pctMin >= 0.1) { modo = 'payFirst'; pct = r5(pctMin); por = `en los últimos ${datos.length} meses siempre te sobró al menos el ${Math.round(pctMin * 100)}% de lo que entró: apartarlo apenas cobrás asegura que no se vaya en gastos`; }
+  else if (pctProm > 0.02) { modo = 'payFirst'; pct = 5; por = `te sobra poco (en promedio, el ${Math.round(pctProm * 100)}%): empezar con un 5% apenas cobrás arma el hábito sin ahogarte`; }
+  else { modo = 'leftover'; por = 'hoy gastás casi todo lo que entra: primero conviene ver qué sobra a fin de mes y bajar algún gasto'; }
+  const extras = [];
+  if (prom((x) => x.extra) > ingProm * 0.1) extras.push(['extraPct', 'tenés ingresos extra seguido']);
+  if (prom((x) => x.chicos) >= 20) extras.push(['roundup', `hacés muchas compras chicas (${Math.round(prom((x) => x.chicos))} por mes)`]);
+  const nombre = modo === 'payFirst' ? `Apartar el ${pct}% apenas cobrás` : modo === 'fixed' ? `Apartar ${money(fijo)} fijos por mes` : 'Ahorrar lo que te sobre a fin de mes';
+  const igual = s.savingMode === modo && (modo !== 'payFirst' || Number(s.rules.payFirst.pct) === pct);
+  return { listo: true, modo, pct, fijo, nombre, por, extras: extras.filter(([k]) => !s.rules[k].on), igual, meses: datos.length };
+}
+function sugerenciaHtml(s) {
+  const g = sugerenciaAhorro(s);
+  if (!g.listo) return `<div class="card"><strong>${sprout(18)} Lo que te sugiero</strong><span class="small muted">${esc(g.txt)}</span></div>`;
+  if (g.igual && !g.extras.length) return `<div class="card"><strong>${sprout(18)} Vas bien</strong><span class="small">Por cómo venís estos ${g.meses} meses, la forma que elegiste es la que te conviene.</span></div>`;
+  const ext = { roundup: 'sumá el redondeo', extraPct: 'sumá una parte de los ingresos extra' };
+  return `<div class="card lime"><strong>${sprout(18)} Te sugiero: ${esc(g.igual ? 'seguí con tu forma' : g.nombre)}</strong>
+    <span class="small">${g.igual ? '' : `Porque ${esc(g.por)}.`}${g.extras.length ? ` Además, ${g.extras.map(([k, r]) => `${ext[k]} (${esc(r)})`).join(' y ')}.` : ''}</span>
+    <span class="small muted">Lo calculo con tus últimos ${g.meses} meses y lo voy ajustando a medida que cargás.</span>
+    <button class="btn small green" data-action="usarSugerenciaAhorro" style="align-self:flex-start">Usar la sugerencia</button></div>`;
+}
+
+/** Pantalla #/formaahorro: el único lugar donde se elige cómo ahorrar. */
 export const formaAhorro = {
   render(s) {
     const pf = s.rules.payFirst || {}; const fijo = (s.rules.custom || []).find((c) => c.id === 'r_fixed');
-    const act = s.savingMode === 'payFirst' ? `payFirst:${pf.pct}` : s.savingMode;
-    const otroPct = s.savingMode === 'payFirst' && ![10, 15, 20].includes(Number(pf.pct));
+    const esOtro = s.savingMode === 'payFirst' && ![10, 15, 20].includes(Number(pf.pct));
+    const act = s.savingMode === 'payFirst' ? (esOtro ? 'payFirst:otro' : `payFirst:${pf.pct}`) : s.savingMode;
+    const extrasOn = EXTRAS.filter((r) => s.rules[r.key].on).length + (s.rules.custom || []).filter((c) => c.on && c.id !== 'r_fixed').length;
     return `<section class="screen">
-      ${screenHead('Tu forma de ahorrar', '', 'Tocá una opción y queda elegida')}
-      <div class="card lime"><span class="small">Ahora</span><strong>${esc(MODE_LABEL(s))}</strong></div>
+      ${screenHead('Tu forma de ahorrar', '', 'Una principal y, si querés, extras que se suman')}
+      <div class="card"><span class="small muted">Ahora</span><strong>${esc(MODE_LABEL(s))}</strong>${extrasOn ? `<span class="small">Más ${extrasOn} extra${extrasOn === 1 ? '' : 's'} que se suma${extrasOn === 1 ? '' : 'n'}.</span>` : ''}</div>
+      ${sugerenciaHtml(s)}
+      <div class="section-title"><span>1. La principal (elegí una)</span></div>
       <div class="ahorro-ops">
         ${MODOS.map(([v, t, d]) => `<button class="ahorro-op ${v === act ? 'on' : ''}" data-action="elegirModoAhorro" data-v="${v}" ${v === act ? 'aria-current="true"' : ''}>
-          <b>${t}${v === act ? ' <span class="pill ok">Elegida</span>' : ''}</b><span>${d}</span></button>`).join('')}
-        ${otroPct ? `<p class="small muted" style="margin:0">Ahora apartás el ${pf.pct}%: lo cambiás en Reglas de ahorro → Págate primero.</p>` : ''}
+          <b>${v === 'payFirst:otro' && esOtro ? `Apartar el ${pf.pct}% apenas cobro` : t}${v === act ? ' <span class="pill ok">Elegida</span>' : ''}</b><span>${d}</span></button>`).join('')}
       </div>
+      <form class="card form" data-submit="guardarModoOtro" data-otro ${act === 'payFirst:otro' ? '' : 'hidden'}>
+        <div class="field"><label for="mo-p">Porcentaje que apartás apenas cobrás</label><input id="mo-p" name="pct" inputmode="decimal" value="${esOtro ? pf.pct : ''}" placeholder="Ej: 5"></div>
+        <button class="btn primary block" type="submit">Guardar porcentaje</button>
+      </form>
       <form class="card form" data-submit="guardarModoFijo" data-fijo ${s.savingMode === 'fixed' ? '' : 'hidden'}>
         <div class="field"><label for="mo-f">Monto fijo por mes</label><input id="mo-f" name="fijo" inputmode="decimal" value="${fijo ? fijo.value : ''}" placeholder="Ej: 100.000"></div>
         <button class="btn primary block" type="submit">Guardar monto</button>
       </form>
+      <div class="section-title"><span>2. Extras (opcionales, se suman)</span></div>
+      <div class="card tight">
+        ${EXTRAS.map((r) => { const v = s.rules[r.key]; return `<div class="row">
+          <span class="grow"><span class="name">${r.name}</span><span class="meta">${esc(r.text(v))}</span></span>
+          <button class="chip" data-action="editRule" data-key="${r.key}" aria-label="Cambiar ${r.name}">${r.unit === '$' ? money(v[r.param]) : v[r.param] + '%'}</button>
+          <button class="switch" role="switch" aria-checked="${v.on}" aria-label="${r.name}" data-action="toggleRule" data-key="${r.key}"></button></div>`; }).join('')}
+      </div>
+      <p class="small muted" style="margin:0">También podés crear reglas propias (por ejemplo, "cada vez que pido delivery, aparto $1.000") en Mi plata → Plan → Reglas de ahorro.</p>
       ${lessonBtn()}
     </section>`;
   },
@@ -234,6 +295,10 @@ export const actions = {
   changeMode(ctx) { ctx.go('formaahorro'); },
   elegirModoAhorro(ctx, el) {
     const [mode, pct] = String(el.dataset.v || '').split(':');
+    if (pct === 'otro') {
+      const box = document.querySelector('[data-otro]'); const f = document.getElementById('mo-p');
+      if (box) { box.hidden = false; f.focus(); } toast('Poné el porcentaje y tocá Guardar'); return;
+    }
     if (mode === 'fixed') {
       const f = document.getElementById('mo-f');
       const fijo = num(f && f.value);
@@ -241,6 +306,17 @@ export const actions = {
       aplicarModo(ctx, 'fixed', null, fijo); return;
     }
     aplicarModo(ctx, mode, pct);
+  },
+  guardarModoOtro(ctx, d) {
+    const pct = num(d.pct);
+    if (!(pct > 0 && pct <= 90)) { toast('Poné un porcentaje entre 1 y 90'); return; }
+    aplicarModo(ctx, 'payFirst', pct);
+  },
+  usarSugerenciaAhorro(ctx) {
+    const g = sugerenciaAhorro(ctx.state); if (!g.listo) return;
+    if (!g.igual) aplicarModo(ctx, g.modo, g.pct || null, g.fijo, true);
+    if (g.extras.length) ctx.commit((s) => { for (const [k] of g.extras) s.rules[k].on = true; });
+    toast(`Listo: ${g.igual ? 'sumé los extras' : g.nombre.toLowerCase()}${!g.igual && g.extras.length ? ', con extras' : ''}`);
   },
   guardarModoFijo(ctx, d) {
     const fijo = num(d.fijo);

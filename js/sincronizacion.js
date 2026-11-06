@@ -382,6 +382,13 @@ export async function unirse(user, codigo, miNombre) {
   const e = await getDoc(doc(firebase().db, 'espacios', id));
   return { id, nombre: (e.data() || {}).nombre || 'Familia' };
 }
+/** Lo que hay cargado en un espacio (para sumar tu parte a tu plata personal). */
+export async function leerEstadoEspacio(id) {
+  const snap = await getDocs(collection(firebase().db, 'espacios', id, 'estado'));
+  const docs = {};
+  snap.forEach((d) => { const x = d.data(); if (typeof x.json === 'string') docs[d.id] = x.json; });
+  return Object.keys(docs).length ? unir(docs) : null;
+}
 /** Datos del espacio (para ver quiénes son). */
 export async function leerEspacio(id) {
   const e = await getDoc(doc(firebase().db, 'espacios', id));

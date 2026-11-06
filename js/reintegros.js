@@ -159,12 +159,12 @@ export function usoPromoSegun(s, e) {
   if (e.reintegro && (s.promoSiempre || {})[e.reintegro.wallet]) return 'si';
   return null;
 }
-export const promosAVerificar = (s) => (s.expenses || []).filter((e) => e.reintegro && e.reintegro.verificar && !e.reintegro.no);
 export function preguntaPromoHtml(s, e) {
   const r = e.reintegro;
   return `<div class="form" data-promo-q="${esc(e.id)}">
     <p class="text" style="margin:0"><b>${esc(e.note)} · ${money(e.amount)}</b></p>
     <p class="small muted" style="margin:0">Con <b>${esc(r.nombre)}</b> hay ${r.pct}% de reintegro${r.aprox ? ' (tope sin confirmar)' : ''}: te devolverían ${r.aprox ? 'hasta ' : ''}${money(r.monto)} el ${fecha(r.fecha)}. Pero solo si pagaste con la promo (casi siempre, con QR, NFC o la tarjeta de la billetera).</p>
+    ${r.aprox ? `<div class="field"><label for="pq-tope">Tope de la promo (si lo sabés)</label><input id="pq-tope" data-promo-tope inputmode="decimal" placeholder="Ej: 10.000"><span class="hint">El banco no lo publica: fijate en la app, en las condiciones de la promo.</span></div>` : ''}
     <button class="btn primary block" data-action="promoUsada" data-id="${esc(e.id)}" data-v="si">Sí, pagué con la promo</button>
     <button class="btn block" data-action="promoUsada" data-id="${esc(e.id)}" data-v="no">No, pagué normal</button>
     <label class="check"><input type="checkbox" data-promo-siempre> <span>Con ${esc(walletName(r.wallet))} siempre uso la promo: no me preguntes más</span></label>
@@ -177,8 +177,8 @@ const vivos = (s) => (s.expenses || []).filter((e) => e.reintegro && !e.reintegr
 // Hasta entonces es "por cobrar" (antes de la fecha) o "a confirmar" (ya pasó la fecha).
 const confirmados = (s) => vivos(s).filter((e) => e.reintegro.ok);
 export const reintegrosCobrados = (s, desde = '0000-00-00', hasta = todayISO()) => confirmados(s).filter((e) => e.reintegro.fecha > desde && e.reintegro.fecha <= hasta);
-export const reintegrosPendientes = (s) => vivos(s).filter((e) => !e.reintegro.ok && !e.reintegro.verificar && e.reintegro.fecha > todayISO());
-export const reintegrosPorConfirmar = (s) => vivos(s).filter((e) => !e.reintegro.ok && !e.reintegro.verificar && e.reintegro.fecha <= todayISO());
+export const reintegrosPendientes = (s) => vivos(s).filter((e) => !e.reintegro.ok && e.reintegro.fecha > todayISO());
+export const reintegrosPorConfirmar = (s) => vivos(s).filter((e) => !e.reintegro.ok && e.reintegro.fecha <= todayISO());
 export const totalReintegros = (lista) => lista.reduce((a, e) => a + e.reintegro.monto, 0);
 export const reintegrosDelMes = (s, mk) => totalReintegros(confirmados(s).filter((e) => e.reintegro.fecha.slice(0, 7) === mk && e.reintegro.fecha <= todayISO()));
 /** Para la cuenta: reintegros acreditados en esa cuenta entre dos fechas. */
@@ -216,7 +216,7 @@ export const nombreMedio = (id) => (allWallets().find((w) => w.id === id) || {})
 // Pantalla: #/reintegros
 // =========================================================
 import { esc, num } from './formato.js';
-import { icon, screenHead, openModal, closeModal, toast, setModalBody, catIcon } from './interfaz.js';
+import { icon, screenHead, openModal, closeModal, toast, setModalBody, catIcon, modalBack } from './interfaz.js';
 import { allCategories, catLabel, catById } from './categorias.js';
 import { uid } from './almacenamiento.js';
 import { merchantKey, guessCategory } from './interprete.js';
@@ -249,9 +249,9 @@ function topesHtml(s) {
   const fila = (r) => {
     const donde = r.comercio ? esc(r.comercio) : r.categoria ? esc(catLabel(r.categoria)) : 'En todas tus compras';
     const tope = r.cap ? `<span class="tope-barra" role="img" aria-label="Usaste ${money(r.usado)} de ${money(r.cap)}"><span style="width:${Math.min(100, Math.round((r.usado / r.cap) * 100))}%"></span></span>
-      <span class="meta"><b>Te queda ${money(r.queda)}</b> de ${money(r.cap)} ${PER_TXT[r.capPeriodo] || ''}${r.usado ? ` (usaste ${money(r.usado)})` : ''}</span>` : `<span class="meta">${r.capDudoso ? '⚠️ Tope sin confirmar: el banco no lo publica' : 'Sin tope'}</span>`;
+      <span class="meta"><b>Te queda ${money(r.queda)}</b> de ${money(r.cap)} ${PER_TXT[r.capPeriodo] || ''}${r.usado ? ` (usaste ${money(r.usado)})` : ''}</span>` : `<span class="meta">${r.capDudoso ? '⚠️ Tope sin confirmar: el banco no lo publica. Lo podés poner al anotar una compra' : 'Sin tope'}</span>`;
     const aprendidoTxt = r.capManual ? '<span class="meta">Tope que cargaste vos</span>' : r.capAprendido ? '<span class="meta">Tope aprendido de lo que te devolvieron</span>' : '';
-    const boton = r.origen === 'promo' ? `<button class="btn small ${r.capDudoso ? 'green' : 'ghost'}" data-action="editarTope" data-key="${esc(r.key)}" style="align-self:flex-start;min-height:32px">${r.capDudoso ? 'Cargar el tope' : 'Cambiar tope'}</button>` : '';
+    const boton = '';
     return `<div class="row tope-fila"><span class="grow"><span class="name">${esc(r.nombre)} · ${r.pct}% <span class="tope-donde">${donde}</span></span>${tope}${aprendidoTxt}${boton}</span></div>`;
   };
   const primeras = l.slice(0, 6); const resto = l.slice(6);
@@ -282,11 +282,6 @@ export function render(s) {
       <div class="stat"><span class="k">Por cobrar</span><span class="v">${money(totalReintegros(pend))}</span><span class="small muted">${pend.length} compra${pend.length === 1 ? '' : 's'}</span></div>
       <div class="stat"><span class="k">Cobrado este mes</span><span class="v pos">${money(reintegrosDelMes(s, mk))}</span><span class="small muted">confirmados</span></div>
     </div>
-    ${(() => { const v = promosAVerificar(s); return v.length ? `<div class="section-title"><span>¿Usaste la promo? (${v.length})</span></div>
-    <p class="small muted" style="margin:0">Hasta que me digas, no las cuento como por cobrar.</p>
-    <div class="card tight">${v.map((e) => `<div class="row reint-conf"><span class="grow"><span class="name">${esc(e.note)} · ${money(e.amount)}</span>
-      <span class="meta">${esc(e.reintegro.nombre)} ${e.reintegro.pct}% · te devolverían ${money(e.reintegro.monto)} · compra del ${fecha(e.date)}</span>
-      <span class="btn-row"><button class="btn small green" data-action="promoUsada" data-id="${esc(e.id)}" data-v="si">Sí, con la promo</button><button class="btn small ghost" data-action="promoUsada" data-id="${esc(e.id)}" data-v="no">No, normal</button></span></span></div>`).join('')}</div>` : ''; })()}
     ${conf.length ? `<div class="section-title"><span>¿Te llegaron? (${conf.length})</span></div>
     <p class="small muted" style="margin:0">Se suman a tu saldo recién cuando me confirmás que llegaron y por cuánto. Así tu saldo no se aleja del real.</p>
     <div class="card tight">${conf.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(filaConfirmar).join('')}</div>` : ''}
@@ -433,11 +428,62 @@ function rubrosHoy(s) {
     return `<button class="cqp-rubro ${o ? 'con' : ''}" data-action="cqpRubro" data-q="${esc(q)}" data-l="${esc(l)}"><span class="cat-icon ${o ? 'green' : ''}">${icon(ic, 16)}</span><span class="grow"><b>${esc(l)}</b><span class="small ${o ? '' : 'muted'}">${o ? `${esc(o.nombre)} ${o.pct}%` : 'Nada hoy'}</span></span></button>`;
   }).join('')}</div>`;
 }
+// ---------- plan de la semana ----------
+// Para lo que más comprás: qué día ir y con qué medio, con lo que te ahorrarías
+// (según lo que gastás por semana en ese rubro y el tope de cada promo).
+const RUBRO_DE_CAT = { super: ['Súper', 'supermercado', 'cart'], vehiculo: ['Nafta', 'combustible', 'fuel'], salud: ['Farmacia', 'farmacia', 'heart'], comida: ['Comida afuera', 'restaurante', 'food'],
+  compras: ['Ropa', 'ropa', 'shirt'], hogar: ['Hogar', 'electrodomesticos', 'sofa'], transporte: ['Transporte', 'sube', 'bus'], mascotas: ['Mascotas', 'mascotas', 'paw'], educacion: ['Librería', 'libreria', 'book'] };
+export function planSemana(s) {
+  const desde = toISO(addDays(new Date(), -56));
+  const porCat = {};
+  for (const e of s.expenses || []) if (!e.pending && !e.deEspacio && e.date >= desde && RUBRO_DE_CAT[catReal(e.category)]) { const c = catReal(e.category); porCat[c] = (porCat[c] || 0) + e.amount; }
+  let cats = Object.keys(porCat).sort((a, b) => porCat[b] - porCat[a]).slice(0, 6);
+  const propio = cats.length > 0;
+  if (!cats.length) cats = ['super', 'vehiculo', 'salud', 'comida'];
+  const hoyN = new Date().getDay();
+  const dist = (d) => (d - hoyN + 7) % 7; // días desde hoy
+  const filas = [];
+  for (const c of cats) {
+    const [label, q, ic] = RUBRO_DE_CAT[c];
+    const semanal = propio ? (porCat[c] || 0) / 8 : 0;
+    const item = { texto: q, categoria: c, monto: semanal, rubro: true };
+    let mejor = null;
+    for (let d = 0; d < 7; d++) {
+      const o = conQuePagar(s, { ...item, dia: d }).find((x) => x.tuyo);
+      if (!o) continue;
+      const v = semanal ? o.ahorro : o.pct;
+      if (!mejor || v > mejor.v || (v === mejor.v && dist(d) < dist(mejor.d))) mejor = { d, o, v };
+    }
+    filas.push({ c, label, ic, semanal, mejor });
+  }
+  const ahorro = filas.reduce((a, f) => a + (f.mejor && f.semanal ? f.mejor.o.ahorro : 0), 0);
+  return { filas, ahorro, propio };
+}
+function planHtml(s) {
+  const p = planSemana(s);
+  const hoyN = new Date().getDay();
+  const con = p.filas.filter((f) => f.mejor); const sin = p.filas.filter((f) => !f.mejor);
+  // agenda: de hoy en adelante
+  const orden = [0, 1, 2, 3, 4, 5, 6].map((i) => (hoyN + i) % 7);
+  const dias = orden.map((d) => ({ d, items: con.filter((f) => f.mejor.d === d) })).filter((x) => x.items.length);
+  const diaTxt = (d) => (d === hoyN ? 'Hoy' : d === (hoyN + 1) % 7 ? 'Mañana' : DIAS_LARGOS[d].charAt(0).toUpperCase() + DIAS_LARGOS[d].slice(1));
+  const item = (f) => { const o = f.mejor.o; const todos = (o.dias || []).length === 7;
+    return `<div class="plan-item"><span class="cat-icon green">${icon(f.ic, 16)}</span><span class="grow"><span><b>${esc(f.label)}</b> con <b>${esc(o.nombre)}</b> · ${o.pct}%${o.comercio && !GENERICO.test(normalize(o.comercio)) ? ` en ${esc(o.comercio.slice(0, 40))}` : ''}</span>
+      <span class="small muted">${capTxt(o)}${todos ? ' · vale todos los días' : ''}${f.semanal ? ` · gastás ≈ ${money(f.semanal)} por semana: te ahorrás ≈ ${money(o.ahorro)}` : ''}</span></span></div>`; };
+  return `<div class="plan-semana">
+    <div class="split"><strong>Tu plan de la semana</strong>${p.ahorro ? `<span class="pill ok">≈ ${money(p.ahorro)} por semana</span>` : ''}</div>
+    <span class="small muted">${p.propio ? 'Para lo que más comprás (últimas 8 semanas)' : 'Para lo de todos los días (cuando cargues tus gastos, lo armo con lo tuyo)'}: qué día ir y con qué pagar, con tus bancos y billeteras.</span>
+    ${dias.length ? dias.map((x) => `<div class="plan-dia"><span class="plan-dia-t">${diaTxt(x.d)}</span>${x.items.map(item).join('')}</div>`).join('') : '<p class="small muted" style="margin:0">Esta semana no hay descuentos para tus rubros con tus medios de pago. Mirá abajo si alguna billetera que no tenés te conviene.</p>'}
+    ${sin.length ? `<span class="small muted">Sin descuento con tus medios: ${sin.map((f) => esc(f.label.toLowerCase())).join(', ')}.</span>` : ''}
+  </div>`;
+}
+
 function cqpBody(s, q = '', m = 0) {
   const lista = aPagar(s);
-  return `<div class="card"><div class="field"><label for="cqp-q">¿Qué vas a pagar?</label><input id="cqp-q" value="${esc(q)}" placeholder="Ej: combustible, súper, Coto, farmacia, Claro" data-input="cqpBuscar" autocomplete="off" enterkeyhint="search"></div>
+  return `<div class="card">${planHtml(s)}</div>
+    <div class="card"><div class="field"><label for="cqp-q">¿Algo puntual? ¿Qué vas a pagar?</label><input id="cqp-q" value="${esc(q)}" placeholder="Ej: combustible, súper, Coto, farmacia, Claro" data-input="cqpBuscar" autocomplete="off" enterkeyhint="search"></div>
       <div class="field"><label for="cqp-m">¿Cuánto? <span class="muted">(opcional)</span></label><input id="cqp-m" inputmode="decimal" value="${m || ''}" placeholder="Para decirte cuánto te ahorrás" data-input="cqpBuscar"></div>
-      <div data-cqp-res>${q ? cqpRespuesta(s, cqpItem(s, q, m)) : rubrosHoy(s)}</div></div>
+      <div data-cqp-res>${q ? cqpRespuesta(s, cqpItem(s, q, m)) : '<span class="small muted">Escribí algo puntual y te digo con qué pagarlo hoy.</span>'}</div></div>
     ${lista.length ? `<details class="card"><summary><strong>Tus pagos y compras de siempre</strong></summary>
     ${lista.map((it) => `<div class="cqp" style="margin-top:10px"><div class="split"><strong>${esc(it.texto)}</strong><span class="small muted">${esc(it.tipo)} · ${money(it.monto)}</span></div>${cqpResultados(s, it)}</div>`).join('')}</details>` : ''}
     <p class="small muted" style="margin:0">Uso las promos vigentes de bancos y billeteras (se actualizan solas todos los días) y los cashback que cargaste vos. Revisá las condiciones antes de pagar.</p>`;
@@ -506,28 +552,33 @@ export const actions = {
     ctx.commit((s) => {
       const e = (s.expenses || []).find((x) => x.id === el.dataset.id); if (!e || !e.reintegro) return;
       quien = e.reintegro.wallet;
+      const tope = caja && caja.querySelector('[data-promo-tope]') ? num(caja.querySelector('[data-promo-tope]').value) : 0;
+      if (si && tope > 0 && e.reintegro.key && e.reintegro.key.startsWith('p:')) {
+        s.topesAprendidos = { ...(s.topesAprendidos || {}), [e.reintegro.key]: { manual: true, cap: tope, periodo: 'semana', desde: todayISO() } };
+        const nuevo = detectarReintegro(s, e); if (nuevo) e.reintegro = nuevo;
+      }
       if (si) delete e.reintegro.verificar; else { delete e.reintegro; e.sinReintegro = true; }
       if (siempre && si) s.promoSiempre = { ...(s.promoSiempre || {}), [quien]: true };
     });
     if (caja) closeModal();
     toast(si ? `Listo: te aviso cuando tenga que llegar${siempre ? `. Con ${walletName(quien)} no te pregunto más` : ''}` : 'Listo: sin reintegro para esta compra');
   },
-  editarTope(ctx, el) { openModal('Tope de la promo', topeForm(ctx.state, el.dataset.key)); },
+  editarTope(ctx, el) { openModal('Tope de la promo', topeForm(ctx.state, el.dataset.key), { push: !document.getElementById('modal').hidden }); },
   guardarTope(ctx, d) {
     const cap = Math.round(num(d.cap) * 100) / 100; const sinTope = !!d.sinTope;
     if (!sinTope && !(cap > 0)) { toast('Poné el tope o marcá "No tiene tope"'); return; }
     ctx.commit((s) => { s.topesAprendidos = { ...(s.topesAprendidos || {}), [d.key]: { manual: true, ...(sinTope ? { sinTope: true, cap: 0 } : { cap }), periodo: d.periodo || 'semana', desde: todayISO() } }; });
-    closeModal(); toast(sinTope ? 'Listo: la cuento sin tope' : `Listo: tope de ${money(cap)} por ${d.periodo === 'compra' ? 'compra' : d.periodo}`);
+    modalBack(); toast(sinTope ? 'Listo: la cuento sin tope' : `Listo: tope de ${money(cap)} por ${d.periodo === 'compra' ? 'compra' : d.periodo}`);
   },
   borrarTope(ctx, el) {
     ctx.commit((s) => { const t = { ...(s.topesAprendidos || {}) }; delete t[el.dataset.key]; s.topesAprendidos = t; });
-    closeModal(); toast('Listo: uso el tope publicado');
+    modalBack(); toast('Listo: uso el tope publicado');
   },
   openConQuePagar(ctx) { openModal('¿Con qué conviene pagar?', cqpBody(ctx.state)); },
   cqpBuscar(ctx) {
     const q = document.getElementById('cqp-q')?.value.trim() || ''; const m = num(document.getElementById('cqp-m')?.value);
     const r = document.querySelector('[data-cqp-res]'); if (!r) return;
-    r.innerHTML = q.length >= 2 ? cqpRespuesta(ctx.state, cqpItem(ctx.state, q, m)) : rubrosHoy(ctx.state);
+    r.innerHTML = q.length >= 2 ? cqpRespuesta(ctx.state, cqpItem(ctx.state, q, m)) : '<span class="small muted">Escribí algo puntual y te digo con qué pagarlo hoy.</span>';
   },
   cqpRubro(ctx, el) {
     const i = document.getElementById('cqp-q'); if (i) i.value = el.dataset.l;

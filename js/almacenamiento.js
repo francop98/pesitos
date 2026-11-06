@@ -112,6 +112,8 @@ export function migrate(data) {
   }
   if (s.challenge && AL[s.challenge.category]) s.challenge = { ...s.challenge, category: re(s.challenge.category) };
   if (!data.cats25) separarCategorias(s);
+  // v26: el redondeo pasa a ser un extra; la principal queda "lo que sobre"
+  if (s.savingMode === 'roundup') { s.savingMode = 'leftover'; s.rules.roundup.on = true; }
   s.version = base.version;
   return s;
 }

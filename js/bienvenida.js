@@ -250,6 +250,7 @@ export const actions = {
         s.rules.payFirst.on = d.savingMode === 'payFirst';
         if (d.savingPct) s.rules.payFirst.pct = d.savingPct;
         s.rules.roundup.on = d.savingMode === 'roundup';
+        if (d.savingMode === 'roundup') s.savingMode = 'leftover'; // el redondeo es un extra
         s.asked.savingMode = { done: true };
         if (d.savingMode === 'fixed' && d.savingAmount) {
           s.rules.custom = (s.rules.custom || []).filter((c) => c.id !== 'r_fixed');

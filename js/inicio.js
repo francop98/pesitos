@@ -18,9 +18,9 @@ import { instalada } from './menu.js';
 import { bioDisponible, bioActiva, bloqueoActions } from './bloqueo.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast, setModalBody } from './interfaz.js';
 import { uid } from './almacenamiento.js';
-import { reintegrosPorConfirmar, promosAVerificar } from './reintegros.js';
+import { reintegrosPorConfirmar } from './reintegros.js';
 import { compararCard } from './miscuentas.js';
-import { chipModo } from './espacios.js';
+import { chipModo, datosEspacio, cuentasDelMes } from './espacios.js';
 
 const MODE_TEXT = {
   payFirst: (s) => `Elegiste apartar el ${s.rules.payFirst.pct}% apenas cobrás`,
@@ -330,6 +330,36 @@ function sueldoPorCargar(s) {
 }
 
 // "Tu día": el próximo pago, la promo de hoy y cuánto tenés en tus cuentas
+// ---------- en un espacio compartido: lo de la casa ----------
+function espacioHero(s) {
+  const mk = todayISO().slice(0, 7);
+  const d0 = datosEspacio(); const d = d0 && d0.esp === s.espacio.id ? d0 : null;
+  const yo = d ? d.yo : '';
+  const filas = d ? cuentasDelMes(s, d, yo, mk) : [];
+  const total = (s.expenses || []).filter((e) => !e.pending && e.date.slice(0, 7) === mk).reduce((a, e) => a + e.amount, 0);
+  const pres = Object.values(s.presupuestos || {}).reduce((a, v) => a + Number(v || 0), 0);
+  const mio = filas.find((x) => x.uid === yo);
+  const otros = filas.filter((x) => x.uid !== yo && !x.sinDato);
+  const deuda = mio && otros.length === 1 && Math.round(mio.saldo) !== 0 ? (mio.saldo > 0 ? `${esc(otros[0].nombre)} te debe ${money(mio.saldo)}` : `Le debés ${money(-mio.saldo)} a ${esc(otros[0].nombre)}`) : '';
+  return `<div class="card green esp-hero">
+    <span class="hero-label">Gastado este mes en ${esc(s.espacio.nombre)}</span>
+    <span class="hero-number" style="font-size:34px">${money(total)}</span>
+    ${pres ? `<span class="small on-green-muted">de ${money(pres)} de presupuesto · ${total <= pres ? `quedan ${money(pres - total)}` : `se pasaron ${money(total - pres)}`}</span>` : ''}
+    ${d && filas.length > 1 ? `<div class="esp-personas">${filas.filter((x) => !x.sinDato).map((x) => `<span class="esp-persona"><span>${esc(x.nombre)} (${String(x.pct).replace('.', ',')}%)</span><span>puso ${money(x.puso)} · le toca ${money(x.parte)}</span></span>`).join('')}</div>` : ''}
+    ${deuda ? `<span class="small"><b>${deuda}</b> este mes</span>` : ''}
+    ${mio ? `<span class="small on-green-muted">Tu parte (${money(mio.parte)}) se suma sola a tu plata personal.</span>` : ''}
+  </div>`;
+}
+function espacioDia(s) {
+  const ag = agenda(s, 31);
+  const prox = ag.find((i) => !i.paid && i.kind !== 'recordatorio' && i.days >= -7);
+  return `<div class="card tight tu-dia"><span class="tu-dia-t">La casa</span>
+    <a class="dia-fila" href="#/pagos"><span class="cat-icon">${icon('calendar', 18)}</span><span class="grow"><span class="k">Próximo pago${prox ? ` · ${esc(dueLabel(prox))}` : ''}</span><span class="v">${prox ? `${esc(prox.name)}${prox.amount ? ` · ${money(prox.amount)}` : ''}` : 'Nada por pagar este mes'}</span></span>${icon('chevron', 16)}</a>
+    <a class="dia-fila" href="#/movimientos"><span class="cat-icon">${icon('moves', 18)}</span><span class="grow"><span class="k">Movimientos</span><span class="v">Qué cargó cada uno</span></span>${icon('chevron', 16)}</a>
+    <button class="dia-fila" data-action="openEspacios"><span class="cat-icon">${icon('people', 18)}</span><span class="grow"><span class="k">Cómo dividen e invitar</span><span class="v">${esc(s.espacio.nombre)}</span></span>${icon('chevron', 16)}</button>
+  </div>`;
+}
+
 function tuDia(s) {
   const ag = agenda(s, 31);
   const prox = ag.find((i) => !i.paid && i.kind !== 'recordatorio' && i.days >= -7);
@@ -342,7 +372,6 @@ function tuDia(s) {
   return `<div class="card tight tu-dia"><span class="tu-dia-t">Tu día</span>
     ${sueldo ? `<button class="dia-fila sueldo-fila" data-action="newSalary" data-mk="${sueldo.mk}"><span class="cat-icon green">${icon('up', 18)}</span><span class="grow"><span class="k">${sueldo.hoy ? 'Hoy cobrás' : `Cobraste el ${sueldo.dia}`}</span><span class="v">Cargá tu sueldo</span></span>${icon('chevron', 16)}</button>` : ''}
     ${fila('#/pagos', 'calendar', 'Próximo pago', prox ? `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}` : 'Nada por pagar este mes', prox ? esc(dueLabel(prox)) : '')}
-    ${(() => { const v = promosAVerificar(s); return v.length ? fila('#/reintegros', 'coins', '¿Usaste la promo?', v.length === 1 ? `${esc(v[0].note)} · ${esc(v[0].reintegro.nombre)}` : `${v.length} compras para confirmar`, '') : ''; })()}
     ${rec ? fila('#/pagos', 'bell', 'Recordatorio', esc(rec.name), rec.days === 0 ? 'hoy' : rec.days === 1 ? 'mañana' : rec.days < 0 ? 'pendiente' : `en ${rec.days} días`) : ''}
     ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
     ${fila('#/cuentas', 'wallet', 'En tus cuentas', con ? money(totalCuentas(s)) : 'Cargá tu saldo', '')}
@@ -370,15 +399,15 @@ export function render(s) {
 
     ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
 
-    ${widget(s, b, payText)}
+    ${s.espacio ? espacioHero(s) : widget(s, b, payText)}
 
     ${quickForm('q-home', s, mediosRapidos(s))}
 
-    ${lista[0] || ''}
+    ${s.espacio ? espacioDia(s) : `${lista[0] || ''}
 
-    ${tuDia(s)}
+    ${tuDia(s)}`}
 
-    ${g ? `<a class="card goal-row" href="#/ahorro" style="text-decoration:none;color:inherit;flex-direction:row">
+    ${g && !s.espacio ? `<a class="card goal-row" href="#/ahorro" style="text-decoration:none;color:inherit;flex-direction:row">
       ${ring(goalPct(g), 56, 7, `${g.name}: ${Math.round(goalPct(g) * 100)}%`)}
       <div class="grow" style="display:flex;flex-direction:column;gap:2px">
         <span class="small muted" style="font-weight:600">Tu meta</span>

@@ -153,6 +153,7 @@ function apply(ctx, qid, input) {
           s.rules.payFirst.on = mode === 'payFirst';
           if (pct) s.rules.payFirst.pct = Number(pct);
           s.rules.roundup.on = mode === 'roundup';
+          if (mode === 'roundup') s.savingMode = 'leftover'; // el redondeo es un extra
           msg = { payFirst: `Listo: cuando cobres te recuerdo apartar el ${pct}%`, leftover: 'Listo: a fin de mes te digo cuánto te sobró para apartarlo', roundup: 'Listo: cada gasto se redondea y la diferencia va al ahorro', fixed: 'Perfecto, ahora decime cuánto' }[mode];
           break;
         }

@@ -25,7 +25,7 @@ import { commonActions, addPendingFromText } from './js/acciones.js';
 import { guideActions } from './js/guia.js';
 import { habitosActions } from './js/habitos.js';
 import { monedaActions } from './js/moneda.js';
-import { espacioActions, misEspacios, recordarEspacios, kModo } from './js/espacios.js';
+import { espacioActions, misEspacios, recordarEspacios, kModo, espejarPartes, setDatosEspacio } from './js/espacios.js';
 import { refreshRates } from './js/cotizaciones.js';
 import { setMoneda } from './js/formato.js';
 import { refreshLive } from './js/datosvivos.js';
@@ -90,8 +90,11 @@ const ctx = {
 
 usarCtxMenu(ctx);
 
+// En un espacio compartido no hay sueldo, ahorro ni cuentas: eso es de tu plata personal
+const SOLO_PERSONAL = ['ahorro', 'cuentas', 'sueldo', 'formaahorro', 'deudas', 'reintegros'];
 function currentRoute() {
   const r = location.hash.replace(/^#\//, '');
+  if (state.espacio && SOLO_PERSONAL.includes(r)) return 'inicio';
   return views[r] ? r : 'inicio';
 }
 
@@ -125,6 +128,8 @@ function render() {
   goingBack = false;
   lastRoute = route;
 
+  nav.classList.toggle('en-espacio', !!state.espacio);
+  const linkPlata = nav.querySelector('[data-route=ahorro]'); if (linkPlata) linkPlata.hidden = !!state.espacio;
   const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', deudas: 'herramientas', proyectos: 'herramientas', reintegros: 'ahorro', formaahorro: 'ahorro', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -215,6 +220,26 @@ function refreshAll(force = false) {
   refreshFeriados(ctx);
   notifyDue(ctx);
   if (!state.espacio) publicarAgenda(state, uidActual); // los avisos al celular son de tu plata personal
+  actualizarPartes(force);
+}
+
+// Tu parte de los gastos de tus espacios compartidos, en tu plata personal (sin cargarla dos veces)
+let partesAt = 0;
+async function actualizarPartes(force = false) {
+  const u = cuenta.usuarioActual();
+  if (!u || !ready || state.espacio || state.demo) return;
+  if (!force && Date.now() - partesAt < 60000) return;
+  partesAt = Date.now();
+  const lista = misEspacios(u.uid, state); if (!lista.length) return;
+  let cambio = false;
+  for (const e of lista) {
+    try {
+      const [st, d] = await Promise.all([nube.leerEstadoEspacio(e.id), nube.leerEspacio(e.id)]);
+      if (!st || state.espacio) continue;
+      if (espejarPartes(state, u.uid, e, st, d)) cambio = true;
+    } catch (err) { console.warn(err); }
+  }
+  if (cambio && !state.espacio) { persist(); if (!isTyping() && document.getElementById('modal').hidden) render(); }
 }
 // al volver a la app: cambios hechos desde otro dispositivo
 async function traerDeOtroDispositivo() {
@@ -277,6 +302,7 @@ async function abrirModo(espId, nombre = null, { nuevo = false, quitar = null } 
 async function conQuien(u, espId) {
   try {
     const d = await nube.leerEspacio(espId); if (!d) return;
+    setDatosEspacio({ ...d, yo: u.uid, esp: espId });
     const con = (d.miembros || []).filter((x) => x !== u.uid).map((x) => ((d.nombres || {})[x] || 'Alguien').split(' ')[0]);
     const lista = misEspacios(u.uid, state).map((e) => (e.id === espId ? { ...e, con } : e));
     recordarEspacios(u.uid, lista);
