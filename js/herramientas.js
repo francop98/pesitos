@@ -152,12 +152,13 @@ function installmentsForm(s, d = {}) {
   return `<form class="form" data-submit="calcInstallments" data-input-form="cuotas">
     <div class="field"><label for="iq-p">Precio de contado</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 270.000" required data-input="cuotaVivo"><span class="hint">Lo que pagás en efectivo o transferencia (con el descuento, si hay).</span></div>
     <div class="field-row">
-      <div class="field"><label for="iq-t">Precio con tarjeta</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Valor total" data-input="cuotaVivo"></div>
       <div class="field"><label for="iq-n">Cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required data-input="cuotaVivo"></div>
+      <div class="field"><label for="iq-c">Valor de cada cuota</label><input id="iq-c" name="cuota" inputmode="decimal" placeholder="Opcional" data-input="cuotaVivo"></div>
     </div>
+    <div class="field" data-iq-tarjeta><label for="iq-t">…o el precio total con tarjeta</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Si es el mismo que de contado, dejalo vacío" data-input="cuotaVivo"><span class="hint">Poné una de las dos: lo que vale cada cuota o el total. Si ya incluyen el interés, dejá "Sin interés".</span></div>
     <div class="field-row">
       <div class="field"><label for="iq-i">¿Tiene interés?</label><select id="iq-i" name="interes" data-change="cuotaVivo"><option value="no">Sin interés</option><option value="si">Con interés</option></select></div>
-      <div class="field" data-iq-pct hidden><label for="iq-x">Interés total (%)</label><input id="iq-x" name="pct" inputmode="decimal" placeholder="Ej: 15" data-input="cuotaVivo"></div>
+      <div class="field" data-iq-pct hidden><label for="iq-x">Interés o recargo total (%)</label><input id="iq-x" name="pct" inputmode="decimal" placeholder="Ej: 15" data-input="cuotaVivo"><span class="hint">Sobre el precio, si no lo incluye.</span></div>
     </div>
     <div class="field-row">
       <div class="field"><label for="iq-r">¿Hay reintegro?</label><select id="iq-r" name="reint" data-change="cuotaVivo"><option value="no">No</option><option value="cuotas">Sí, en cuotas</option><option value="contado">Sí, de contado</option></select></div>
@@ -187,9 +188,11 @@ function installmentsForm(s, d = {}) {
 // cuánto es cada cuota: precio con tarjeta (o el de contado) más el interés, dividido en las cuotas
 function datosCuotas(d) {
   const cash = amt(d.price);
-  const lista = amt(d.tarjeta) || cash;
   const n = Math.max(1, parseInt(d.n, 10) || 0);
-  const pctI = d.interes === 'si' ? (parseFloat(String(d.pct || '0').replace(',', '.')) || 0) : 0;
+  const cuotaIn = amt(d.cuota);
+  // si pusiste lo que vale cada cuota, el total sale de ahí (ya trae el interés)
+  const lista = cuotaIn ? cuotaIn * n : amt(d.tarjeta) || cash;
+  const pctI = d.interes === 'si' && !cuotaIn ? (parseFloat(String(d.pct || '0').replace(',', '.')) || 0) : 0;
   const total = lista * (1 + pctI / 100);
   const rpct = d.reint && d.reint !== 'no' ? (parseFloat(String(d.rpct || '0').replace(',', '.')) || 0) : 0;
   const rtope = amt(d.rtope);
@@ -223,8 +226,9 @@ export const actions = {
     const resultado = (inf) => (cash - reinC / (1 + inf)) - (valorHoy(cuota, n, inf) - reinQ / (1 + inf)); // >0: convienen las cuotas (en plata de hoy)
     const gana = resultado(i);
     let veredicto; let detalle;
+    const parejo = Math.abs(gana) < cash * 0.01;
     if (d.modo === 'sueldo' || !d.modo) {
-      veredicto = gana >= 0 ? `Convienen las cuotas: ganás ${money(gana)}` : `Conviene pagar de contado: ahorrás ${money(-gana)}`;
+      veredicto = parejo ? `Da casi lo mismo: la diferencia es de ${money(Math.abs(gana))}` : gana >= 0 ? `Convienen las cuotas: ganás ${money(gana)}` : `Conviene pagar de contado: ahorrás ${money(-gana)}`;
       detalle = `Pagando con tu sueldo de cada mes, las ${n} cuotas de ${money(cuota)} valen hoy <b>${money(valorHoy(cuota, n, i) - reinQ / (1 + i))}</b>${reinQ ? ' (ya descontado el reintegro)' : ''}. De contado pagás <b>${money(cash - reinC / (1 + i))}</b>${reinC ? ' (con el reintegro)' : ''}.`;
     } else {
       const tna = tnaDeModo(d);
@@ -251,9 +255,10 @@ export const actions = {
       if (libreMes) tuPlata.push(`En cuotas: ${money(cuota)} por mes es el <b>${Math.max(1, Math.round((cuota / libreMes) * 100))}%</b> de lo que te queda libre cada mes después de fijos y ahorro.`);
     }
     const fin = (() => { const x = new Date(); x.setMonth(x.getMonth() + n); return `${MONTHS_LONG[x.getMonth()]}${x.getFullYear() !== new Date().getFullYear() ? ` ${x.getFullYear()}` : ''}`; })();
-    setModalBody('#iq-result', `<div class="result ${gana >= 0 ? 'ok' : 'warn'}">
+    setModalBody('#iq-result', `<div class="result ${gana >= 0 || parejo ? 'ok' : 'warn'}">
       <strong>${veredicto}</strong>
       <span class="text">${detalle}</span>
+      ${parejo && (d.modo === 'sueldo' || !d.modo) ? '<span class="text">Con una diferencia tan chica, decidí por tu mes: si querés conservar la plata en la cuenta, cuotas; si preferís no tener deuda, contado.</span>' : ''}
       <span class="text">${r <= 0.0005 ? '<b>Las cuotas no tienen interés</b>' : `Las cuotas te cobran <b>${pctTxt(r)} por mes</b> (${pctTxt(Math.pow(1 + r, 12) - 1, 0)} anual)`}. La inflación esperada es ${tasaTxt(infl)}% por mes: ${r < i ? 'como es mayor, la inflación "paga" parte de las cuotas.' : 'como es menor, el interés le gana a la inflación.'}</span>
     </div>
     ${tuPlata.length ? `<div class="card"><strong>Con tu plata</strong>${tuPlata.map((x) => `<span class="small">• ${x}</span>`).join('')}</div>` : ''}
@@ -416,6 +421,7 @@ export const actions = {
     const lineas = [];
     let titulo = n === 1 ? `Gastá hasta ${money(ideal)} para aprovechar todo el tope` : `Entre ${n} pueden gastar hasta ${money(ideal * n)} con el descuento completo`;
     lineas.push(`Con ${pctTxt(p, 0)} de reintegro, el tope de ${money(tope)} se alcanza con <b>${money(ideal)}</b>${n > 1 ? ' por persona' : ''}. Lo que pase de ahí ya no tiene descuento.`);
+    lineas.push(`Gastando eso${n > 1 ? ' entre todos' : ''}, terminás pagando <b>${money((ideal - tope) * n)}</b> y te devuelven ${money(tope * n)}.`);
     let reparto = '';
     if (gasto) {
       const necesitan = Math.ceil(gasto / ideal - 1e-9);
