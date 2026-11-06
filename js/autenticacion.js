@@ -302,7 +302,7 @@ function fechaCuenta(u) {
   const alta = f(u.metadata && u.metadata.creationTime);
   return alta ? `<span class="small muted">Cuenta creada el ${alta}</span>` : '';
 }
-export function abrirMiCuenta({ onNombre, onEliminar } = {}) {
+export function abrirMiCuenta({ onNombre, onEliminar, moneda = 'Pesos' } = {}) {
   const u = actual;
   if (!u) return;
   const mail = esPorMail(u);
@@ -314,6 +314,7 @@ export function abrirMiCuenta({ onNombre, onEliminar } = {}) {
       <span class="small muted">Este dispositivo recuerda tu sesión: no tenés que volver a ingresar.</span>
     </div>
     <button class="btn block" data-action="openMisDatos">📅 Mis datos: cuándo cobrás, provincia y ciudad</button>
+    <button class="btn block" data-action="openMoneda">💱 Tu moneda: ${esc(moneda)}</button>
     <button class="btn block" data-action="openBloqueo">🔐 PIN de seguridad y huella</button>
     <form class="form" id="f-nombre"><div class="field"><label for="c-nombre">Tu nombre</label><input id="c-nombre" name="nombre" value="${esc(u.displayName || '')}" maxlength="40" placeholder="Tu nombre"></div>
       <button class="btn small" type="submit">Guardar nombre</button></form>

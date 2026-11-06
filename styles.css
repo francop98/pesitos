@@ -938,3 +938,19 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .codigo-esp { font-family: ui-monospace, monospace; letter-spacing: .12em; font-size: 20px; }
 .promo-acciones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .promo-acciones .link-btn { font-size: 12px; color: var(--muted); }
+.ahorro-op.on { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+/* v25: ¿con qué conviene pagar? */
+.cqp-resp { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 16px; background: var(--bg); }
+.cqp-resp.ok { background: var(--lime, #C6F36B); color: #10301f; }
+.cqp-resp.ok .small, .cqp-resp.ok .muted { color: #2b4a38; }
+.cqp-medio { font-size: 24px; line-height: 1.15; }
+.cqp-rubros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cqp-rubro { display: flex; align-items: center; gap: 8px; text-align: left; padding: 10px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font: inherit; cursor: pointer; min-width: 0; }
+.cqp-rubro.con { border-color: var(--green); }
+.cqp-rubro .grow { display: flex; flex-direction: column; min-width: 0; }
+.cqp-rubro .grow b, .cqp-rubro .grow .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cqp-semana summary { cursor: pointer; padding: 6px 0; }
+.cqp-semana .split { padding: 4px 0; border-bottom: 1px solid var(--line); gap: 8px; }
+.cqp-semana .split.hoy { font-weight: 700; }
+.modo-con { font-weight: 500; opacity: .8; }
+.modo-select { width: 100%; margin-top: 6px; }

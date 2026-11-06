@@ -18,7 +18,7 @@ import { instalada } from './menu.js';
 import { bioDisponible, bioActiva, bloqueoActions } from './bloqueo.js';
 import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast, setModalBody } from './interfaz.js';
 import { uid } from './almacenamiento.js';
-import { reintegrosPorConfirmar } from './reintegros.js';
+import { reintegrosPorConfirmar, promosAVerificar } from './reintegros.js';
 import { compararCard } from './miscuentas.js';
 import { chipModo } from './espacios.js';
 
@@ -342,6 +342,7 @@ function tuDia(s) {
   return `<div class="card tight tu-dia"><span class="tu-dia-t">Tu día</span>
     ${sueldo ? `<button class="dia-fila sueldo-fila" data-action="newSalary" data-mk="${sueldo.mk}"><span class="cat-icon green">${icon('up', 18)}</span><span class="grow"><span class="k">${sueldo.hoy ? 'Hoy cobrás' : `Cobraste el ${sueldo.dia}`}</span><span class="v">Cargá tu sueldo</span></span>${icon('chevron', 16)}</button>` : ''}
     ${fila('#/pagos', 'calendar', 'Próximo pago', prox ? `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}` : 'Nada por pagar este mes', prox ? esc(dueLabel(prox)) : '')}
+    ${(() => { const v = promosAVerificar(s); return v.length ? fila('#/reintegros', 'coins', '¿Usaste la promo?', v.length === 1 ? `${esc(v[0].note)} · ${esc(v[0].reintegro.nombre)}` : `${v.length} compras para confirmar`, '') : ''; })()}
     ${rec ? fila('#/pagos', 'bell', 'Recordatorio', esc(rec.name), rec.days === 0 ? 'hoy' : rec.days === 1 ? 'mañana' : rec.days < 0 ? 'pendiente' : `en ${rec.days} días`) : ''}
     ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
     ${fila('#/cuentas', 'wallet', 'En tus cuentas', con ? money(totalCuentas(s)) : 'Cargá tu saldo', '')}

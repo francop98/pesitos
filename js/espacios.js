@@ -26,11 +26,13 @@ export function misEspacios(uid, s = null) {
 export function recordarEspacios(uid, lista) { escribir(kLista(uid), lista); }
 
 const nombreModo = (s) => (s && s.espacio ? s.espacio.nombre || 'Compartido' : 'Mi plata');
+/** "con Sofi y Juan" / "solo vos por ahora" */
+export const conTxt = (con) => (!con ? '' : con.length ? `con ${con.length > 1 ? con.slice(0, -1).join(', ') + ' y ' + con[con.length - 1] : con[0]}` : 'solo vos por ahora');
 
 /** Botón del encabezado de Inicio: en qué modo estás. */
 export function chipModo(s) {
   if (s.demo || (!s.espacio && !(s.espacios || []).length)) return '';
-  return `<button class="chip modo-chip ${s.espacio ? 'compartido' : ''}" data-action="openEspacios" aria-label="Cambiar de modo: ahora ${esc(nombreModo(s))}">${icon(s.espacio ? 'people' : 'user', 14, 2.2)} ${esc(nombreModo(s))}</button>`;
+  return `<button class="chip modo-chip ${s.espacio ? 'compartido' : ''}" data-action="openEspacios" aria-label="Cambiar de modo: ahora ${esc(nombreModo(s))}">${icon(s.espacio ? 'people' : 'user', 14, 2.2)} ${esc(nombreModo(s))}${s.espacio && (s.espacio.con || []).length ? `<span class="modo-con"> · ${esc(conTxt(s.espacio.con))}</span>` : ''}</button>`;
 }
 
 function cuerpo(ctx, extra = '') {
@@ -41,7 +43,7 @@ function cuerpo(ctx, extra = '') {
   return `<p class="small muted" style="margin:0">Tu plata es solo tuya. Un espacio compartido es para llevar la plata de la casa entre varias personas: todos ven y cargan lo mismo.</p>
     <div class="card tight">
       ${fila('', 'Mi plata', 'Personal: solo vos', !s.espacio)}
-      ${lista.map((e) => fila(e.id, e.nombre, 'Compartido', s.espacio && s.espacio.id === e.id)).join('')}
+      ${lista.map((e) => { const con = s.espacio && s.espacio.id === e.id ? s.espacio.con : e.con; return fila(e.id, e.nombre, `Compartido${con ? ' ' + conTxt(con) : ''}`, s.espacio && s.espacio.id === e.id); }).join('')}
     </div>
     ${s.espacio ? `<div class="btn-row"><button class="btn small green" data-action="invitarEspacio">${icon('send', 16)} Invitar a alguien</button><button class="btn small" data-action="verMiembros">${icon('people', 16)} Quiénes están</button></div>` : ''}
     <div id="esp-extra">${extra}</div>
@@ -59,6 +61,14 @@ const yo = (ctx) => ((ctx.state.espacio ? ctx.miNombre : ctx.state.profile && ct
 
 export const espacioActions = {
   openEspacios(ctx) { openModal('Modo', `<div id="esp-body" class="form">${cuerpo(ctx)}</div>`); },
+  setModoSel(ctx, el) { document.querySelector('#drawer [data-drawer-cerrar]')?.click(); el.dataset.v = el.value; return espacioActions.setModo(ctx, el); },
+  // desde el menú (La app): como el tema, tocás y cambia
+  async setModo(ctx, el) {
+    const id = el.dataset.v || '';
+    if (id === '__nuevo') { espacioActions.openEspacios(ctx); return; }
+    if ((ctx.state.espacio ? ctx.state.espacio.id : '') === id) return;
+    await ctx.abrirModo(id || null, id ? (misEspacios(ctx.uid, ctx.state).find((e) => e.id === id) || {}).nombre : null);
+  },
   async cambiarModo(ctx, el) {
     const id = el.dataset.id || null;
     if ((ctx.state.espacio ? ctx.state.espacio.id : null) === id) { closeModal(); return; }

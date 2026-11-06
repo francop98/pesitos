@@ -4,7 +4,7 @@
 // 2) Gemini Flash (plan gratis de Google AI Studio) lee esas notas y arma la lista.
 // Solo corre si están TAVILY_API_KEY y GEMINI_API_KEY. Si falla, no afecta lo demás.
 
-const CATEGORIES = ['super', 'casa', 'transporte', 'salud', 'comida', 'compras', 'familia', 'otros'];
+const CATEGORIES = ['vivienda', 'servicios', 'super', 'comida', 'vehiculo', 'transporte', 'salud', 'compras', 'hogar', 'suscripciones', 'ocio', 'educacion', 'viajes', 'deporte', 'mascotas', 'regalos', 'otros'];
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const MAX_BUSQUEDAS = 6; // por corrida: ~6 × 31 días ≈ 190 de las 1.000 gratis
 const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);

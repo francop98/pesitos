@@ -56,7 +56,7 @@ import { setCustomCategories, setCustomWallets } from './js/categorias.js';
 // rutas viejas que ahora son pestañas de otra pantalla
 const vistaDe = (mod, v) => ({ render: (s) => mod.renderVista(s, v) });
 const views = { inicio, movimientos, ahorro, asesor, beneficios, herramientas, pagos, buscar, presupuestos,
-  cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas, proyectos, estadisticas, reintegros };
+  formaahorro: asesor.formaAhorro, cuentas: vistaDe(ahorro, 'cuentas'), sueldo: vistaDe(ahorro, 'sueldo'), tarjetas: vistaDe(pagos, 'tarjetas'), deudas, proyectos, estadisticas, reintegros };
 const NAV_ORDER = ['inicio', 'movimientos', 'pagos', 'ahorro', 'herramientas'];
 
 let state = emptyState();
@@ -125,7 +125,7 @@ function render() {
   goingBack = false;
   lastRoute = route;
 
-  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', deudas: 'herramientas', proyectos: 'herramientas', reintegros: 'ahorro', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
+  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', deudas: 'herramientas', proyectos: 'herramientas', reintegros: 'ahorro', formaahorro: 'ahorro', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
@@ -270,6 +270,21 @@ async function abrirModo(espId, nombre = null, { nuevo = false, quitar = null } 
   trail.length = 0; location.hash = '#/inicio'; trail.push('inicio');
   render();
   refreshAll(true);
+  if (espId) conQuien(u, espId);
+}
+
+// En un espacio: con quién lo compartís (los nombres de los demás), para mostrarlo
+async function conQuien(u, espId) {
+  try {
+    const d = await nube.leerEspacio(espId); if (!d) return;
+    const con = (d.miembros || []).filter((x) => x !== u.uid).map((x) => ((d.nombres || {})[x] || 'Alguien').split(' ')[0]);
+    const lista = misEspacios(u.uid, state).map((e) => (e.id === espId ? { ...e, con } : e));
+    recordarEspacios(u.uid, lista);
+    if (state.espacio && state.espacio.id === espId && JSON.stringify(state.espacio.con || []) !== JSON.stringify(con)) {
+      state.espacio = { ...state.espacio, con }; save(state);
+      if (!isTyping() && document.getElementById('modal').hidden) render();
+    }
+  } catch (err) { console.warn(err); }
 }
 
 // ---------- arranque con cuenta ----------

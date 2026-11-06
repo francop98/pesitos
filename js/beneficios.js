@@ -2,7 +2,7 @@
 // día por día. Se actualizan solos (ver js/datosvivos.js y api/).
 
 import { money, esc, num, WEEKDAYS } from './formato.js';
-import { allCategories, catLabel, walletName } from './categorias.js';
+import { allCategories, catLabel, walletName, CATEGORIES } from './categorias.js';
 import { promosForDay, promosStatus } from './economista.js';
 import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
 import { lessonCard } from './aprender.js';
@@ -31,7 +31,7 @@ let medioFilter = 'all';
 const expanded = new Set(); // días con "Ver más" abierto
 const PER_DAY = 8;
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
-const FILTERS = [['all', 'Todos los rubros'], ['super', 'Súper'], ['comida', 'Comida afuera'], ['salud', 'Farmacia y salud'], ['transporte', 'Combustible y transporte'], ['casa', 'Casa y servicios'], ['compras', 'Salidas y compras'], ['familia', 'Familia']];
+const FILTERS = [['all', 'Todos los rubros'], ...CATEGORIES.filter((c) => c.id !== 'otros').map((c) => [c.id, c.label])];
 
 function dayBlock(s, offset) {
   const day = (new Date().getDay() + offset) % 7;

@@ -14,7 +14,7 @@ import { conQuePagar } from './reintegros.js';
 
 const parte = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);
 const redondo = (v, a = 1000) => Math.max(a, Math.round(v / a) * a);
-const GUSTOS = new Set(['comida', 'compras']);
+const GUSTOS = new Set(['comida', 'compras', 'ocio']);
 const DIAS = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
 
 /** Meses completos anteriores al actual con datos cargados (hasta 3). */

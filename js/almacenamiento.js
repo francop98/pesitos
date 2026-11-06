@@ -1,7 +1,8 @@
 // Capa de datos local: la copia rápida de tus datos en este dispositivo.
 // Hay una copia por cuenta (pesitos:v1:<uid>). La nube (Firestore) la maneja
 // js/sincronizacion.js: cada guardado acá también se envía a tu cuenta.
-import { CATEGORY_ALIAS } from './categorias.js';
+import { CATEGORY_ALIAS, CAT_DIVIDIDAS, CAT_SEPARADAS } from './categorias.js';
+import { guessCategory } from './interprete.js';
 
 const LEGACY_KEY = 'pesitos:v1'; // datos de antes de que existieran las cuentas
 let KEY = LEGACY_KEY;
@@ -110,8 +111,43 @@ export function migrate(data) {
     s.catPrefs = { ...s.catPrefs, lista: u(s.catPrefs.lista), ocultas: u(s.catPrefs.ocultas).filter((x) => x !== 'otros'), eliminadas: elim };
   }
   if (s.challenge && AL[s.challenge.category]) s.challenge = { ...s.challenge, category: re(s.challenge.category) };
+  if (!data.cats25) separarCategorias(s);
   s.version = base.version;
   return s;
+}
+
+// v25: "Casa y servicios", "Familia", "Transporte y auto", "Salud y cuidado" y
+// "Salidas y compras" se separaron. Cada dato se vuelve a reconocer por lo que dice,
+// solo entre las categorías en las que se dividió la suya (una sola vez).
+function separarCategorias(s) {
+  const D = CAT_DIVIDIDAS;
+  const cuenta = {}; // para elegir a dónde van los presupuestos: la más usada
+  const nueva = (cat, texto) => {
+    if (!D[cat]) return cat;
+    let n = guessCategory(texto || '', {}, D[cat]);
+    if (n === 'otros' && !D[cat].includes('otros')) n = CAT_SEPARADAS[cat] || cat;
+    (cuenta[cat] = cuenta[cat] || {})[n] = (cuenta[cat][n] || 0) + 1;
+    return n;
+  };
+  const texto = (x) => [x.note, x.name, x.nombre, x.merchant, x.comercio].filter(Boolean).join(' ');
+  for (const l of [s.expenses, s.fixed, s.promos, s.bills, s.misBeneficios, s.customChallenges, (s.rules || {}).custom]) {
+    for (const x of l || []) {
+      if (x.category) x.category = nueva(x.category, texto(x));
+      if (x.categoria) x.categoria = nueva(x.categoria, texto(x));
+      for (const p of x.splits || []) if (p.category) p.category = nueva(p.category, texto(x));
+    }
+  }
+  for (const k of Object.keys(s.learned || {})) if (D[s.learned[k]]) s.learned[k] = nueva(s.learned[k], k);
+  const masUsada = (cat) => { const c = cuenta[cat] || {}; return Object.keys(c).sort((a, b) => c[b] - c[a])[0] || CAT_SEPARADAS[cat] || cat; };
+  if (s.presupuestos) { const n = {}; for (const [k, v] of Object.entries(s.presupuestos)) { const k2 = D[k] ? masUsada(k) : k; n[k2] = (n[k2] || 0) + Number(v || 0); } s.presupuestos = n; }
+  if (s.challenge && D[s.challenge.category]) s.challenge = { ...s.challenge, category: masUsada(s.challenge.category) };
+  if (s.catPrefs) {
+    const SOLO = { casa: ['vivienda', 'servicios', 'hogar', 'suscripciones'], familia: ['educacion', 'mascotas'] }; // las que salieron solo de esa
+    const sep = (k) => SOLO[k] || [k];
+    const u = (l) => [...new Set((l || []).flatMap(sep))];
+    s.catPrefs = { ...s.catPrefs, lista: u(s.catPrefs.lista), ocultas: u(s.catPrefs.ocultas), eliminadas: u(s.catPrefs.eliminadas) };
+  }
+  s.cats25 = true;
 }
 
 export function load() {

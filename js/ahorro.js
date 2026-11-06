@@ -183,10 +183,17 @@ function holdingForm(h = {}, s = {}) {
 }
 
 // conversor: pesos, todos los dólares, otras monedas, cripto y oro
-const CONV = () => [['ARS', 'Pesos'], ...DOLARES.map(([id, n]) => [`USD:${id}`, n]), ...ASSETS.filter((a) => !['ARS', 'USD'].includes(a.id)).map((a) => [a.id, a.label])];
+const CRIPTO = ['BTC', 'ETH', 'USDT', 'XAU'];
+const CONV_GRUPOS = () => [
+  ['Pesos y dólares', [['ARS', 'Pesos'], ...DOLARES.map(([id, n]) => [`USD:${id}`, n])]],
+  ['Monedas', ASSETS.filter((a) => !['ARS', 'USD'].includes(a.id) && !CRIPTO.includes(a.id)).map((a) => [a.id, a.label]).sort((a, b) => a[1].localeCompare(b[1], 'es'))],
+  ['Cripto y oro', ASSETS.filter((a) => CRIPTO.includes(a.id)).map((a) => [a.id, a.label])],
+];
+const CONV = () => CONV_GRUPOS().flatMap(([, l]) => l);
 const convLabel = (id) => (CONV().find(([x]) => x === id) || [, assetById(id).label])[1];
 function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS' }) {
-  const opts = (sel) => CONV().map(([id, l]) => `<option value="${id}" ${id === sel ? 'selected' : ''}>${l}</option>`).join('');
+  const opts = (sel) => CONV_GRUPOS().map(([g, l]) => `<optgroup label="${g}">${l.map(([id, n]) => `<option value="${id}" ${id === sel ? 'selected' : ''}>${n}</option>`).join('')}</optgroup>`).join('');
+  const mundo = [d.from, d.to].some((x) => assetById(x).mundo && !(s.rates || {})[x]);
   const r = convert(s, d.amount, d.from, d.to);
   return `<form class="form" data-submit="convert">
     <div class="field"><label for="cv-a">Cantidad</label><input id="cv-a" name="amount" inputmode="decimal" value="${d.amount === '' ? '' : esc(String(d.amount))}" placeholder="Ej: 100"></div>
@@ -197,7 +204,7 @@ function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS
     </div>
     <button class="btn primary block" type="submit">Convertir</button>
   </form>
-  <div class="result ok"><span class="small">${esc(String(d.amount).replace('.', ','))} ${esc(convLabel(d.from))} =</span><strong style="font-size:24px">${r == null ? 'Sin cotización' : fmtAsset(r, d.to)}</strong><span class="small">Con cotización de venta · ${ratesAge(s)}</span></div>`;
+  <div class="result ok"><span class="small">${esc(String(d.amount).replace('.', ','))} ${esc(convLabel(d.from))} =</span><strong style="font-size:24px">${r == null ? 'Sin cotización' : fmtAsset(r, d.to)}</strong><span class="small">Con cotización de venta · ${ratesAge(s)}</span>${mundo ? `<span class="small">Esa moneda la cruzo con el ${esc(nombreDolar(dolarRef(s)).toLowerCase())}. <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a></span>` : ''}</div>`;
 }
 
 export const actions = {

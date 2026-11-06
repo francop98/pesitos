@@ -1,7 +1,8 @@
 // =========================================================
 // Pesitos — menú (☰)
 // Tu plata: Tu sueldo, Mis medios de pago (Mis datos está dentro de Mi cuenta)
-// La app:  Tema, Tamaño de letra, Avisos en el celular, Instalar
+// La app:  Tema, Tamaño de letra, Modo (personal o compartido), Avisos en el celular, Instalar
+// Mi cuenta: Mis datos, Tu moneda, PIN, nombre, contraseña
 // Seguridad: Bloqueo, Copia de seguridad, Privacidad, Cerrar sesión
 // Arriba de todo, tu nombre y mail: abre "Mi cuenta" (todo lo de la cuenta)
 // =========================================================
@@ -18,6 +19,7 @@ import { reglaDeCobro, textoDeCobro, fechaDeCobro } from './feriados.js';
 import { abrirConfigBloqueo } from './bloqueo.js';
 import { avisosActivos, avisosSoportados, activarAvisos, desactivarAvisos } from './avisos.js';
 import { campoCiudad, activarCiudades } from './ciudades.js';
+import { misEspacios, conTxt } from './espacios.js';
 
 // Cuándo cobrás: tipo + número (día del mes o número de día hábil)
 export function campoCobro(profile) {
@@ -67,6 +69,21 @@ const item = (action, ic, title, sub = '', extra = '') => `<button class="menu-i
 
 const seg = (action, actual, opciones) => `<div class="tabs" style="grid-template-columns:repeat(${opciones.length},minmax(0,1fr))">${opciones.map(([v, l]) => `<button type="button" data-action="${action}" data-v="${v}" aria-pressed="${actual === v}">${l}</button>`).join('')}</div>`;
 
+// Modo personal o compartido: se cambia como el tema. Cada modo es como una cuenta aparte.
+function modoHtml(ctx) {
+  const s = ctx.state;
+  const lista = misEspacios(ctx.uid, s);
+  const act = s.espacio ? s.espacio.id : '';
+  const ops = [['', 'Personal'], ...(lista.length ? lista.map((e) => [e.id, e.nombre]) : [['__nuevo', 'Compartido']])];
+  const corto = ops.length <= 3;
+  const conAct = s.espacio ? conTxt(s.espacio.con) : '';
+  const sub = s.espacio ? `Estás en "${s.espacio.nombre}"${conAct ? ', ' + conAct : ''}. Todo lo que cargues lo ven los demás.` : lista.length ? 'Estás en tu plata personal: solo la ves vos.' : 'Compartido: llevá la plata de la casa con tu pareja o tu familia, cada uno con su cuenta.';
+  return `<div class="menu-item static"><span class="menu-ic">${icon(s.espacio ? 'people' : 'user', 20)}</span><span class="grow"><span class="name">Modo</span>
+    ${corto ? seg('setModo', act, ops.map(([v, l]) => [v, esc(l)])) : `<select class="modo-select" data-change="setModoSel" aria-label="Modo">${ops.map(([v, l]) => `<option value="${esc(v)}" ${v === act ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`}
+    <span class="meta">${esc(sub)}</span>
+    <button class="btn ghost small" data-action="openEspacios" style="align-self:flex-start;min-height:32px;padding:0 2px">${lista.length ? 'Invitar, sumarme o crear otro' : 'Tengo un código para sumarme'}</button></span></div>`;
+}
+
 function menuHtml(ctx) {
   const s = ctx.state;
   const u = usuarioActual();
@@ -89,8 +106,7 @@ function menuHtml(ctx) {
     <div class="menu-grupo lima"><span class="menu-label">La app</span>
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
-      ${s.demo ? '' : item('openEspacios', 'people', 'Modo: personal o compartido', s.espacio ? `Ahora: ${s.espacio.nombre} (compartido)` : 'Llevá la plata de la casa con tu pareja o tu familia')}
-      ${item('openMoneda', 'coins', 'Tu moneda', (s.settings || {}).moneda === 'USD' ? 'Dólares' : 'Pesos')}
+      ${s.demo ? '' : modoHtml(ctx)}
       ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
     </div>
@@ -216,7 +232,7 @@ export const menuActions = {
   irDeudas(ctx) { ctx.go('deudas'); },
   irReintegros(ctx) { ctx.go('reintegros'); },
 
-  openMiCuenta(ctx) { abrirMiCuenta(ctx.session); },
+  openMiCuenta(ctx) { abrirMiCuenta({ ...ctx.session, moneda: (ctx.state.settings || {}).moneda === 'USD' ? 'Dólares' : 'Pesos' }); },
   openAvisos(ctx) {
     const on = avisosActivos(ctx.uid);
     openModal('Avisos en el celular', `<p class="text" style="margin:0">Te aviso a la mañana cuando:</p>

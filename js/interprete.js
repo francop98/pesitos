@@ -2,7 +2,7 @@
 // "heladera 540000 en 12 cuotas", "cobré sueldo 1,2 palos"
 // o el texto de un comprobante: "Pagaste $ 12.500,00 a FARMACITY".
 
-import { allCategories, catReal } from './categorias.js';
+import { allCategories, catReal, CATEGORIES } from './categorias.js';
 import { normalize, toISO, addDays } from './formato.js';
 
 const STOP = new Set(['pagaste', 'pague', 'compre', 'gaste', 'gastaste', 'pagamos', 'en', 'a', 'al', 'de', 'del', 'por', 'el', 'la', 'los', 'las', 'con', 'un', 'una', 'para', 'me', 'mi', 'y', 'hoy', 'ayer', 'anteayer', 'cuotas', 'cuota', 'sin', 'interes', 'pesos', 'transferiste', 'enviaste', 'realizaste', 'pago', 'compra', 'cobre', 'me', 'pagaron', 'ingreso', 'ingresaron', 'recibiste', 'recibi']);
@@ -27,15 +27,15 @@ export function merchantKey(note) {
   return words[0] || '';
 }
 
-export function guessCategory(text, learned = {}) {
+export function guessCategory(text, learned = {}, entre = null) {
   const t = ' ' + normalize(text).replace(/[^a-z0-9&+]+/g, ' ').trim() + ' ';
   const words = t.trim().split(' ').filter(Boolean);
-  for (const w of words) if (learned[w]) return catReal(learned[w]);
+  if (!entre) for (const w of words) if (learned[w]) return catReal(learned[w]);
   // singular simple: "remeras" → "remera", "panaderías" → "panaderia"
   const sing = new Set(words.map((w) => (w.length > 4 && w.endsWith('es') ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)));
   const exactas = new Set(words);
   let mejor = 'otros'; let puntos = 0;
-  for (const c of allCategories()) {
+  for (const c of entre ? CATEGORIES.filter((x) => entre.includes(x.id)) : allCategories()) {
     if (c.custom) {
       const l = normalize(c.label);
       if (l && t.includes(' ' + l)) { const p = l.length + 20; if (p > puntos) { puntos = p; mejor = c.id; } }

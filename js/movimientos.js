@@ -29,7 +29,7 @@ const enMoneda = (x) => (x.currency && x.currency !== 'ARS' ? ` · ${x.currency}
 
 export function expenseRow(s, e) {
   const c = catById(e.category);
-  const green = ['super', 'salud', 'casa'].includes(c.id);
+  const green = ['super', 'salud', 'vivienda', 'servicios'].includes(c.id);
   const card = e.cardId ? s.cards.find((x) => x.id === e.cardId) : null;
   const medio = card ? esc(card.name) : (e.accountId ? esc(nombreCuenta(s, e.accountId)) : '');
   const cat = e.splits && e.splits.length > 1 ? `${e.splits.length} categorías` : c.label;

@@ -49,6 +49,52 @@ function customText(c) {
   return `El ${c.value}% de lo que gastás en ${catLabel(c.category).toLowerCase()}`;
 }
 
+function aplicarModo(ctx, mode, pct, fijo) {
+  ctx.commit((s) => {
+    s.savingMode = mode;
+    s.rules.payFirst.on = mode === 'payFirst';
+    if (pct) s.rules.payFirst.pct = Number(pct);
+    s.rules.roundup.on = mode === 'roundup';
+    s.rules.custom = (s.rules.custom || []).filter((c) => c.id !== 'r_fixed');
+    if (mode === 'fixed') s.rules.custom.push({ id: 'r_fixed', name: 'Ahorro mensual fijo', type: 'fixedMonthly', value: fijo, on: true });
+    s.asked = s.asked || {}; s.asked.savingMode = { done: true };
+  });
+  toast(`Listo: ${MODE_LABEL(ctx.state).replace(/\.$/, '').toLowerCase()}`);
+}
+
+const MODOS = [
+  ['payFirst:10', 'Apartar el 10% apenas cobro', 'Lo que mejor funciona: primero ahorrás, después gastás.'],
+  ['payFirst:15', 'Apartar el 15% apenas cobro', 'Un poco más.'],
+  ['payFirst:20', 'Apartar el 20% apenas cobro', 'Más rápido.'],
+  ['fixed', 'Un monto fijo por mes', 'Vos elegís cuánto.'],
+  ['leftover', 'Lo que me sobre a fin de mes', 'Te aviso cuánto sobró para apartarlo.'],
+  ['roundup', 'Redondear cada gasto', 'Ahorro de a poquito, casi sin darte cuenta.'],
+  ['none', 'Por ahora no quiero ahorrar', 'Lo podés cambiar cuando quieras.'],
+];
+/** Pantalla #/formaahorro: el único lugar donde se elige cómo ahorrar. Se aplica al tocar. */
+export const formaAhorro = {
+  render(s) {
+    const pf = s.rules.payFirst || {}; const fijo = (s.rules.custom || []).find((c) => c.id === 'r_fixed');
+    const act = s.savingMode === 'payFirst' ? `payFirst:${pf.pct}` : s.savingMode;
+    const otroPct = s.savingMode === 'payFirst' && ![10, 15, 20].includes(Number(pf.pct));
+    return `<section class="screen">
+      ${screenHead('Tu forma de ahorrar', '', 'Tocá una opción y queda elegida')}
+      <div class="card lime"><span class="small">Ahora</span><strong>${esc(MODE_LABEL(s))}</strong></div>
+      <div class="ahorro-ops">
+        ${MODOS.map(([v, t, d]) => `<button class="ahorro-op ${v === act ? 'on' : ''}" data-action="elegirModoAhorro" data-v="${v}" ${v === act ? 'aria-current="true"' : ''}>
+          <b>${t}${v === act ? ' <span class="pill ok">Elegida</span>' : ''}</b><span>${d}</span></button>`).join('')}
+        ${otroPct ? `<p class="small muted" style="margin:0">Ahora apartás el ${pf.pct}%: lo cambiás en Reglas de ahorro → Págate primero.</p>` : ''}
+      </div>
+      <form class="card form" data-submit="guardarModoFijo" data-fijo ${s.savingMode === 'fixed' ? '' : 'hidden'}>
+        <div class="field"><label for="mo-f">Monto fijo por mes</label><input id="mo-f" name="fijo" inputmode="decimal" value="${fijo ? fijo.value : ''}" placeholder="Ej: 100.000"></div>
+        <button class="btn primary block" type="submit">Guardar monto</button>
+      </form>
+      ${lessonBtn()}
+    </section>`;
+  },
+};
+const lessonBtn = () => '<button class="btn ghost small" data-action="openLesson" data-id="modos" style="align-self:flex-start">¿Cuál me conviene?</button>';
+
 /** Forma de ahorrar, reglas y desafíos (se muestra en Mi plata → Plan de ahorro). */
 export function planAhorroHtml(s, metasHtml = '') {
   const ch = challengeStatus(s);
@@ -184,38 +230,22 @@ function ask(ctx, q) {
 export const actions = {
   asesorTab(ctx, el) { tab = el.dataset.v; ctx.render(); },
   masPreguntas(ctx) { masPreguntas = !masPreguntas; ctx.render(); },
-  // se cambia acá mismo, sin ir a Inicio
-  changeMode(ctx) {
-    const s = ctx.state;
-    const pf = s.rules.payFirst || {}; const fijo = (s.rules.custom || []).find((c) => c.id === 'r_fixed');
-    const act = s.savingMode === 'payFirst' ? `payFirst:${pf.pct}` : s.savingMode;
-    const op = (v, t, d) => `<label class="ahorro-op"><input type="radio" name="modo" value="${v}" ${v === act ? 'checked' : ''} style="position:absolute;opacity:0"><b>${t}</b><span>${d}</span></label>`;
-    openModal('Tu forma de ahorrar', `<form class="form" data-submit="guardarModoAhorro"><div class="ahorro-ops">
-      ${op('payFirst:10', 'Apartar el 10% apenas cobro', 'Lo que mejor funciona: primero ahorrás, después gastás.')}
-      ${op('payFirst:15', 'Apartar el 15% apenas cobro', 'Un poco más.')}
-      ${op('payFirst:20', 'Apartar el 20% apenas cobro', 'Más rápido.')}
-      ${op('fixed', 'Un monto fijo por mes', 'Vos elegís cuánto.')}
-      ${op('leftover', 'Lo que me sobre a fin de mes', 'Te aviso cuánto sobró para apartarlo.')}
-      ${op('roundup', 'Redondear cada gasto', 'Ahorro de a poquito, casi sin darte cuenta.')}
-      ${op('none', 'Por ahora no quiero ahorrar', 'Lo podés cambiar cuando quieras.')}</div>
-      <div class="field" data-fijo><label for="mo-f">Monto por mes (si elegiste monto fijo)</label><input id="mo-f" name="fijo" inputmode="decimal" value="${fijo ? fijo.value : ''}" placeholder="Ej: 100.000"></div>
-      <button class="btn primary block" type="submit">Guardar</button></form>`);
+  // "Cambiar" lleva a la única sección donde se elige la forma de ahorrar
+  changeMode(ctx) { ctx.go('formaahorro'); },
+  elegirModoAhorro(ctx, el) {
+    const [mode, pct] = String(el.dataset.v || '').split(':');
+    if (mode === 'fixed') {
+      const f = document.getElementById('mo-f');
+      const fijo = num(f && f.value);
+      if (!fijo) { const box = document.querySelector('[data-fijo]'); if (box) { box.hidden = false; f.focus(); } toast('Poné cuánto querés apartar por mes y tocá Guardar'); return; }
+      aplicarModo(ctx, 'fixed', null, fijo); return;
+    }
+    aplicarModo(ctx, mode, pct);
   },
-  guardarModoAhorro(ctx, d) {
-    const [mode, pct] = String(d.modo || '').split(':');
-    if (!mode) { toast('Elegí una opción'); return; }
+  guardarModoFijo(ctx, d) {
     const fijo = num(d.fijo);
-    if (mode === 'fixed' && !fijo) { toast('Poné cuánto querés apartar por mes'); return; }
-    ctx.commit((s) => {
-      s.savingMode = mode;
-      s.rules.payFirst.on = mode === 'payFirst';
-      if (pct) s.rules.payFirst.pct = Number(pct);
-      s.rules.roundup.on = mode === 'roundup';
-      s.rules.custom = (s.rules.custom || []).filter((c) => c.id !== 'r_fixed');
-      if (mode === 'fixed') s.rules.custom.push({ id: 'r_fixed', name: 'Ahorro mensual fijo', type: 'fixedMonthly', value: fijo, on: true });
-      s.asked = s.asked || {}; s.asked.savingMode = { done: true };
-    });
-    closeModal(); toast('Listo, cambié tu forma de ahorrar');
+    if (!fijo) { toast('Poné cuánto querés apartar por mes'); return; }
+    aplicarModo(ctx, 'fixed', null, fijo);
   },
   toggleRule(ctx, el) { ctx.commit((s) => { s.rules[el.dataset.key].on = !s.rules[el.dataset.key].on; }); },
   editRule(ctx, el) {

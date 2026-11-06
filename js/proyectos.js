@@ -2,7 +2,10 @@
 // Pesitos — proyectos
 // Para seguir aparte lo que gastás (y lo que entra) en algo puntual: una obra, un viaje,
 // un evento o un emprendimiento. Cada gasto o ingreso puede ir a un proyecto.
-// s.proyectos = [{ id, nombre, tipo, presupuesto, conAhorros, creado, fin, cerrado }]
+// s.proyectos = [{ id, nombre, tipo, presupuesto, conAhorros, creado, fin, cerrado, con: ['Sofi'], aportes: [] }]
+// Compartido: "con" son las otras personas (se divide en partes iguales entre vos y ellas).
+// aportes = [{ id, quien, monto, fecha, nota, aMi }]: lo que puso cada una (aMi: te lo dio a vos;
+// si no, lo pagó directo). Lo tuyo son los gastos del proyecto menos lo que te dieron.
 // Los movimientos guardan proyectoId. Si el proyecto se paga con ahorros, sus gastos
 // no cuentan en "Hoy podés gastar".
 // =========================================================
@@ -42,6 +45,48 @@ export function resumenProyecto(s, p) {
   return { gastos, ingresos, gastado, entro, neto: entro - gastado, porCat, desde: fechas[0], hasta: fechas[fechas.length - 1], movs: gastos.length + ingresos.length };
 }
 
+/** Entre cuántos y cuánto puso cada uno. null si no es compartido. */
+export function cuentasProyecto(s, p) {
+  const con = p.con || []; if (!con.length) return null;
+  const r = resumenProyecto(s, p);
+  const ap = p.aportes || [];
+  const directo = ap.filter((a) => !a.aMi).reduce((t, a) => t + a.monto, 0);
+  const total = r.gastado + directo;
+  const n = con.length + 1; const parte = total / n;
+  const puso = (q) => ap.filter((a) => a.quien === q).reduce((t, a) => t + a.monto, 0);
+  const yo = r.gastado - ap.filter((a) => a.aMi).reduce((t, a) => t + a.monto, 0);
+  const personas = [{ quien: 'Vos', puso: yo, saldo: yo - parte, yo: true }, ...con.map((q) => ({ quien: q, puso: puso(q), saldo: puso(q) - parte }))];
+  return { total, n, parte, personas, aportes: ap };
+}
+function compartidoHtml(s, p) {
+  const c = cuentasProyecto(s, p); if (!c) return '';
+  const r1 = (x) => Math.round(x);
+  const fila = (x) => `<div class="row"><span class="grow"><span class="name">${esc(x.quien)}</span><span class="meta">Puso ${money(x.puso)} · le toca ${money(c.parte)}</span></span>
+    <span class="amount ${r1(x.saldo) > 0 ? 'pos' : ''}">${r1(x.saldo) === 0 ? 'Está al día' : x.saldo > 0 ? `Le deben ${money(x.saldo)}` : `Debe ${money(-x.saldo)}`}</span></div>`;
+  const yo = c.personas[0];
+  return `<div class="section-title"><span>Entre ${c.n} personas</span><button data-action="nuevoAporte" data-id="${esc(p.id)}">+ Aporte</button></div>
+    <div class="card tight">
+      <div class="row"><span class="grow"><span class="name">Total del proyecto</span><span class="meta">${money(c.total)} · ${money(c.parte)} cada uno</span></span></div>
+      ${c.personas.map(fila).join('')}
+    </div>
+    <p class="small muted" style="margin:0">Tus gastos del proyecto cuentan como lo que pusiste vos. Lo que pongan los demás cargalo como aporte (si te lo dieron a vos o si pagaron algo directo).${r1(yo.saldo) > 0 ? ' Cuando quieras, pasalo a Deudas para seguir quién te devuelve.' : ''}</p>
+    ${c.aportes.length ? `<details class="card"><summary><strong>Aportes (${c.aportes.length})</strong></summary>${c.aportes.slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).map((a) => `<button class="row" data-action="editarAporte" data-id="${esc(p.id)}" data-a="${esc(a.id)}"><span class="grow"><span class="name">${esc(a.quien)}${a.nota ? ` · ${esc(a.nota)}` : ''}</span><span class="meta">${relDay(a.fecha)} · ${a.aMi ? 'te lo dio a vos' : 'lo pagó directo'}</span></span><span class="amount">${money(a.monto)}</span></button>`).join('')}</details>` : ''}
+    ${c.personas.slice(1).some((x) => r1(x.saldo) < 0) && r1(yo.saldo) > 0 ? `<button class="btn small" data-action="aportesADeudas" data-id="${esc(p.id)}" style="align-self:flex-start">Anotar en Deudas lo que me deben</button>` : ''}`;
+}
+function aporteForm(p, a = {}) {
+  return `<form class="form" data-submit="guardarAporte"><input type="hidden" name="id" value="${esc(p.id)}"><input type="hidden" name="a" value="${esc(a.id || '')}">
+    <div class="field"><label for="ap-q">¿Quién?</label><select id="ap-q" name="quien">${(p.con || []).map((q) => `<option ${q === a.quien ? 'selected' : ''}>${esc(q)}</option>`).join('')}</select></div>
+    <div class="field-row"><div class="field"><label for="ap-m">Monto</label><input id="ap-m" name="monto" inputmode="decimal" value="${a.monto || ''}" required placeholder="Ej: 50.000"></div>
+      <div class="field"><label for="ap-f">Fecha</label><input id="ap-f" name="fecha" type="date" value="${esc(a.fecha || todayISO())}"></div></div>
+    <div class="field"><label for="ap-n">Qué fue (opcional)</label><input id="ap-n" name="nota" value="${esc(a.nota || '')}" placeholder="Ej: Pagó el hotel" maxlength="40"></div>
+    <label class="check"><input type="radio" name="aMi" value="0" ${!a.aMi ? 'checked' : ''}> <span>Lo pagó directo (no pasó por tu bolsillo)</span></label>
+    <label class="check"><input type="radio" name="aMi" value="1" ${a.aMi ? 'checked' : ''}> <span>Te lo dio a vos para el proyecto</span></label>
+    <button class="btn primary block" type="submit">Guardar</button>
+    ${a.id ? `<button class="btn ghost block" type="button" data-action="borrarAporte" data-id="${esc(p.id)}" data-a="${esc(a.id)}">Borrar aporte</button>` : ''}
+  </form>`;
+}
+const conDeTexto = (t) => [...new Set(String(t || '').split(/[,;\n]| y /).map((x) => x.trim()).filter(Boolean).map((x) => x.charAt(0).toUpperCase() + x.slice(1)).filter((x) => !/^(yo|vos)$/i.test(x)))].slice(0, 12);
+
 const barra = (pct) => `<div class="pres-barra ${pct >= 1 ? 'mal' : pct >= 0.8 ? 'ojo' : 'bien'}"><span style="width:${Math.min(100, Math.round(pct * 100))}%"></span></div>`;
 
 /** Pantalla propia: #/proyectos */
@@ -65,7 +110,7 @@ export function cuerpo(s) {
     <div class="card tight">${lista.map((p) => { const r = resumenProyecto(s, p); return `<button class="row" data-action="verProyecto" data-id="${esc(p.id)}">
       <span class="cat-icon ${p.cerrado ? '' : 'green'}">${icon(tipoDe(p)[2], 18)}</span>
       <span class="grow"><span class="name">${esc(p.nombre)}${p.cerrado ? ' <span class="pill">Terminado</span>' : ''}</span>
-        <span class="meta">${r.movs} movimiento${r.movs === 1 ? '' : 's'}${p.presupuesto ? ` · ${Math.round((r.gastado / p.presupuesto) * 100)}% de ${money(p.presupuesto)}` : ''}${p.fin && !p.cerrado ? ` · hasta el ${fechaTxt(p.fin)}` : ''}${p.conAhorros ? ' · con ahorros' : ''}</span>
+        <span class="meta">${r.movs} movimiento${r.movs === 1 ? '' : 's'}${(p.con || []).length ? ` · entre ${p.con.length + 1}` : ''}${p.presupuesto ? ` · ${Math.round((r.gastado / p.presupuesto) * 100)}% de ${money(p.presupuesto)}` : ''}${p.fin && !p.cerrado ? ` · hasta el ${fechaTxt(p.fin)}` : ''}${p.conAhorros ? ' · con ahorros' : ''}</span>
         ${p.presupuesto ? barra(r.gastado / p.presupuesto) : ''}</span>
       <span class="amount">${money(r.gastado)}</span></button>`; }).join('')}</div>`
     : `<div class="card proy-vacio">
@@ -109,6 +154,7 @@ function detalle(s, p) {
       ${r.desde ? `<span class="small on-green-muted">Desde el ${fechaTxt(r.desde)}${r.hasta !== r.desde ? ` al ${fechaTxt(r.hasta)}` : ''} · ${p.conAhorros ? 'se paga con ahorros: no cuenta en "Hoy podés gastar"' : 'cuenta en "Hoy podés gastar"'}</span>` : ''}
     </div>
     ${ritmo(p, r)}
+    ${compartidoHtml(s, p)}
     ${cats.length ? `<div class="card"><strong>En qué se fue</strong>${cats.map(([c, v]) => `<div class="split small"><span>${esc(catLabel(c))}</span><b>${money(v)} · ${Math.round((v / Math.max(1, r.gastado)) * 100)}%</b></div>`).join('')}</div>` : ''}
     <div class="btn-row"><button class="btn small" data-action="sumarAProyecto" data-id="${esc(p.id)}">${icon('plus', 16, 2.4)} Sumar movimientos</button><button class="btn small" data-action="editarProyecto" data-id="${esc(p.id)}">Editar</button></div>
     <div class="section-title"><span>Movimientos</span><span class="small muted">${r.movs}</span></div>
@@ -130,6 +176,8 @@ function form(p = {}) {
       <div class="field"><label for="pr-f">Fecha objetivo (opcional)</label><input id="pr-f" name="fin" type="date" value="${esc(p.fin || '')}"></div>
     </div>
     <span class="hint">Con presupuesto y fecha te digo si vas en ritmo y cuánto podés gastar por mes.</span>
+    <div class="field"><label for="pr-c">¿Lo compartís? Con quién (opcional)</label><input id="pr-c" name="con" value="${esc((p.con || []).join(', '))}" placeholder="Ej: Sofi, Juan" maxlength="200" data-input="proyContar">
+      <span class="hint" data-proy-n>${(p.con || []).length ? `Entre ${p.con.length + 1} personas (vos y ${p.con.length})` : 'Separá los nombres con coma. Se divide en partes iguales y te digo cuánto puso cada uno.'}</span></div>
     <label class="check"><input type="checkbox" name="conAhorros" ${p.conAhorros ? 'checked' : ''}> <span>Lo pago con ahorros<br><span class="small muted">Sus gastos no se descuentan de "Hoy podés gastar". Dejalo sin marcar si lo pagás con la plata del mes.</span></span></label>
     ${p.id ? `<label class="check"><input type="checkbox" name="cerrado" ${p.cerrado ? 'checked' : ''}> <span>Proyecto terminado<br><span class="small muted">Deja de aparecer al cargar gastos. Lo seguís viendo acá.</span></span></label>` : ''}
     <button class="btn primary block" type="submit">Guardar</button>
@@ -158,7 +206,7 @@ export const actions = {
     let id = d.id;
     ctx.commit((s) => {
       s.proyectos = s.proyectos || [];
-      const datos = { nombre, tipo: d.tipo || 'otro', fin: d.fin || '', presupuesto: num(d.presupuesto) || 0, conAhorros: !!d.conAhorros, cerrado: !!d.cerrado };
+      const datos = { nombre, tipo: d.tipo || 'otro', fin: d.fin || '', presupuesto: num(d.presupuesto) || 0, conAhorros: !!d.conAhorros, cerrado: !!d.cerrado, con: conDeTexto(d.con) };
       const p = s.proyectos.find((x) => x.id === d.id);
       if (p) Object.assign(p, datos); else { id = uid(); s.proyectos.push({ id, creado: todayISO(), ...datos }); }
     });
@@ -170,6 +218,43 @@ export const actions = {
       s.proyectos = (s.proyectos || []).filter((p) => p.id !== id);
       for (const x of [...s.expenses, ...s.incomes]) if (x.proyectoId === id) delete x.proyectoId;
     });
+  },
+  proyContar(ctx, el) {
+    const n = conDeTexto(el.value).length; const h = el.closest('.field').querySelector('[data-proy-n]');
+    if (h) h.textContent = n ? `Entre ${n + 1} personas (vos y ${n})` : 'Separá los nombres con coma. Se divide en partes iguales y te digo cuánto puso cada uno.';
+  },
+  nuevoAporte(ctx, el) { const p = proyectoDe(ctx.state, el.dataset.id); if (p) openModal('Aporte', aporteForm(p)); },
+  editarAporte(ctx, el) { const p = proyectoDe(ctx.state, el.dataset.id); const a = p && (p.aportes || []).find((x) => x.id === el.dataset.a); if (a) openModal('Aporte', aporteForm(p, a)); },
+  guardarAporte(ctx, d) {
+    const monto = Math.round(num(d.monto) * 100) / 100; if (!(monto > 0)) { toast('Poné el monto'); return; }
+    ctx.commit((s) => {
+      const p = proyectoDe(s, d.id); if (!p) return;
+      p.aportes = p.aportes || [];
+      const datos = { quien: d.quien, monto, fecha: d.fecha || todayISO(), nota: String(d.nota || '').trim().slice(0, 40), aMi: d.aMi === '1' };
+      const a = p.aportes.find((x) => x.id === d.a);
+      if (a) Object.assign(a, datos); else p.aportes.push({ id: uid(), ...datos });
+    });
+    closeModal(); toast(`Aporte de ${d.quien} guardado`);
+  },
+  borrarAporte(ctx, el) {
+    ctx.commit((s) => { const p = proyectoDe(s, el.dataset.id); if (p) p.aportes = (p.aportes || []).filter((x) => x.id !== el.dataset.a); });
+    closeModal(); toast('Aporte borrado');
+  },
+  aportesADeudas(ctx, el) {
+    const p = proyectoDe(ctx.state, el.dataset.id); const c = p && cuentasProyecto(ctx.state, p); if (!c) return;
+    let n = 0;
+    ctx.commit((s) => {
+      s.deudas = s.deudas || [];
+      for (const x of c.personas.slice(1)) {
+        const debe = Math.round(-x.saldo * 100) / 100; if (debe < 1) continue;
+        const origen = `proy:${p.id}:${x.quien}`;
+        const prev = s.deudas.find((dd) => dd.origen === origen);
+        const datos = { tipo: 'meDeben', persona: x.quien, monto: debe, date: todayISO(), nota: `Proyecto ${p.nombre}`, origen };
+        if (prev) Object.assign(prev, datos); else s.deudas.push({ id: uid(), pagos: [], ...datos });
+        n++;
+      }
+    });
+    toast(n ? `Listo: lo anoté en Deudas (${n} persona${n === 1 ? '' : 's'})` : 'Nadie te debe en este proyecto');
   },
   sumarAProyecto(ctx, el) { openModal('Sumar movimientos', listaParaSumar(ctx.state, el.dataset.id)); },
   guardarSumaProyecto(ctx, d) {

@@ -13,7 +13,7 @@ import { LESSONS } from './aprender.js';
 import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal } from './calculos.js';
 import { statementDates, statementOf } from './agenda.js';
 import { demoState } from './ejemplo.js';
-import { detectarReintegro } from './reintegros.js';
+import { detectarReintegro, usoPromoSegun, preguntaPromoHtml } from './reintegros.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
 import { ratesAge, arsPer, aBase, monedaBase } from './cotizaciones.js';
@@ -399,7 +399,7 @@ export const commonActions = {
       if (kind === 'income') s.incomes.push({ id: uid(), date, amount, type: /sueldo/i.test(texto) ? 'sueldo' : 'extra', note: note === 'Gasto' ? 'Ingreso' : note, ...(accountId ? { accountId } : {}), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
       else {
         s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
-        { const ex = s.expenses[s.expenses.length - 1]; nuevoId = ex.id; const r = detectarReintegro(s, ex); if (r) { ex.reintegro = r; reint = r; } }
+        { const ex = s.expenses[s.expenses.length - 1]; nuevoId = ex.id; const r = detectarReintegro(s, ex); if (r) { ex.reintegro = r; const u = usoPromoSegun(s, ex); if (u === 'no') { delete ex.reintegro; ex.sinReintegro = true; } else { if (!u) r.verificar = true; reint = r; } } }
         if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
         // recuerdo con qué pagaste en ese comercio, para proponértelo la próxima vez
         const kMedio = merchantKey(note);
@@ -416,6 +416,13 @@ export const commonActions = {
       const ahora = avancePresupuesto(ctx.state, category);
       if (ahora && ahora.pct >= 1 && antes.pct < 1) msg += `. Ojo: te pasaste del presupuesto de ${catLabel(category)}`;
       else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
+    }
+    if (reint && reint.verificar) {
+      // ¿pagó con la promo o normal? le pregunto
+      toast(msg);
+      const ex = ctx.state.expenses.find((x) => x.id === nuevoId);
+      if (ex) openModal('¿Usaste la promo?', preguntaPromoHtml(ctx.state, ex));
+      return;
     }
     if (reint) {
       msg += `. Te devuelven ${reint.aprox ? 'hasta ' : ''}${money(reint.monto)} (${reint.nombre} ${reint.pct}%${reint.aprox ? ', tope sin confirmar' : ''}) el ${reint.fecha.slice(8)}/${reint.fecha.slice(5, 7)}`;
@@ -626,7 +633,7 @@ export const commonActions = {
     const tags = etiquetasDeTexto(d.tags);
     const [medioTipo, medioId] = String(d.medio || '').split(':');
     const moneda = currency === B ? {} : { currency, original, rate };
-    let msg = 'Guardado';
+    let msg = 'Guardado'; let preguntar = '';
     ctx.commit((s) => {
       s.deudas = s.deudas || [];
       if (d.kind === 'income') {
@@ -690,7 +697,13 @@ export const commonActions = {
           const base = auto || (prevR && !prevR.no ? prevR : null) || {};
           item.reintegro = { ...base, monto: rm, fecha: d.reintFecha || base.fecha || toISO(addDays(parseISO(item.date), 7)), nombre: base.nombre || 'Reintegro', pct: base.pct || 0, key: base.key || `m:${id}`, manual: true,
             ...(item.cardId ? { cardId: item.cardId, cuenta: undefined } : { cuenta: item.accountId || s.cuentaPrincipal, cardId: undefined }) };
-        } else if (auto) item.reintegro = auto;
+        } else if (auto) {
+          item.reintegro = auto;
+          // gasto nuevo: si no sé si usó la promo, le pregunto; si ya lo había respondido, lo respeto
+          if (prevR && !prevR.verificar && !prevR.no) delete item.reintegro.verificar;
+          else if (prevR && prevR.verificar) item.reintegro.verificar = true;
+          else if (!prev) { const u = usoPromoSegun(s, item); if (u === 'no') { delete item.reintegro; item.sinReintegro = true; } else if (!u) { item.reintegro.verificar = true; preguntar = id; } }
+        }
         if (item.reintegro) { if (d.reintOk) item.reintegro.ok = true; else delete item.reintegro.ok; }
       }
       const i = s.expenses.findIndex((x) => x.id === d.id);
@@ -700,6 +713,7 @@ export const commonActions = {
     if (msg.startsWith('Las partes')) { toast(msg); return; }
     closeModal();
     toast(msg);
+    if (preguntar) { const ex = ctx.state.expenses.find((x) => x.id === preguntar); if (ex && ex.reintegro) openModal('¿Usaste la promo?', preguntaPromoHtml(ctx.state, ex)); }
   },
   deleteEntry(ctx, el) {
     const key = el.dataset.kind === 'income' ? 'incomes' : 'expenses';

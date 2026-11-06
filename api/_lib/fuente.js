@@ -21,11 +21,11 @@ const MEDIOS = {
 const RUBROS = {
   supermercados: 'super', mayoristas: 'super', carnicerias: 'super', alimentos: 'super', ferias: 'super', 'comercios de cercanía': 'super', 'comercios de cercania': 'super',
   gastronomia: 'comida', delivery: 'comida',
-  transporte: 'transporte', combustible: 'transporte', automotor: 'transporte', rodados: 'transporte',
-  hogar: 'casa', garrafas: 'casa', servicios: 'casa', telefonia: 'casa', 'servicios publicos': 'casa', 'servicios públicos': 'casa',
-  farmacia: 'salud', belleza: 'salud', opticas: 'salud', deportes: 'salud',
-  electro: 'compras', tecnologia: 'compras', indumentaria: 'compras', espectaculos: 'compras', viajes: 'compras', turismo: 'compras', marcas: 'compras',
-  librerias: 'familia', educacion: 'familia', mascotas: 'familia', jugueterias: 'familia',
+  transporte: 'transporte', combustible: 'vehiculo', automotor: 'vehiculo', rodados: 'vehiculo',
+  hogar: 'hogar', garrafas: 'servicios', servicios: 'servicios', telefonia: 'servicios', 'servicios publicos': 'servicios', 'servicios públicos': 'servicios',
+  farmacia: 'salud', belleza: 'compras', opticas: 'salud', deportes: 'deporte',
+  electro: 'hogar', tecnologia: 'compras', indumentaria: 'compras', espectaculos: 'ocio', viajes: 'viajes', turismo: 'viajes', marcas: 'compras',
+  librerias: 'educacion', educacion: 'educacion', mascotas: 'mascotas', jugueterias: 'regalos',
 };
 
 const DIAS = { domingo: 0, lunes: 1, martes: 2, miercoles: 3, 'miércoles': 3, jueves: 4, viernes: 5, sabado: 6, 'sábado': 6 };

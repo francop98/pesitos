@@ -55,7 +55,7 @@ function body(s) {
 }
 
 export const monedaActions = {
-  openMoneda(ctx) { openModal('Tu moneda', body(ctx.state)); },
+  openMoneda(ctx) { openModal('Tu moneda', body(ctx.state), { push: !document.getElementById('modal').hidden }); },
   guardarMoneda(ctx, d) {
     const nueva = d.moneda === 'USD' ? 'USD' : 'ARS';
     const vieja = monedaBase(ctx.state);

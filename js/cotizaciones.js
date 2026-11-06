@@ -1,6 +1,8 @@
 // Cotizaciones en vivo.
 // - Dólares (blue, oficial, MEP, CCL, tarjeta, cripto, mayorista): DolarApi.com.
 // - Euro, real, peso uruguayo y chileno: DolarApi.com.
+// - Otras ~30 monedas del mundo (guaraní, sol, libra, yen…): Exchange Rate API (open.er-api.com,
+//   gratis y sin clave; pide mostrar "Rates By Exchange Rate API"), cruzadas con tu dólar de referencia.
 // - Bitcoin, Ethereum, USDT y oro (vía PAX Gold, 1 token = 1 onza troy = 31,1035 g; se guarda por GRAMO): CoinGecko.
 // Si no hay conexión, se usan las últimas guardadas y se avisa que no están al día.
 
@@ -45,6 +47,13 @@ export async function refreshRates(ctx, force = false) {
       if (code && code !== 'USD' && c.venta) out[code] = { compra: c.compra, venta: c.venta, updated: c.fechaActualizacion };
     }
   } catch { /* sin conexión */ }
+  // el resto de las monedas del mundo (se actualizan una vez por día: las pido cada 12 horas)
+  if (!out.fx || Date.now() - (out.fx.at || 0) > 12 * 3600 * 1000) {
+    try {
+      const fx = await getJSON('https://open.er-api.com/v6/latest/USD');
+      if (fx && fx.result === 'success' && fx.rates) out.fx = { at: Date.now(), updated: fx.time_last_update_utc || '', porUsd: fx.rates };
+    } catch { /* sin conexión */ }
+  }
   try {
     const cg = await getJSON('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,pax-gold&vs_currencies=usd');
     out.crypto = { BTC: cg.bitcoin?.usd, ETH: cg.ethereum?.usd, USDT: cg.tether?.usd, XAU: cg['pax-gold']?.usd ? cg['pax-gold'].usd / GRAMOS_POR_ONZA : undefined, updated: new Date().toISOString() };
@@ -78,6 +87,9 @@ export function arsPer(s, asset) {
   if (r[asset] && r[asset].venta) return r[asset].venta;
   const c = r.crypto || {};
   if (c[asset]) return c[asset] * usd;
+  // otras monedas: cruzadas con tu dólar de referencia
+  const fx = r.fx && r.fx.porUsd;
+  if (fx && fx[asset] > 0) return usd / fx[asset];
   return 0;
 }
 

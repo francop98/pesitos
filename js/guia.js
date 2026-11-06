@@ -191,8 +191,8 @@ function apply(ctx, qid, input) {
 }
 
 // ---------- sugerencias de mejora ----------
-const VARIABLE_CATS = new Set(['super', 'comida', 'transporte', 'compras', 'salud', 'familia']);
-const FIXED_LIKE = new Set(['casa', 'familia', 'otros']);
+const VARIABLE_CATS = new Set(['super', 'comida', 'transporte', 'vehiculo', 'compras', 'salud', 'ocio', 'regalos', 'viajes', 'mascotas']);
+const FIXED_LIKE = new Set(['vivienda', 'servicios', 'suscripciones', 'educacion', 'deporte', 'otros']);
 const ES_SUSCRIPCION = /netflix|spotify|disney|hbo|\bmax\b|prime video|amazon prime|paramount|youtube|icloud|google one|chatgpt|claude|canva|adobe|office 365|microsoft 365|dropbox|deezer|crunchyroll|mubi|suscripcion|membresia|patreon|twitch|game pass|playstation plus|apple (music|tv|one)|duolingo|vpn|kindle|audible|flow|directv go|fanatiz|universal\+/;
 
 export function suggestions(s) {
