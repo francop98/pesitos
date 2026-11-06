@@ -6,7 +6,9 @@
 import { money, esc, todayISO, relDay, num } from './formato.js';
 import { screenHead, openModal, closeModal, toast, icon, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
-import { tasaDe, textoTasa } from './rendimientos.js';
+import { tasaDe, textoTasa, valorHoy } from './rendimientos.js';
+import { budget } from './calculos.js';
+import { monedaBase } from './cotizaciones.js';
 import { listaCuentas, cuentaPrincipal, saldoCuenta, cuentasConSaldo, movimientosDeCuenta, totalCuentas, nombreCuenta, patrimonio, detalleSaldo, cuentaPuedeRendir, tnaCuenta } from './cuentas.js';
 
 const signo = (v) => `${v >= 0 ? '+' : '−'}${money(Math.abs(v))}`;
@@ -77,6 +79,31 @@ function formTransferencia(s, t = {}) {
   </form>`;
 }
 
+// ---------- pasar plata de una cuenta a ahorros ----------
+// Sale del saldo de la cuenta, entra en un ahorro (y en una meta si querés) y, si es
+// plata de este mes, baja lo que podés gastar.
+function formAhorrar(s) {
+  const base = monedaBase(s);
+  const lugares = (s.holdings || []).filter((h) => (h.currency || 'ARS') === base);
+  const g = (s.goals || []).find((x) => x.main) || (s.goals || [])[0];
+  const b = budget(s);
+  return `<form class="form" data-submit="guardarAhorrar">
+    <div class="field-row"><div class="field"><label for="ah-f">Desde</label><select id="ah-f" name="from">${opcionesCuenta(s, cuentaPrincipal(s))}</select></div>
+    <div class="field"><label for="ah-a">Monto</label><input id="ah-a" name="amount" inputmode="decimal" required placeholder="Ej: 50.000"></div></div>
+    <div class="field"><label for="ah-h">¿A dónde va?</label><select id="ah-h" name="holding" data-change="ahorrarLugar">
+      ${lugares.map((h) => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join('')}
+      <option value="__nuevo" ${lugares.length ? '' : 'selected'}>Otro lugar (lo agrego)</option></select></div>
+    <div class="field-row" data-ah-nuevo ${lugares.length ? 'hidden' : ''}><div class="field"><label for="ah-n">Nombre del lugar</label><input id="ah-n" name="nombre" placeholder="Ej: Frasco Naranja X"></div>
+      <div class="field"><label for="ah-t">Tasa anual (si rinde)</label><input id="ah-t" name="tna" inputmode="decimal" placeholder="Ej: 30"></div></div>
+    ${(s.goals || []).length ? `<div class="field"><label for="ah-g">Sumarlo a una meta (opcional)</label><select id="ah-g" name="goal"><option value="">Ninguna</option>${s.goals.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` : ''}
+    <div class="field"><span class="label-like">¿Es plata de este mes?</span>
+      <label class="check"><input type="radio" name="delMes" value="1" checked> <span>Sí: la saco de lo que tenía para gastar<br><span class="small muted">Baja tu "Hoy podés gastar"${b.noIncome ? '' : ` (hoy te quedan ${money(Math.max(0, b.free))} libres hasta el cobro)`}.</span></span></label>
+      <label class="check"><input type="radio" name="delMes" value="0"> <span>No: ya la tenía ahorrada en la cuenta<br><span class="small muted">Solo la cambio de lugar: no toca lo que podés gastar.</span></span></label></div>
+    <span class="small muted">Baja el saldo de la cuenta y suma a tus ahorros.</span>
+    <button class="btn primary block" type="submit">Pasar a ahorros</button>
+  </form>`;
+}
+
 // ---------- comparar con el banco (una vez por semana) ----------
 // El saldo que calcula Pesitos puede alejarse del real (un gasto sin anotar, un débito,
 // un reintegro distinto). Cada 7 días te pido que lo compares y ajusto la diferencia.
@@ -95,6 +122,32 @@ export function compararCard(s) {
 }
 
 export const actions = {
+  pasarAhorros(ctx) { openModal('Pasar a ahorros', formAhorrar(ctx.state)); },
+  ahorrarLugar(ctx, el) { const f = el.closest('form'); f.querySelector('[data-ah-nuevo]').hidden = el.value !== '__nuevo'; },
+  guardarAhorrar(ctx, d) {
+    const amount = Math.round(num(d.amount) * 100) / 100;
+    if (!(amount > 0)) { toast('Poné un monto'); return; }
+    const saldo = saldoCuenta(ctx.state, d.from);
+    let lugar = ''; let meta = '';
+    ctx.commit((s) => {
+      s.holdings = s.holdings || [];
+      let h = s.holdings.find((x) => x.id === d.holding);
+      if (!h) {
+        const tna = num(d.tna);
+        h = { id: uid(), type: /plazo/i.test(d.nombre || '') ? 'plazo_fijo' : /colch|efectivo/i.test(d.nombre || '') ? 'efectivo' : 'remunerada', name: String(d.nombre || '').trim() || 'Ahorro', amount: 0, currency: monedaBase(s), rinde: tna > 0 ? 'manual' : 'no', tna: tna > 0 ? tna : 0, since: tna > 0 ? todayISO() : '' };
+        s.holdings.push(h);
+      }
+      // si rinde, sumo sobre el valor de hoy (con los intereses) y arranca de nuevo
+      if (h.since) { h.amount = Math.round(valorHoy(s, h) * 100) / 100 + amount; h.since = todayISO(); } else h.amount = Math.round((Number(h.amount) || 0) * 100 + amount * 100) / 100;
+      lugar = h.name;
+      const g = (s.goals || []).find((x) => x.id === d.goal);
+      if (g) { g.saved += amount; meta = g.name; }
+      s.transfers = s.transfers || [];
+      s.transfers.push({ id: uid(), date: todayISO(), amount, accountId: d.from, holdingId: h.id, ...(g ? { goalId: g.id } : {}), ...(d.delMes === '1' ? { deDiario: true } : {}), note: `A ahorros: ${h.name}` });
+    });
+    closeModal();
+    toast(`Listo: ${money(amount)} a ${lugar}${meta ? ` (meta "${meta}")` : ''}${d.delMes === '1' ? '. Bajó tu "Hoy podés gastar"' : ''}${saldo != null && amount > saldo ? '. Ojo: es más de lo que tenías en la cuenta' : ''}`);
+  },
   openComparar(ctx) {
     const s = ctx.state;
     openModal('Comparar con el banco', `<form class="form" data-submit="guardarComparar">

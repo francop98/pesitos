@@ -96,7 +96,7 @@ export function render(s) {
     </div>
     ${vista === 'sueldo' ? sueldoCuerpo(s, 'ahorro') : ''}
 
-    ${vista === 'cuentas' ? `<div class="btn-row"><button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir entre cuentas</button></div>
+    ${vista === 'cuentas' ? `<div class="btn-row"><button class="btn small green" data-action="pasarAhorros">${icon('sprout', 18)} Pasar a ahorros</button><button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir entre cuentas</button></div>
     ${taparMontos(cuerpoCuentas(s), 'ahorro')}` : ''}
 
     ${vista === 'mis' ? taparMontos(`<div class="card green" style="gap:12px;padding:20px">
@@ -110,7 +110,7 @@ export function render(s) {
           <span class="amount">${h.ars ? money(h.ars) : fmtAsset(h.amount, h.currency)}</span>
         </button>`).join('') || '<span class="small on-green-muted">Todavía no cargaste dónde tenés tus ahorros.</span>'}
       </div>
-      <button class="btn small lime" data-action="newHolding">+ Agregar dónde ahorrás</button>
+      <div class="btn-row"><button class="btn small lime" data-action="pasarAhorros">${icon('sprout', 16)} Pasar plata a ahorros</button><button class="btn small" data-action="newHolding" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)">+ Agregar dónde ahorrás</button></div>
     </div>`, 'ahorro') : ''}
 
     ${vista === 'mis' ? `

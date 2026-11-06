@@ -2,7 +2,7 @@
 // cuánto ahorrar por mes, cuánto rinde mi plata y conversor.
 
 import { money, MONTHS_LONG, esc } from './formato.js';
-import { lastSalary, resumenCuotas, budget } from './calculos.js';
+import { lastSalary, resumenCuotas, budget, cardSummary } from './calculos.js';
 import { listaCuentas, tnaCuenta, saldoCuenta, totalCuentas, cuentasConSaldo } from './cuentas.js';
 import { BILLETERAS_QUE_RINDEN, gananciaEn, textoTasa } from './rendimientos.js';
 import { expectedInflation } from './datosvivos.js';
@@ -71,6 +71,20 @@ function opcionesPlata(s, monto = 0) {
   out.push(['otra', 'Otra tasa (la escribo)', 'Otra tasa', null]);
   return out;
 }
+// Cuando cuotas y contado dan casi lo mismo, las cuotas ganan por la liquidez:
+// la plata queda en tu cuenta rindiendo mientras pagás. Salvo que la tarjeta esté muy cargada.
+function liquidez(s, cash, cuota, n) {
+  const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
+  const mias = listaCuentas(s).map((c) => ({ nombre: c.name, tna: tnaCuenta(s, c.id) })).filter((x) => x.tna > 0).sort((a, b) => b.tna - a.tna);
+  const otra = BILLETERAS_QUE_RINDEN.filter((b) => tasas[b.id] && tasas[b.id].tna).map((b) => ({ nombre: b.nombre, tna: tasas[b.id].tna, noTenes: true })).sort((a, b) => b.tna - a.tna)[0];
+  const lugar = mias[0] || otra || null;
+  let interes = 0;
+  if (lugar) { const r = lugar.tna / 100 * 30 / 365; let saldo = cash; for (let k = 1; k <= n; k++) { const gan = saldo * r; interes += gan; saldo = saldo + gan - cuota; } }
+  const tarjetas = (s.cards || []).filter((c) => c.limit).map((c) => ({ c, used: cardSummary(s, c).used })).sort((a, b) => b.used - a.used);
+  const cargada = tarjetas[0] && tarjetas[0].used >= 0.7 ? tarjetas[0] : null;
+  return { lugar, interes, cargada };
+}
+
 // si no sabe dónde juntarlo: la billetera que más paga hoy y cuánto menos tendría que ahorrar
 function sugerirDonde(s, future, have, months, monthly) {
   const tasas = (s.rendimientos && s.rendimientos.tasas) || {};
@@ -152,10 +166,10 @@ function installmentsForm(s, d = {}) {
   return `<form class="form" data-submit="calcInstallments" data-input-form="cuotas">
     <div class="field"><label for="iq-p">Precio de contado</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 270.000" required data-input="cuotaVivo"><span class="hint">Lo que pagás en efectivo o transferencia (con el descuento, si hay).</span></div>
     <div class="field-row">
-      <div class="field"><label for="iq-n">Cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required data-input="cuotaVivo"></div>
-      <div class="field"><label for="iq-c">Valor de cada cuota</label><input id="iq-c" name="cuota" inputmode="decimal" placeholder="Opcional" data-input="cuotaVivo"></div>
+      <div class="field"><label for="iq-t">Precio total en cuotas</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Igual al contado" data-input="cuotaVivo"></div>
+      <div class="field"><label for="iq-n">Cantidad de cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required data-input="cuotaVivo"></div>
     </div>
-    <div class="field" data-iq-tarjeta><label for="iq-t">…o el precio total con tarjeta</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Si es el mismo que de contado, dejalo vacío" data-input="cuotaVivo"><span class="hint">Poné una de las dos: lo que vale cada cuota o el total. Si ya incluyen el interés, dejá "Sin interés".</span></div>
+    <span class="hint" style="margin-top:-6px">El valor de cada cuota lo calculo solo (total ÷ cantidad). Si el total ya trae el interés, dejá "Sin interés".</span>
     <div class="field-row">
       <div class="field"><label for="iq-i">¿Tiene interés?</label><select id="iq-i" name="interes" data-change="cuotaVivo"><option value="no">Sin interés</option><option value="si">Con interés</option></select></div>
       <div class="field" data-iq-pct hidden><label for="iq-x">Interés o recargo total (%)</label><input id="iq-x" name="pct" inputmode="decimal" placeholder="Ej: 15" data-input="cuotaVivo"><span class="hint">Sobre el precio, si no lo incluye.</span></div>
@@ -189,10 +203,8 @@ function installmentsForm(s, d = {}) {
 function datosCuotas(d) {
   const cash = amt(d.price);
   const n = Math.max(1, parseInt(d.n, 10) || 0);
-  const cuotaIn = amt(d.cuota);
-  // si pusiste lo que vale cada cuota, el total sale de ahí (ya trae el interés)
-  const lista = cuotaIn ? cuotaIn * n : amt(d.tarjeta) || cash;
-  const pctI = d.interes === 'si' && !cuotaIn ? (parseFloat(String(d.pct || '0').replace(',', '.')) || 0) : 0;
+  const lista = amt(d.tarjeta) || cash;
+  const pctI = d.interes === 'si' ? (parseFloat(String(d.pct || '0').replace(',', '.')) || 0) : 0;
   const total = lista * (1 + pctI / 100);
   const rpct = d.reint && d.reint !== 'no' ? (parseFloat(String(d.rpct || '0').replace(',', '.')) || 0) : 0;
   const rtope = amt(d.rtope);
@@ -226,9 +238,10 @@ export const actions = {
     const resultado = (inf) => (cash - reinC / (1 + inf)) - (valorHoy(cuota, n, inf) - reinQ / (1 + inf)); // >0: convienen las cuotas (en plata de hoy)
     const gana = resultado(i);
     let veredicto; let detalle;
-    const parejo = Math.abs(gana) < cash * 0.01;
+    const parejo = Math.abs(gana) < cash * 0.01; let liq = null;
     if (d.modo === 'sueldo' || !d.modo) {
-      veredicto = parejo ? `Da casi lo mismo: la diferencia es de ${money(Math.abs(gana))}` : gana >= 0 ? `Convienen las cuotas: ganás ${money(gana)}` : `Conviene pagar de contado: ahorrás ${money(-gana)}`;
+      liq = parejo ? liquidez(s, cash, cuota, n) : null;
+      veredicto = parejo ? (liq.cargada ? `Da casi lo mismo (${money(Math.abs(gana))} de diferencia): mirá tu tarjeta` : `Convienen las cuotas: el precio da casi igual y te quedás con la plata`) : gana >= 0 ? `Convienen las cuotas: ganás ${money(gana)}` : `Conviene pagar de contado: ahorrás ${money(-gana)}`;
       detalle = `Pagando con tu sueldo de cada mes, las ${n} cuotas de ${money(cuota)} valen hoy <b>${money(valorHoy(cuota, n, i) - reinQ / (1 + i))}</b>${reinQ ? ' (ya descontado el reintegro)' : ''}. De contado pagás <b>${money(cash - reinC / (1 + i))}</b>${reinC ? ' (con el reintegro)' : ''}.`;
     } else {
       const tna = tnaDeModo(d);
@@ -258,7 +271,8 @@ export const actions = {
     setModalBody('#iq-result', `<div class="result ${gana >= 0 || parejo ? 'ok' : 'warn'}">
       <strong>${veredicto}</strong>
       <span class="text">${detalle}</span>
-      ${parejo && (d.modo === 'sueldo' || !d.modo) ? '<span class="text">Con una diferencia tan chica, decidí por tu mes: si querés conservar la plata en la cuenta, cuotas; si preferís no tener deuda, contado.</span>' : ''}
+      ${liq ? `<span class="text">${liq.lugar && liq.interes >= 1 ? `Con una diferencia de ${money(Math.abs(gana))}, lo que decide es la liquidez: si dejás los ${money(cash)} en <b>${esc(liq.lugar.nombre)}</b> (${tasaTxt(liq.lugar.tna)}% anual${liq.lugar.noTenes ? ', no la tenés' : ''}) y vas pagando las cuotas, ganás ≈ <b>${money(liq.interes)}</b> de intereses. Y tenés la plata a mano para un imprevisto.` : `Con una diferencia de ${money(Math.abs(gana))}, lo que decide es la liquidez: en cuotas te quedás con la plata para un imprevisto.`}</span>` : ''}
+      ${liq && liq.cargada ? `<span class="text">Ojo: tu tarjeta ${esc(liq.cargada.c.name)} ya tiene comprometido el <b>${Math.round(liq.cargada.used * 100)}% del límite</b>. Si querés descomprimirla, pagá de contado.</span>` : ''}
       <span class="text">${r <= 0.0005 ? '<b>Las cuotas no tienen interés</b>' : `Las cuotas te cobran <b>${pctTxt(r)} por mes</b> (${pctTxt(Math.pow(1 + r, 12) - 1, 0)} anual)`}. La inflación esperada es ${tasaTxt(infl)}% por mes: ${r < i ? 'como es mayor, la inflación "paga" parte de las cuotas.' : 'como es menor, el interés le gana a la inflación.'}</span>
     </div>
     ${tuPlata.length ? `<div class="card"><strong>Con tu plata</strong>${tuPlata.map((x) => `<span class="small">• ${x}</span>`).join('')}</div>` : ''}
@@ -418,41 +432,43 @@ export const actions = {
     };
     if (!p || !tope || p > 1) { pintar('<p class="small muted">Completá el % y el tope.</p>'); return; }
     const ideal = tope / p; // lo que tiene que gastar cada uno para llegar justo al tope
-    const lineas = [];
-    let titulo = n === 1 ? `Gastá hasta ${money(ideal)} para aprovechar todo el tope` : `Entre ${n} pueden gastar hasta ${money(ideal * n)} con el descuento completo`;
-    lineas.push(`Con ${pctTxt(p, 0)} de reintegro, el tope de ${money(tope)} se alcanza con <b>${money(ideal)}</b>${n > 1 ? ' por persona' : ''}. Lo que pase de ahí ya no tiene descuento.`);
-    lineas.push(`Gastando eso${n > 1 ? ' entre todos' : ''}, terminás pagando <b>${money((ideal - tope) * n)}</b> y te devuelven ${money(tope * n)}.`);
-    let reparto = '';
-    if (gasto) {
+    // 1) la respuesta: cuánto podés gastar, cuánto te devuelven, cuánto pagás
+    const dato = (k, v, cls = '') => `<div class="tp-dato"><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
+    let leyenda; let nota = ''; let reparto = '';
+    if (!gasto) {
+      leyenda = `<div class="result ok tp-leyenda"><span class="small">${n > 1 ? `Entre ${n} personas, para aprovechar todo el reintegro` : 'Para aprovechar todo el reintegro'}</span>
+        <div class="tp-datos">${dato('Podés gastar hasta', money(ideal * n))}${dato('Te devuelven', money(tope * n), 'pos')}${dato('Terminás pagando', money((ideal - tope) * n))}${dato('Descuento real', pctTxt(p, 0))}</div>
+        <span class="small">${n > 1 ? `Cada una gasta hasta ${money(ideal)} con su medio de pago. ` : ''}Lo que pase de ${money(ideal)}${n > 1 ? ' por persona' : ''} ya no tiene descuento.</span></div>`;
+    } else {
       const necesitan = Math.ceil(gasto / ideal - 1e-9);
       const pagos = []; let resto = gasto;
       for (let i = 0; i < n; i++) { const x = i === n - 1 ? resto : Math.min(ideal, resto); pagos.push(Math.max(0, x)); resto -= x; }
       const reint = pagos.reduce((a, x) => a + Math.min(x * p, tope), 0);
       const solo = Math.min(gasto * p, tope);
-      titulo = `Pagás ${money(gasto - reint)} en vez de ${money(gasto)}`;
-      lineas.length = 0;
-      lineas.push(`Les devuelven <b>${money(reint)}</b> en total: un descuento real de <b>${pctTxt(reint / gasto, 1)}</b>${n > 1 && reint > solo + 1 ? ` (si pagara una sola persona serían ${money(solo)})` : ''}.`);
-      if (gasto < ideal * n * 0.99 && necesitan <= n) lineas.push(`Les sobra tope: podrían sumar ${money(ideal * n - gasto)} más de compras con descuento.`);
-      // si con los que son no alcanza: sumar gente, o que uno pague por encima del tope
+      leyenda = `<div class="result ${reint >= gasto * p - 1 ? 'ok' : 'warn'} tp-leyenda"><span class="small">Tu compra de ${money(gasto)}${n > 1 ? ` entre ${n} personas` : ''}</span>
+        <div class="tp-datos">${dato('Te devuelven', money(reint), 'pos')}${dato('Terminás pagando', money(gasto - reint))}${dato('Descuento real', pctTxt(reint / gasto, 1))}${dato('Para todo el tope, hasta', money(ideal * n))}</div>
+        <span class="small">${reint >= gasto * p - 1 ? `Entra entera en el tope: te devuelven el ${pctTxt(p, 0)} de todo.` : `Pasás el tope: ${money(gasto - ideal * Math.min(n, necesitan))} de la compra van sin descuento.`}${n > 1 && reint > solo + 1 ? ` Si pagara una sola persona, serían ${money(solo)}.` : ''}</span></div>`;
+      if (gasto < ideal * n * 0.99 && necesitan <= n) nota = `<p class="small muted" style="margin:0">Les sobra tope: podrían sumar ${money(ideal * n - gasto)} más de compras con descuento.</p>`;
+      // 2) qué hacer: sumar gente, o cómo dividir
       if (necesitan > n) {
         const extra = necesitan - n;
         const plan = []; let r2 = gasto;
         for (let i = 0; i < necesitan; i++) { const x = i === necesitan - 1 ? r2 : Math.min(ideal, r2); plan.push(Math.max(0, x)); r2 -= x; }
         const reintPlan = plan.reduce((a, x) => a + Math.min(x * p, tope), 0);
         const sobra = gasto - ideal * n;
-        reparto += `<div class="card amber"><strong>${extra === 1 ? 'Sumá una persona más' : `Sumá ${extra} personas más`} y aprovechan todo el descuento</strong>
-          ${plan.map((x, i) => `<div class="split small"><span>${i < n ? `Persona ${i + 1}` : `<b>Persona ${i + 1} (la que se suma)</b>`} paga</span><b>${money(x)} · le devuelven ${money(Math.min(x * p, tope))}</b></div>`).join('')}
-          <span class="text">Así les devuelven <b>${money(reintPlan)}</b> en vez de ${money(reint)}: ${money(reintPlan - reint)} más.</span>
-          <span class="small">Si no consiguen a nadie más, ${n === 1 ? 'pagás' : `la persona ${n} paga`} <b>${money(pagos[n - 1])}</b>: los primeros ${money(ideal)} con descuento y ${money(sobra)} por encima del tope, sin descuento.</span></div>`;
+        reparto += `<div class="card amber"><strong>Para no perder descuento: ${extra === 1 ? 'sumá una persona más' : `sumá ${extra} personas más`}</strong>
+          <span class="text">Les devolverían <b>${money(reintPlan)}</b> en vez de ${money(reint)} (<b>${money(reintPlan - reint)} más</b>).</span>
+          ${plan.map((x, i) => `<div class="split small"><span>${i < n ? `Persona ${i + 1}` : `<b>Persona ${i + 1} (la que se suma)</b>`}</span><b>paga ${money(x)} · le devuelven ${money(Math.min(x * p, tope))}</b></div>`).join('')}
+          <span class="small">Si no consiguen a nadie, ${n === 1 ? 'pagás' : `la persona ${n} paga`} ${money(pagos[n - 1])}: ${money(ideal)} con descuento y ${money(sobra)} sin descuento.</span></div>`;
       }
-      if (n > 1) reparto += `<div class="card"><strong>Cómo dividir el pago</strong>${pagos.map((x, i) => `<div class="split small"><span>Persona ${i + 1} paga</span><b>${money(x)} · le devuelven ${money(Math.min(x * p, tope))}</b></div>`).join('')}
-        <span class="small muted">${pagos[n - 1] > ideal + 1 ? `La última persona paga más del tope: ${money(pagos[n - 1] - ideal)} van sin descuento. ` : ''}Cada uno paga con su propio medio (tarjeta, cuenta o billetera) y el comercio tiene que aceptar dividir el pago.</span></div>`;
+      if (n > 1) reparto += `<div class="card"><strong>Cómo dividir el pago</strong>${pagos.map((x, i) => `<div class="split small"><span>Persona ${i + 1}</span><b>paga ${money(x)} · le devuelven ${money(Math.min(x * p, tope))}</b></div>`).join('')}
+        <span class="small muted">Cada uno paga con su propio medio (tarjeta, cuenta o billetera) y el comercio tiene que aceptar dividir el pago.</span></div>`;
     }
-    const tabla = [0.5, 1, 1.5, 2].map((k) => { const g = Math.round(ideal * k); const r = Math.min(g * p, tope); return `<div class="split small"><span>Gastando ${money(g)}</span><b>${money(r)} · ${pctTxt(r / g, 0)} real</b></div>`; }).join('');
-    pintar(`<div class="result ok"><strong>${titulo}</strong>${lineas.map((x) => `<span class="text">${x}</span>`).join('')}</div>
-      ${reparto}
-      <div class="card"><strong>Cuánto devuelven según lo que gasta cada uno</strong>${tabla}
-        <span class="small muted">El % real es lo que te devuelven sobre lo que gastaste. Revisá si el tope es por compra, por semana o por mes, y cuándo se acredita.</span></div>`);
+    // 3) el detalle: cuánto devuelven según lo que gastes
+    const tabla = [0.5, 1, 1.5, 2].map((k) => { const g = Math.round(ideal * k); const r = Math.min(g * p, tope); return `<div class="split small ${k === 1 ? 'tp-justo' : ''}"><span>Gastando ${money(g)}${k === 1 ? ' (justo el tope)' : ''}</span><b>te devuelven ${money(r)} · ${pctTxt(r / g, 0)} real</b></div>`; }).join('');
+    pintar(`${leyenda}${nota}${reparto}
+      <details class="card"><summary><strong>Cuánto te devuelven según lo que gastes</strong></summary>${tabla}
+        <span class="small muted">El % real es lo que te devuelven sobre lo que gastaste. Revisá si el tope es por compra, por semana o por mes, y cuándo se acredita.</span></details>`);
   },
 
   // ---------- ¿Cuánto ahorrar por mes? ----------

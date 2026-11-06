@@ -303,7 +303,7 @@ export function quickForm(id, s = null, medioHtml = '') {
       ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}
       <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>
     </div>
-    <input type="hidden" name="promoUso" value="">
+    <label class="check promo-check" data-promo-check><input type="checkbox" name="conPromo" data-change="promoCheck"> <span>💸 Pagué con promo o cashback <span class="small muted" data-promo-hint></span></span></label>
     <div class="promo-live" data-promo-live hidden></div>
     ${Array.isArray(medioHtml) && medioHtml.length > 1 ? `<input type="hidden" name="medio" value="">
     <div class="medio-fila"><span class="medio-label" data-medio-label>Pagás con</span>

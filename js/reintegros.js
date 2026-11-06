@@ -454,7 +454,8 @@ export function planSemana(s) {
       const v = semanal ? o.ahorro : o.pct;
       if (!mejor || v > mejor.v || (v === mejor.v && dist(d) < dist(mejor.d))) mejor = { d, o, v };
     }
-    filas.push({ c, label, ic, semanal, mejor });
+    const hoy = conQuePagar(s, { ...item, dia: hoyN }).find((x) => x.tuyo) || null;
+    filas.push({ c, label, ic, semanal, mejor, hoy });
   }
   const ahorro = filas.reduce((a, f) => a + (f.mejor && f.semanal ? f.mejor.o.ahorro : 0), 0);
   return { filas, ahorro, propio };
@@ -462,19 +463,25 @@ export function planSemana(s) {
 function planHtml(s) {
   const p = planSemana(s);
   const hoyN = new Date().getDay();
+  const diaTxt = (d) => (d === hoyN ? 'hoy' : d === (hoyN + 1) % 7 ? 'mañana' : `el ${DIAS_LARGOS[d]}`);
+  const medio = (o) => `<b>${esc(o.nombre)} ${o.pct}%</b>${o.comercio && !GENERICO.test(normalize(o.comercio)) ? ` en ${esc(o.comercio.slice(0, 30))}` : ''}`;
   const con = p.filas.filter((f) => f.mejor); const sin = p.filas.filter((f) => !f.mejor);
-  // agenda: de hoy en adelante
-  const orden = [0, 1, 2, 3, 4, 5, 6].map((i) => (hoyN + i) % 7);
-  const dias = orden.map((d) => ({ d, items: con.filter((f) => f.mejor.d === d) })).filter((x) => x.items.length);
-  const diaTxt = (d) => (d === hoyN ? 'Hoy' : d === (hoyN + 1) % 7 ? 'Mañana' : DIAS_LARGOS[d].charAt(0).toUpperCase() + DIAS_LARGOS[d].slice(1));
-  const item = (f) => { const o = f.mejor.o; const todos = (o.dias || []).length === 7;
-    return `<div class="plan-item"><span class="cat-icon green">${icon(f.ic, 16)}</span><span class="grow"><span><b>${esc(f.label)}</b> con <b>${esc(o.nombre)}</b> · ${o.pct}%${o.comercio && !GENERICO.test(normalize(o.comercio)) ? ` en ${esc(o.comercio.slice(0, 40))}` : ''}</span>
-      <span class="small muted">${capTxt(o)}${todos ? ' · vale todos los días' : ''}${f.semanal ? ` · gastás ≈ ${money(f.semanal)} por semana: te ahorrás ≈ ${money(o.ahorro)}` : ''}</span></span></div>`; };
+  const tarjeta = (f) => {
+    const o = f.mejor.o; const todos = (o.dias || []).length === 7;
+    const hoyEsMejor = f.hoy && (f.mejor.d === hoyN || f.hoy.pct >= o.pct);
+    return `<div class="rubro-card">
+      <div class="rubro-top"><span class="cat-icon green">${icon(f.ic, 18)}</span><b class="grow">${esc(f.label)}</b>${f.semanal && o.ahorro ? `<span class="pill ok">−${money(o.ahorro)}/sem</span>` : ''}</div>
+      <div class="rubro-fila"><span class="k">Mejor</span><span>${medio(o)} · ${todos ? 'todos los días' : diaTxt(f.mejor.d)}</span></div>
+      ${hoyEsMejor || todos ? '' : `<div class="rubro-fila"><span class="k">Hoy</span><span>${f.hoy ? medio(f.hoy) : '<span class="muted">sin descuento con tus medios</span>'}</span></div>`}
+      <div class="rubro-fila"><span class="k">Tope</span><span>${o.cap ? `${money(o.cap)}${o.capPeriodo === 'mes' ? ' por mes' : o.capPeriodo === 'compra' ? ' por compra' : ' por semana'}${f.semanal ? ` · alcanza para ${money(o.cap / (o.pct / 100))} de compras` : ''}` : o.capDudoso ? 'no lo publican' : 'sin tope'}</span></div>
+      ${f.semanal ? `<div class="rubro-fila"><span class="k">Gastás</span><span>≈ ${money(f.semanal)} por semana</span></div>` : ''}
+    </div>`;
+  };
   return `<div class="plan-semana">
-    <div class="split"><strong>Tu plan de la semana</strong>${p.ahorro ? `<span class="pill ok">≈ ${money(p.ahorro)} por semana</span>` : ''}</div>
-    <span class="small muted">${p.propio ? 'Para lo que más comprás (últimas 8 semanas)' : 'Para lo de todos los días (cuando cargues tus gastos, lo armo con lo tuyo)'}: qué día ir y con qué pagar, con tus bancos y billeteras.</span>
-    ${dias.length ? dias.map((x) => `<div class="plan-dia"><span class="plan-dia-t">${diaTxt(x.d)}</span>${x.items.map(item).join('')}</div>`).join('') : '<p class="small muted" style="margin:0">Esta semana no hay descuentos para tus rubros con tus medios de pago. Mirá abajo si alguna billetera que no tenés te conviene.</p>'}
-    ${sin.length ? `<span class="small muted">Sin descuento con tus medios: ${sin.map((f) => esc(f.label.toLowerCase())).join(', ')}.</span>` : ''}
+    <div class="split"><strong>Con qué pagar cada cosa</strong>${p.ahorro ? `<span class="pill ok">≈ ${money(p.ahorro)} por semana</span>` : ''}</div>
+    <span class="small muted">${p.propio ? 'Lo que más comprás (últimas 8 semanas)' : 'Lo de todos los días (cuando cargues tus gastos, lo armo con lo tuyo)'}, con tus bancos y billeteras.</span>
+    ${con.length ? con.map(tarjeta).join('') : '<p class="small muted" style="margin:0">Esta semana no hay descuentos para tus rubros con tus medios de pago.</p>'}
+    ${sin.length ? `<span class="small muted">Sin descuento esta semana con tus medios: ${sin.map((f) => esc(f.label.toLowerCase())).join(', ')}.</span>` : ''}
   </div>`;
 }
 
