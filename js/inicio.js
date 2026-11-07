@@ -54,15 +54,15 @@ function savingCard(s, b) {
     if (b.cycle.daysLeft > 3 || b.free <= 0) return '';
     return `<div class="card lime">
       <strong>Se termina tu mes y te sobran ${money(b.free)}</strong>
-      <p class="text">Elegiste ahorrar lo que sobra a fin de mes. Pasalo a tu cuenta de ahorro y avisame.</p>
-      <div class="btn-row"><button class="btn green small" data-action="setAsideDone" data-amount="${Math.round(b.free)}">Ya lo aparté</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
+      <p class="text">Elegiste ahorrar lo que sobra a fin de mes. Pasalo a ahorros con un toque.</p>
+      <div class="btn-row"><button class="btn green small" data-action="pasarAhorros" data-monto="${Math.round(b.free)}">Pasarlo a ahorros</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
     </div>`;
   }
   if (b.saving <= 0 || b.estimated) return '';
   return `<div class="card lime">
     <strong>Cobraste: apartá ${money(b.saving)}</strong>
-    <p class="text">${esc(MODE_TEXT[s.savingMode] ? MODE_TEXT[s.savingMode](s) : 'Según tus reglas de ahorro')}${b.savingParts.length > 1 ? ` (incluye ${b.savingParts.map((p) => p.name).join(', ')})` : ''}. Pasalo a tu cuenta de ahorro antes de gastar y avisame.</p>
-    <div class="btn-row"><button class="btn green small" data-action="setAsideDone" data-amount="${Math.round(b.saving)}">Ya lo aparté</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
+    <p class="text">${esc(MODE_TEXT[s.savingMode] ? MODE_TEXT[s.savingMode](s) : 'Según tus reglas de ahorro')}${b.savingParts.length > 1 ? ` (incluye ${b.savingParts.map((p) => p.name).join(', ')})` : ''}. Pasalo a ahorros antes de gastar: te digo de qué cuenta y a dónde.</p>
+    <div class="btn-row"><button class="btn green small" data-action="pasarAhorros">Pasarlo a ahorros</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
   </div>`;
 }
 

@@ -13,7 +13,7 @@ import { LESSONS } from './aprender.js';
 import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal } from './calculos.js';
 import { statementDates, statementOf } from './agenda.js';
 import { demoState } from './ejemplo.js';
-import { detectarReintegro } from './reintegros.js';
+import { detectarReintegro, promosCandidatas } from './reintegros.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
 import { ratesAge, arsPer, aBase, monedaBase } from './cotizaciones.js';
@@ -75,9 +75,15 @@ function promoEnVivo(ctx, form) {
   const ingreso = (form.querySelector('[name=kind]') || {}).value === 'income';
   const lbl = form.querySelector('[data-promo-check]'); if (lbl) lbl.hidden = ingreso;
   const e = ingreso ? null : gastoProvisorio(ctx, form);
-  const r = e && detectarReintegro(ctx.state, e);
-  if (hint) hint.textContent = r && !(chk && chk.checked) ? `(hay ${r.nombre} ${r.pct}%)` : '';
+  const auto = e && detectarReintegro(ctx.state, e);
+  const cands = e ? promosCandidatas(ctx.state, e) : [];
+  if (hint) hint.textContent = !(chk && chk.checked) ? (auto ? `(hay ${auto.nombre} ${auto.pct}%)` : cands.length ? `(${cands.length === 1 ? 'hay 1 promo' : `hay ${cands.length} promos`} con ese medio hoy)` : '') : '';
   if (!chk || !chk.checked || ingreso) { box.hidden = true; box.innerHTML = ''; return; }
+  // la que elegiste (o la que reconocí por la descripción)
+  let elegida = form.dataset.promoKey || '';
+  if (elegida && elegida !== 'manual' && !cands.some((c) => c.key === elegida)) elegida = '';
+  if (!elegida && auto) elegida = auto.key;
+  const r = e && elegida && elegida !== 'manual' ? detectarReintegro(ctx.state, e, elegida) : null;
   // ¿otro medio tuyo devuelve más?
   let mejor = null;
   if (e) for (const m of mediosRapidos(ctx.state)) {
@@ -87,13 +93,16 @@ function promoEnVivo(ctx, form) {
   }
   const tope = (form.querySelector('[name=promoTope]') || {}).value || '';
   const pctM = (form.querySelector('[name=promoPct]') || {}).value || '';
+  const chip = (k, txt) => `<button type="button" class="chip ${k === elegida ? 'on' : ''}" data-action="quickPromoElegir" data-key="${esc(k)}" aria-pressed="${k === elegida}">${txt}</button>`;
   box.hidden = false;
-  box.innerHTML = r ? `<span class="promo-live-txt"><b>${esc(r.nombre)} ${r.pct}%</b>: te devuelven ${r.aprox ? 'hasta ' : ''}${money(r.monto)} el ${r.fecha.slice(8)}/${r.fecha.slice(5, 7)}</span>
-      ${r.aprox ? `<span class="promo-live-q"><label class="small" for="ql-tope">El banco no publica el tope. Si lo sabés:</label><input id="ql-tope" name="promoTope" inputmode="decimal" value="${esc(tope)}" placeholder="Ej: 10.000" class="promo-tope"></span>` : ''}
-      ${mejor ? `<button type="button" class="link-btn" data-action="pickMedio" data-v="${esc(mejor.m.v)}">Con ${esc(mejor.m.label)} te devolverían ${money(mejor.r.monto)} ${icon('chevron', 12, 2.6)}</button>` : ''}`
-    : `<span class="promo-live-txt">${e ? 'No encontré una promo para esto con ese medio. Cargala:' : 'Escribí el gasto con el monto y te digo cuánto te devuelven.'}</span>
-      ${e ? `<span class="promo-live-q"><input name="promoPct" inputmode="decimal" value="${esc(pctM)}" placeholder="% que te devuelven" class="promo-tope" aria-label="Porcentaje de reintegro"><input name="promoTope" inputmode="decimal" value="${esc(tope)}" placeholder="Tope (opcional)" class="promo-tope" aria-label="Tope del reintegro"></span>` : ''}
-      ${mejor ? `<button type="button" class="link-btn" data-action="pickMedio" data-v="${esc(mejor.m.v)}">Con ${esc(mejor.m.label)} sí hay: te devolverían ${money(mejor.r.monto)} ${icon('chevron', 12, 2.6)}</button>` : ''}`;
+  if (!e) { box.innerHTML = '<span class="promo-live-txt">Escribí el gasto con el monto y te digo cuánto te devuelven.</span>'; return; }
+  box.innerHTML = `${cands.length ? `<span class="small">¿Cuál usaste?</span><div class="promo-chips">${cands.map((c) => chip(c.key, `${esc(c.comercio ? c.comercio.slice(0, 28) : c.categoria ? catLabel(c.categoria) : 'En todo')} · ${c.pct}%`)).join('')}${chip('manual', 'Otra (la cargo)')}</div>` : '<span class="small">No tengo promos de ese medio para hoy. Cargala:</span>'}
+    ${r ? `<span class="promo-live-txt">💸 <b>${esc(r.nombre)} ${r.pct}%</b>: te devuelven ${r.aprox ? 'hasta ' : ''}${money(r.monto)} el ${r.fecha.slice(8)}/${r.fecha.slice(5, 7)}</span>
+      ${r.aprox ? `<span class="promo-live-q"><label class="small" for="ql-tope">El banco no publica el tope. Si lo sabés:</label><input id="ql-tope" name="promoTope" inputmode="decimal" value="${esc(tope)}" placeholder="Ej: 10.000" class="promo-tope"></span>` : ''}`
+    : elegida && elegida !== 'manual' ? '<span class="promo-live-txt">Con esa promo no te devuelven nada en esta compra (no llega a la compra mínima o ya usaste el tope).</span>'
+    : elegida === 'manual' || !cands.length ? `<span class="promo-live-q"><input name="promoPct" inputmode="decimal" value="${esc(pctM)}" placeholder="% que te devuelven" class="promo-tope" aria-label="Porcentaje de reintegro"><input name="promoTope" inputmode="decimal" value="${esc(tope)}" placeholder="Tope (opcional)" class="promo-tope" aria-label="Tope del reintegro"></span>` : ''}
+    ${mejor ? `<button type="button" class="link-btn" data-action="pickMedio" data-v="${esc(mejor.m.v)}">Con ${esc(mejor.m.label)} te devolverían ${money(mejor.r.monto)} ${icon('chevron', 12, 2.6)}</button>` : ''}
+    <input type="hidden" name="promoKey" value="${esc(elegida)}">`;
 }
 export { promoEnVivo };
 export function mediosRapidos(s) {
@@ -451,10 +460,11 @@ export const commonActions = {
           const ex = s.expenses[s.expenses.length - 1]; nuevoId = ex.id;
           // solo si marcaste "Pagué con promo o cashback"
           if (data.conPromo) {
-            let r = detectarReintegro(s, ex);
+            const forzada = data.promoKey && data.promoKey !== 'manual' ? data.promoKey : null;
+            let r = data.promoKey === 'manual' ? null : detectarReintegro(s, ex, forzada);
             const tope = num(data.promoTope);
             // tope que cargaste al anotar (la promo no lo publica)
-            if (r && tope > 0 && r.key && r.key.startsWith('p:')) { s.topesAprendidos = { ...(s.topesAprendidos || {}), [r.key]: { manual: true, cap: tope, periodo: 'semana', desde: todayISO() } }; r = detectarReintegro(s, ex); }
+            if (r && tope > 0 && r.key && r.key.startsWith('p:')) { s.topesAprendidos = { ...(s.topesAprendidos || {}), [r.key]: { manual: true, cap: tope, periodo: 'semana', desde: todayISO() } }; r = detectarReintegro(s, ex, forzada); }
             // no la conozco: la que cargaste a mano
             const pctM = num(data.promoPct);
             if (!r && pctM > 0 && pctM < 100) {
@@ -542,7 +552,8 @@ export const commonActions = {
     const m = key && (ctx.state.medioAprendido || {})[key];
     if (m !== undefined && m !== null && form.querySelector('[name=medio]') && mediosRapidos(ctx.state).some((x) => x.v === m)) elegirMedio(ctx, form, m, false, true);
   },
-  promoCheck(ctx, el) { const form = el.closest('form'); if (form) promoEnVivo(ctx, form); },
+  promoCheck(ctx, el) { const form = el.closest('form'); if (form) { delete form.dataset.promoKey; promoEnVivo(ctx, form); } },
+  quickPromoElegir(ctx, el) { const form = el.closest('form'); form.dataset.promoKey = el.dataset.key; promoEnVivo(ctx, form); },
   pickMedio(ctx, el) {
     const form = el.closest('form');
     if (el.dataset.v.startsWith('falta:')) {

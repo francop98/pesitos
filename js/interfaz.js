@@ -487,3 +487,45 @@ document.addEventListener('keydown', (e) => {
   soltarOrden(lista, ids);
   requestAnimationFrame(() => { const g = document.querySelector(`[data-sortable] [data-sort-id="${CSS.escape(ids[j])}"] [data-grip]`); if (g) g.focus(); });
 });
+
+// ---------- separador de miles mientras escribís ----------
+// En los campos de montos (inputmode="decimal") y en la carga rápida, los números de
+// 4 cifras o más se separan solos con puntos: 1234567 → 1.234.567. La coma es el
+// decimal. En porcentajes y tasas no van puntos de miles: el punto se toma como coma (2.5 → 2,5).
+const conPuntos = (int) => int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+function ponerCursor(el, cuantos, cuenta) {
+  // deja el cursor después de la misma cantidad de dígitos (y comas) que antes
+  const v = el.value; let n = 0; let pos = v.length;
+  if (cuantos === 0) pos = 0;
+  else for (let i = 0; i < v.length; i++) { if (cuenta.test(v[i])) n++; if (n === cuantos) { pos = i + 1; break; } }
+  try { el.setSelectionRange(pos, pos); } catch { /* algunos campos no lo permiten */ }
+}
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.type !== 'text' && el.type !== '' && el.type !== 'search') return;
+  const montos = el.inputMode === 'decimal';
+  const rapida = el.name === 'q' && el.closest('.quick-card');
+  if (!montos && !rapida) return;
+  const caret = el.selectionStart ?? el.value.length;
+  if (montos) {
+    let v = el.value;
+    // porcentajes y tasas: el punto es la coma decimal y no llevan miles
+    const esPct = /pct|tna|tasa|porc|interes/i.test(el.name + ' ' + el.id) || /%/.test(el.placeholder + ' ' + ((el.labels && el.labels[0] && el.labels[0].textContent) || ''));
+    if (esPct) { if (e.data === '.') { el.value = v.slice(0, caret - 1) + ',' + v.slice(caret); try { el.setSelectionRange(caret, caret); } catch { /* nada */ } } return; }
+    if (/[^\d.,\s$-]/.test(v)) return; // texto ("US$ 10", "20%"): no lo toco
+    const antes = v.slice(0, caret).replace(/[^\d,]/g, '').length;
+    const limpio = v.replace(/[\s$.]/g, '');
+    const [int, ...dec] = limpio.split(',');
+    const nuevo = (v.trim().startsWith('-') ? '-' : '') + conPuntos(int.replace(/-/g, '')) + (dec.length ? ',' + dec.join('') : '');
+    if (nuevo !== el.value) { el.value = nuevo; ponerCursor(el, antes, /[\d,]/); }
+    return;
+  }
+  // carga rápida: solo los números largos sueltos (no fechas ni horas)
+  const v = el.value;
+  const antes = v.slice(0, caret).replace(/[^\d]/g, '').length;
+  const nuevo = v.replace(/(^|[^\d/:,.])(\d[\d.]*\d)(?![\d/:])/g, (m, pre, numTxt) => {
+    const d = numTxt.replace(/\./g, '');
+    return d.length >= 4 ? pre + conPuntos(d) : pre + numTxt;
+  });
+  if (nuevo !== v) { el.value = nuevo; ponerCursor(el, antes, /\d/); }
+}, true);

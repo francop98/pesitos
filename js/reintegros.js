@@ -114,7 +114,7 @@ function periodo(fecha, p) {
 function periodoDe(fecha, p) { return p === 'mes' ? fecha.slice(0, 7) : periodo(fecha, p); }
 
 /** Calcula el reintegro de un gasto (o null). */
-export function detectarReintegro(s, e) {
+export function detectarReintegro(s, e, forzar = null) {
   if (!e || e.pending || !e.amount || e.fromPayment) return null;
   const w = walletDeGasto(s, e); if (!w) return null;
   // una transferencia no entra en las promos (casi todas piden pagar con QR o con la tarjeta)
@@ -122,15 +122,16 @@ export function detectarReintegro(s, e) {
   const dia = parseISO(e.date).getDay();
   const monto = share(e) === e.amount ? e.amount : e.amount; // el reintegro va sobre el total de la compra
   let mejor = null;
-  const todas = reglas(s);
+  // forzar: la promo que elegiste vos al cargar (aunque la descripción no la nombre)
+  const todas = forzar ? reglas(s).filter((r) => r.key === forzar) : reglas(s);
   // si hay una promo específica del comercio en esa billetera, las genéricas del rubro no aplican
-  const especificas = new Set(todas.filter((r) => r.comercio && !GENERICO.test(normalize(r.comercio)) && coincide(r, e.note, '')).map((r) => r.wallet));
+  const especificas = forzar ? new Set() : new Set(todas.filter((r) => r.comercio && !GENERICO.test(normalize(r.comercio)) && coincide(r, e.note, '')).map((r) => r.wallet));
   for (const r of todas) {
     if (!(w.wallets.includes(r.wallet) || r.wallet === 'todos')) continue;
     if (especificas.has(r.wallet) && !(r.comercio && !GENERICO.test(normalize(r.comercio)) && coincide(r, e.note, ''))) continue;
-    if (!r.dias.includes(dia)) continue;
+    if (!forzar && !r.dias.includes(dia)) continue;
     if (r.minimo && monto < r.minimo) continue;
-    if (!coincide(r, e.note, e.category)) continue;
+    if (!forzar && !coincide(r, e.note, e.category)) continue;
     let v = monto * r.pct / 100;
     if (r.cap) {
       const per = periodoDe(e.date, r.capPeriodo);
@@ -143,6 +144,22 @@ export function detectarReintegro(s, e) {
   if (!mejor) return null;
   const fecha = fechaAcredita(s, e.date, mejor.wallet, w);
   return { ...mejor, fecha, ...(w.cuenta ? { cuenta: w.cuenta } : {}), ...(w.cardId ? { cardId: w.cardId } : {}) };
+}
+
+/**
+ * Promos que podrías haber usado con ese medio ese día (para elegir al cargar, sin
+ * depender de cómo escribiste el comercio). Primero las del mismo rubro.
+ */
+export function promosCandidatas(s, e) {
+  const w = e && walletDeGasto(s, e); if (!w) return [];
+  const dia = parseISO(e.date).getDay();
+  const cat = catReal(e.category || '');
+  const vistas = new Set();
+  return reglas(s).filter((r) => (w.wallets.includes(r.wallet) || r.wallet === 'todos') && (r.dias || []).includes(dia) && r.pct > 0 && !CERCANIA.test(normalize(r.comercio || '')))
+    .map((r) => ({ ...r, mismoRubro: !!(r.categoria && r.categoria === cat), nombra: !!(r.comercio && coincide(r, e.note, '')) }))
+    .sort((a, b) => b.nombra - a.nombra || b.mismoRubro - a.mismoRubro || b.pct - a.pct)
+    .filter((r) => { const k = `${r.wallet}|${normalize(r.comercio || r.categoria || '')}|${r.pct}`; if (vistas.has(k)) return false; vistas.add(k); return true; })
+    .slice(0, 8);
 }
 
 // ---------- ¿usaste la promo? ----------
@@ -431,57 +448,70 @@ function rubrosHoy(s) {
 // ---------- plan de la semana ----------
 // Para lo que más comprás: qué día ir y con qué medio, con lo que te ahorrarías
 // (según lo que gastás por semana en ese rubro y el tope de cada promo).
-const RUBRO_DE_CAT = { super: ['Súper', 'supermercado', 'cart'], vehiculo: ['Nafta', 'combustible', 'fuel'], salud: ['Farmacia', 'farmacia', 'heart'], comida: ['Comida afuera', 'restaurante', 'food'],
-  compras: ['Ropa', 'ropa', 'shirt'], hogar: ['Hogar', 'electrodomesticos', 'sofa'], transporte: ['Transporte', 'sube', 'bus'], mascotas: ['Mascotas', 'mascotas', 'paw'], educacion: ['Librería', 'libreria', 'book'] };
+const RUBRO_DE_CAT = { super: ['Súper', 'supermercado', 'cart'], vehiculo: ['Nafta', 'combustible', 'fuel'], salud: ['Farmacia', 'farmacia', 'heart'], comida: ['Comida afuera y delivery', 'restaurante', 'food'],
+  compras: ['Ropa, belleza y tecnología', 'ropa', 'shirt'], hogar: ['Hogar y electro', 'electrodomesticos', 'sofa'], transporte: ['Transporte', 'sube', 'bus'], servicios: ['Servicios', 'servicios', 'bolt'],
+  mascotas: ['Mascotas', 'mascotas', 'paw'], educacion: ['Librería y educación', 'libreria', 'book'], ocio: ['Salidas y espectáculos', 'cine', 'ticket'], viajes: ['Viajes y turismo', 'turismo', 'plane'],
+  deporte: ['Deporte', 'deportes', 'dumbbell'], regalos: ['Jugueterías y regalos', 'jugueteria', 'gift'] };
 export function planSemana(s) {
   const desde = toISO(addDays(new Date(), -56));
   const porCat = {};
   for (const e of s.expenses || []) if (!e.pending && !e.deEspacio && e.date >= desde && RUBRO_DE_CAT[catReal(e.category)]) { const c = catReal(e.category); porCat[c] = (porCat[c] || 0) + e.amount; }
-  let cats = Object.keys(porCat).sort((a, b) => porCat[b] - porCat[a]).slice(0, 6);
-  const propio = cats.length > 0;
-  if (!cats.length) cats = ['super', 'vehiculo', 'salud', 'comida'];
+  // primero lo que más comprás; después el resto de los rubros
+  const tuyos = Object.keys(porCat).sort((a, b) => porCat[b] - porCat[a]);
+  const cats = [...tuyos, ...Object.keys(RUBRO_DE_CAT).filter((c) => !tuyos.includes(c))];
   const hoyN = new Date().getDay();
   const dist = (d) => (d - hoyN + 7) % 7; // días desde hoy
+  const mejorDe = (item, filtro) => {
+    let m = null;
+    for (let d = 0; d < 7; d++) {
+      const o = conQuePagar(s, { ...item, dia: d }).find(filtro);
+      if (!o) continue;
+      const v = item.monto ? o.ahorro : o.pct;
+      if (!m || v > m.v || (v === m.v && dist(d) < dist(m.d))) m = { d, o, v };
+    }
+    return m;
+  };
   const filas = [];
   for (const c of cats) {
     const [label, q, ic] = RUBRO_DE_CAT[c];
-    const semanal = propio ? (porCat[c] || 0) / 8 : 0;
+    const semanal = (porCat[c] || 0) / 8;
     const item = { texto: q, categoria: c, monto: semanal, rubro: true };
-    let mejor = null;
-    for (let d = 0; d < 7; d++) {
-      const o = conQuePagar(s, { ...item, dia: d }).find((x) => x.tuyo);
-      if (!o) continue;
-      const v = semanal ? o.ahorro : o.pct;
-      if (!mejor || v > mejor.v || (v === mejor.v && dist(d) < dist(mejor.d))) mejor = { d, o, v };
-    }
+    const mejor = mejorDe(item, (x) => x.tuyo);
+    const otra = mejorDe(item, (x) => !x.tuyo);
     const hoy = conQuePagar(s, { ...item, dia: hoyN }).find((x) => x.tuyo) || null;
-    filas.push({ c, label, ic, semanal, mejor, hoy });
+    const hoyOtra = conQuePagar(s, { ...item, dia: hoyN }).find((x) => !x.tuyo) || null;
+    filas.push({ c, label, ic, semanal, tuyo: tuyos.includes(c), mejor, otra: otra && (!mejor || otra.v > mejor.v) ? otra : null, hoy, hoyOtra });
   }
   const ahorro = filas.reduce((a, f) => a + (f.mejor && f.semanal ? f.mejor.o.ahorro : 0), 0);
-  return { filas, ahorro, propio };
+  return { filas, ahorro, propio: tuyos.length > 0 };
 }
 function planHtml(s) {
   const p = planSemana(s);
   const hoyN = new Date().getDay();
   const diaTxt = (d) => (d === hoyN ? 'hoy' : d === (hoyN + 1) % 7 ? 'mañana' : `el ${DIAS_LARGOS[d]}`);
+  const cuando = (m) => ((m.o.dias || []).length === 7 ? 'todos los días' : diaTxt(m.d));
   const medio = (o) => `<b>${esc(o.nombre)} ${o.pct}%</b>${o.comercio && !GENERICO.test(normalize(o.comercio)) ? ` en ${esc(o.comercio.slice(0, 30))}` : ''}`;
-  const con = p.filas.filter((f) => f.mejor); const sin = p.filas.filter((f) => !f.mejor);
+  const topeTxt = (o, semanal) => (o.cap ? `${money(o.cap)}${o.capPeriodo === 'mes' ? ' por mes' : o.capPeriodo === 'compra' ? ' por compra' : ' por semana'} · alcanza para ${money(o.cap / (o.pct / 100))} de compras` : o.capDudoso ? 'no lo publican' : 'sin tope') + (semanal && o.cap && semanal > o.cap / (o.pct / 100) ? ' (gastás más: dividí entre dos medios)' : '');
   const tarjeta = (f) => {
-    const o = f.mejor.o; const todos = (o.dias || []).length === 7;
-    const hoyEsMejor = f.hoy && (f.mejor.d === hoyN || f.hoy.pct >= o.pct);
-    return `<div class="rubro-card">
-      <div class="rubro-top"><span class="cat-icon green">${icon(f.ic, 18)}</span><b class="grow">${esc(f.label)}</b>${f.semanal && o.ahorro ? `<span class="pill ok">−${money(o.ahorro)}/sem</span>` : ''}</div>
-      <div class="rubro-fila"><span class="k">Mejor</span><span>${medio(o)} · ${todos ? 'todos los días' : diaTxt(f.mejor.d)}</span></div>
-      ${hoyEsMejor || todos ? '' : `<div class="rubro-fila"><span class="k">Hoy</span><span>${f.hoy ? medio(f.hoy) : '<span class="muted">sin descuento con tus medios</span>'}</span></div>`}
-      <div class="rubro-fila"><span class="k">Tope</span><span>${o.cap ? `${money(o.cap)}${o.capPeriodo === 'mes' ? ' por mes' : o.capPeriodo === 'compra' ? ' por compra' : ' por semana'}${f.semanal ? ` · alcanza para ${money(o.cap / (o.pct / 100))} de compras` : ''}` : o.capDudoso ? 'no lo publican' : 'sin tope'}</span></div>
+    const m = f.mejor; const o = m && m.o;
+    const hoyDistinto = f.hoy && m && !((o.dias || []).length === 7 || m.d === hoyN);
+    return `<div class="rubro-card ${m ? '' : 'sin'}">
+      <div class="rubro-top"><span class="cat-icon ${m ? 'green' : ''}">${icon(f.ic, 18)}</span><b class="grow">${esc(f.label)}</b>${f.semanal && o && o.ahorro ? `<span class="pill ok">−${money(o.ahorro)}/sem</span>` : ''}</div>
+      ${m ? `<div class="rubro-fila"><span class="k">Lo tuyo</span><span>${medio(o)} · ${cuando(m)}</span></div>` : '<div class="rubro-fila"><span class="k">Lo tuyo</span><span class="muted">sin descuento esta semana</span></div>'}
+      ${hoyDistinto ? `<div class="rubro-fila"><span class="k">Hoy</span><span>${medio(f.hoy)}</span></div>` : ''}
+      ${o ? `<div class="rubro-fila"><span class="k">Tope</span><span>${topeTxt(o, f.semanal)}</span></div>` : ''}
+      ${f.otra ? `<div class="rubro-fila otra"><span class="k">Otro medio</span><span>${medio(f.otra.o)} · ${cuando(f.otra)} <span class="pill">No la tenés</span>${f.semanal && f.otra.o.ahorro ? ` · te ahorrarías ${money(f.otra.o.ahorro)}/sem` : ''}</span></div>` : ''}
       ${f.semanal ? `<div class="rubro-fila"><span class="k">Gastás</span><span>≈ ${money(f.semanal)} por semana</span></div>` : ''}
     </div>`;
   };
+  const conAlgo = p.filas.filter((f) => f.mejor || f.otra); const nada = p.filas.filter((f) => !f.mejor && !f.otra);
+  const tuyos = conAlgo.filter((f) => f.tuyo); const resto = conAlgo.filter((f) => !f.tuyo);
   return `<div class="plan-semana">
     <div class="split"><strong>Con qué pagar cada cosa</strong>${p.ahorro ? `<span class="pill ok">≈ ${money(p.ahorro)} por semana</span>` : ''}</div>
-    <span class="small muted">${p.propio ? 'Lo que más comprás (últimas 8 semanas)' : 'Lo de todos los días (cuando cargues tus gastos, lo armo con lo tuyo)'}, con tus bancos y billeteras.</span>
-    ${con.length ? con.map(tarjeta).join('') : '<p class="small muted" style="margin:0">Esta semana no hay descuentos para tus rubros con tus medios de pago.</p>'}
-    ${sin.length ? `<span class="small muted">Sin descuento esta semana con tus medios: ${sin.map((f) => esc(f.label.toLowerCase())).join(', ')}.</span>` : ''}
+    <span class="small muted">Por rubro, esta semana: el mejor descuento con tus bancos y billeteras y, si otra que no tenés da más, también.</span>
+    ${tuyos.length ? `<span class="cqp-sub">Lo que más comprás</span>${tuyos.map(tarjeta).join('')}` : ''}
+    ${resto.length ? `<span class="cqp-sub">${tuyos.length ? 'Otros rubros' : 'Rubros'}</span>${resto.map(tarjeta).join('')}` : ''}
+    ${nada.length ? `<span class="small muted">Sin promos esta semana en ningún medio: ${nada.map((f) => esc(f.label.toLowerCase())).join(', ')}.</span>` : ''}
   </div>`;
 }
 

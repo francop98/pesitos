@@ -80,26 +80,50 @@ function formTransferencia(s, t = {}) {
 }
 
 // ---------- pasar plata de una cuenta a ahorros ----------
-// Sale del saldo de la cuenta, entra en un ahorro (y en una meta si querés) y, si es
-// plata de este mes, baja lo que podés gastar.
-function formAhorrar(s) {
+// Cuánto te toca apartar en este ciclo según tu forma de ahorrar y tus reglas,
+// cuánto ya pasaste y cuánto falta. Tipos de pase:
+//  regla: lo que te tocaba ahorrar (ya estaba descontado de "Hoy podés gastar")
+//  extra: algo más, de lo que tenías para gastar (baja "Hoy podés gastar")
+//  mover: plata que ya estaba ahorrada en la cuenta (solo cambia de lugar)
+export function ahorroDelCiclo(s) {
+  const b = budget(s);
+  const sobra = s.savingMode === 'leftover';
+  const toca = Math.round(sobra ? Math.max(0, b.free) : b.saving);
+  const enCiclo = (s.transfers || []).filter((t) => t.date >= b.cycle.startISO && t.date < b.cycle.nextISO);
+  const pasado = Math.round(enCiclo.filter((t) => (t.tipo ? t.tipo === 'regla' : !t.deDiario)).reduce((a, t) => a + t.amount, 0));
+  return { b, sobra, toca, pasado, falta: Math.max(0, toca - pasado), partes: sobra ? [] : b.savingParts };
+}
+function formAhorrar(s, monto = 0) {
   const base = monedaBase(s);
   const lugares = (s.holdings || []).filter((h) => (h.currency || 'ARS') === base);
   const g = (s.goals || []).find((x) => x.main) || (s.goals || [])[0];
-  const b = budget(s);
+  const a = ahorroDelCiclo(s);
+  const sugerido = monto || a.falta;
+  const tipo = a.falta > 0 ? 'regla' : 'extra';
+  const sinForma = !s.savingMode || s.savingMode === 'none';
+  const resumen = sinForma ? '<div class="card"><strong>Todavía no elegiste cómo ahorrar</strong><span class="small">Si elegís una forma (por ejemplo, apartar el 10% apenas cobrás), te digo cuánto pasar cada mes. <a href="#/formaahorro">Elegir</a></span></div>'
+    : a.sobra ? `<div class="card lime"><strong>Elegiste ahorrar lo que te sobra</strong><span class="small">${a.b.cycle.daysLeft <= 3 ? `Se termina el mes y te sobran <b>${money(a.toca)}</b>: eso es lo que te toca pasar.` : `Hoy te sobrarían ${money(a.toca)}, pero faltan ${a.b.cycle.daysLeft} días: lo ideal es pasarlo cuando termine el mes.`}</span></div>`
+    : `<div class="card lime"><strong>${a.falta > 0 ? `Este mes te toca pasar ${money(a.falta)}` : 'Este mes ya apartaste lo que te toca'}</strong>
+      ${a.partes.map((p) => `<div class="split small"><span>${esc(p.name)}</span><b>${money(p.amount)}</b></div>`).join('')}
+      <div class="split small"><span>Total según tus reglas</span><b>${money(a.toca)}</b></div>
+      ${a.pasado ? `<div class="split small"><span>Ya pasaste</span><b>−${money(a.pasado)}</b></div>` : ''}
+      <span class="small">Eso ya está descontado de tu "Hoy podés gastar": pasarlo no te baja lo que podés gastar.</span></div>`;
+  const op = (v, t, d) => `<label class="check"><input type="radio" name="tipo" value="${v}" ${v === tipo ? 'checked' : ''}> <span>${t}<br><span class="small muted">${d}</span></span></label>`;
   return `<form class="form" data-submit="guardarAhorrar">
-    <div class="field-row"><div class="field"><label for="ah-f">Desde</label><select id="ah-f" name="from">${opcionesCuenta(s, cuentaPrincipal(s))}</select></div>
-    <div class="field"><label for="ah-a">Monto</label><input id="ah-a" name="amount" inputmode="decimal" required placeholder="Ej: 50.000"></div></div>
+    ${resumen}
+    <div class="field-row"><div class="field"><label for="ah-a">¿Cuánto pasás?</label><input id="ah-a" name="amount" inputmode="decimal" required value="${sugerido ? Math.round(sugerido).toLocaleString('es-AR') : ''}" placeholder="Ej: 50.000"></div>
+    <div class="field"><label for="ah-f">¿De qué cuenta sale?</label><select id="ah-f" name="from">${opcionesCuenta(s, cuentaPrincipal(s))}</select></div></div>
     <div class="field"><label for="ah-h">¿A dónde va?</label><select id="ah-h" name="holding" data-change="ahorrarLugar">
       ${lugares.map((h) => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join('')}
       <option value="__nuevo" ${lugares.length ? '' : 'selected'}>Otro lugar (lo agrego)</option></select></div>
     <div class="field-row" data-ah-nuevo ${lugares.length ? 'hidden' : ''}><div class="field"><label for="ah-n">Nombre del lugar</label><input id="ah-n" name="nombre" placeholder="Ej: Frasco Naranja X"></div>
       <div class="field"><label for="ah-t">Tasa anual (si rinde)</label><input id="ah-t" name="tna" inputmode="decimal" placeholder="Ej: 30"></div></div>
     ${(s.goals || []).length ? `<div class="field"><label for="ah-g">Sumarlo a una meta (opcional)</label><select id="ah-g" name="goal"><option value="">Ninguna</option>${s.goals.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` : ''}
-    <div class="field"><span class="label-like">¿Es plata de este mes?</span>
-      <label class="check"><input type="radio" name="delMes" value="1" checked> <span>Sí: la saco de lo que tenía para gastar<br><span class="small muted">Baja tu "Hoy podés gastar"${b.noIncome ? '' : ` (hoy te quedan ${money(Math.max(0, b.free))} libres hasta el cobro)`}.</span></span></label>
-      <label class="check"><input type="radio" name="delMes" value="0"> <span>No: ya la tenía ahorrada en la cuenta<br><span class="small muted">Solo la cambio de lugar: no toca lo que podés gastar.</span></span></label></div>
-    <span class="small muted">Baja el saldo de la cuenta y suma a tus ahorros.</span>
+    <div class="field"><span class="label-like">¿Qué es esta plata?</span>
+      ${sinForma ? '' : op('regla', a.sobra ? 'Lo que me sobró del mes' : 'Lo que me toca ahorrar este mes', a.sobra ? 'Baja tu "Hoy podés gastar" (es lo que te quedaba libre).' : 'No cambia tu "Hoy podés gastar": ya estaba descontado.')}
+      ${op('extra', 'Algo extra, de lo que tenía para gastar', 'Baja tu "Hoy podés gastar".')}
+      ${op('mover', 'Plata que ya tenía ahorrada en la cuenta', 'Solo la cambio de lugar: no toca lo que podés gastar.')}</div>
+    <span class="small muted">Baja el saldo de la cuenta de la que sale y suma a tus ahorros (y a la meta, si elegiste una).</span>
     <button class="btn primary block" type="submit">Pasar a ahorros</button>
   </form>`;
 }
@@ -122,13 +146,13 @@ export function compararCard(s) {
 }
 
 export const actions = {
-  pasarAhorros(ctx) { openModal('Pasar a ahorros', formAhorrar(ctx.state)); },
+  pasarAhorros(ctx, el) { openModal('Pasar a ahorros', formAhorrar(ctx.state, num(el && el.dataset.monto))); },
   ahorrarLugar(ctx, el) { const f = el.closest('form'); f.querySelector('[data-ah-nuevo]').hidden = el.value !== '__nuevo'; },
   guardarAhorrar(ctx, d) {
     const amount = Math.round(num(d.amount) * 100) / 100;
     if (!(amount > 0)) { toast('Poné un monto'); return; }
     const saldo = saldoCuenta(ctx.state, d.from);
-    let lugar = ''; let meta = '';
+    let lugar = ''; let meta = ''; let delMes = false;
     ctx.commit((s) => {
       s.holdings = s.holdings || [];
       let h = s.holdings.find((x) => x.id === d.holding);
@@ -143,10 +167,15 @@ export const actions = {
       const g = (s.goals || []).find((x) => x.id === d.goal);
       if (g) { g.saved += amount; meta = g.name; }
       s.transfers = s.transfers || [];
-      s.transfers.push({ id: uid(), date: todayISO(), amount, accountId: d.from, holdingId: h.id, ...(g ? { goalId: g.id } : {}), ...(d.delMes === '1' ? { deDiario: true } : {}), note: `A ahorros: ${h.name}` });
+      const tipo = d.tipo || 'extra';
+      const baja = tipo === 'extra' || (tipo === 'regla' && s.savingMode === 'leftover');
+      s.transfers.push({ id: uid(), date: todayISO(), amount, accountId: d.from, holdingId: h.id, tipo, ...(g ? { goalId: g.id } : {}), ...(baja ? { deDiario: true } : {}), note: `A ahorros: ${h.name}` });
+      delMes = baja;
     });
+    // si ya pasaste todo lo que te tocaba, no te lo recuerdo más este mes
+    if (d.tipo === 'regla') { const a = ahorroDelCiclo(ctx.state); if (a.falta <= 0) ctx.update((s) => { s.setAside = { ...(s.setAside || {}), [todayISO().slice(0, 7)]: true }; }); }
     closeModal();
-    toast(`Listo: ${money(amount)} a ${lugar}${meta ? ` (meta "${meta}")` : ''}${d.delMes === '1' ? '. Bajó tu "Hoy podés gastar"' : ''}${saldo != null && amount > saldo ? '. Ojo: es más de lo que tenías en la cuenta' : ''}`);
+    toast(`Listo: ${money(amount)} a ${lugar}${meta ? ` (meta "${meta}")` : ''}${delMes ? '. Bajó tu "Hoy podés gastar"' : d.tipo === 'regla' ? '. Es lo de tus reglas: lo que podés gastar no cambia' : ''}${saldo != null && amount > saldo ? '. Ojo: es más de lo que tenías en la cuenta' : ''}`);
   },
   openComparar(ctx) {
     const s = ctx.state;

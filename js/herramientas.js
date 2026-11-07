@@ -166,7 +166,7 @@ function installmentsForm(s, d = {}) {
   return `<form class="form" data-submit="calcInstallments" data-input-form="cuotas">
     <div class="field"><label for="iq-p">Precio de contado</label><input id="iq-p" name="price" inputmode="decimal" value="${d.price || ''}" placeholder="Ej: 270.000" required data-input="cuotaVivo"><span class="hint">Lo que pagás en efectivo o transferencia (con el descuento, si hay).</span></div>
     <div class="field-row">
-      <div class="field"><label for="iq-t">Precio total en cuotas</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Igual al contado" data-input="cuotaVivo"></div>
+      <div class="field"><label for="iq-t">Precio total en cuotas</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Valor total" data-input="cuotaVivo"></div>
       <div class="field"><label for="iq-n">Cantidad de cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required data-input="cuotaVivo"></div>
     </div>
     <span class="hint" style="margin-top:-6px">El valor de cada cuota lo calculo solo (total ÷ cantidad). Si el total ya trae el interés, dejá "Sin interés".</span>
