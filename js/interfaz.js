@@ -158,6 +158,26 @@ function activarDeslizar(sheet) {
   sheet.addEventListener('touchcancel', soltar);
 }
 
+// ---------- la pantalla de atrás no se mueve ----------
+// Con una hoja, el menú o el tutorial abiertos, el fondo queda fijo (también en iPhone,
+// donde overflow:hidden no alcanza): se fija el body en su lugar y se devuelve al cerrar.
+const bloqueos = new Set(); let scrollGuardado = 0;
+export function bloquearFondo(quien) {
+  if (bloqueos.has(quien)) return;
+  if (!bloqueos.size) {
+    scrollGuardado = window.scrollY || document.documentElement.scrollTop || 0;
+    const b = document.body.style;
+    b.position = 'fixed'; b.top = `-${scrollGuardado}px`; b.left = '0'; b.right = '0'; b.width = '100%'; b.overflow = 'hidden';
+  }
+  bloqueos.add(quien);
+}
+export function liberarFondo(quien) {
+  if (!bloqueos.delete(quien) || bloqueos.size) return;
+  const b = document.body.style;
+  b.position = ''; b.top = ''; b.left = ''; b.right = ''; b.width = ''; b.overflow = '';
+  window.scrollTo(0, scrollGuardado);
+}
+
 const modal = () => document.getElementById('modal');
 let lastFocus = null;
 const stack = []; // pantallas anteriores dentro del modal
@@ -182,7 +202,7 @@ export function openModal(title, body, opts = {}) {
   else if (opts.push) stack.push({ title: m.querySelector('#modal-title').textContent, body: m.querySelector('.modal-body').innerHTML });
   else stack.length = 0;
   m.hidden = false;
-  document.body.style.overflow = 'hidden';
+  bloquearFondo('modal');
   // alto: la hoja ocupa toda la altura desde el principio, así lo que aparece abajo no empuja el formulario
   m.querySelector('.modal-sheet').classList.toggle('alto', !!opts.alto);
   paint(title, body, opts.push ? 'slide-in' : '');
@@ -197,7 +217,7 @@ export function closeModal() {
   if (m.hidden) return;
   stack.length = 0;
   m.hidden = true;
-  document.body.style.overflow = '';
+  liberarFondo('modal');
   if (lastFocus && lastFocus.focus) lastFocus.focus();
 }
 
@@ -303,8 +323,6 @@ export function quickForm(id, s = null, medioHtml = '') {
       ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}
       <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>
     </div>
-    <label class="check promo-check" data-promo-check><input type="checkbox" name="conPromo" data-change="promoCheck"> <span>💸 Pagué con promo o cashback <span class="small muted" data-promo-hint></span></span></label>
-    <div class="promo-live" data-promo-live hidden></div>
     ${Array.isArray(medioHtml) && medioHtml.length > 1 ? `<input type="hidden" name="medio" value="">
     <div class="medio-fila"><span class="medio-label" data-medio-label>Pagás con</span>
       <div class="medio-row" role="radiogroup" aria-label="Con qué pagás">${medioHtml.filter((m) => m.top).map((m) => `<button type="button" class="medio-chip${m.tarjeta ? ' tarjeta' : ''}" role="radio" data-action="pickMedio" data-v="${esc(m.v)}" aria-checked="${m.v === ''}">${m.tarjeta ? icon('card', 14) : ''}${esc(m.tarjeta ? m.label.replace(/^Tarjeta /, '') : m.label)}</button>`).join('')}</div>${medioHtml.some((m) => !m.top) ? `<button type="button" class="medio-otro" data-action="medioOtro" aria-haspopup="dialog" aria-label="Otro medio de pago">Otro ${icon('chevron', 12, 2.6)}</button>` : ''}</div>` : ''}

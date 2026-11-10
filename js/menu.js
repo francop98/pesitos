@@ -8,7 +8,7 @@
 // =========================================================
 
 import { esc, todayISO } from './formato.js';
-import { icon, openModal, closeModal, toast } from './interfaz.js';
+import { icon, openModal, closeModal, toast, bloquearFondo, liberarFondo } from './interfaz.js';
 import { PROVINCES, provinceLabel } from './categorias.js';
 import { ratesAge } from './cotizaciones.js';
 import { lastIpc, refreshLive } from './datosvivos.js';
@@ -150,7 +150,8 @@ export function abrirMenu(ctx) {
   const d = drawer();
   d.hidden = false;
   panel().style.transform = '';
-  requestAnimationFrame(() => { d.classList.add('abierto'); document.body.style.overflow = 'hidden'; });
+  bloquearFondo('menu');
+  requestAnimationFrame(() => { d.classList.add('abierto'); });
   setTimeout(() => panel().focus({ preventScroll: true }), 220);
 }
 export function cerrarMenu(rapido = false) {
@@ -158,7 +159,7 @@ export function cerrarMenu(rapido = false) {
   if (!d || d.hidden) return;
   d.classList.remove('abierto');
   panel().style.transform = '';
-  document.body.style.overflow = '';
+  liberarFondo('menu');
   setTimeout(() => { if (!d.classList.contains('abierto')) d.hidden = true; }, rapido ? 0 : 250);
 }
 
@@ -204,7 +205,7 @@ const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, 
     d.querySelector('.drawer-fondo').style.opacity = '';
     panel().style.transform = '';
     const w = ancho();
-    if (modo === 'abrir') { if (dx > w * 0.3) { d.classList.add('abierto'); document.body.style.overflow = 'hidden'; } else { d.classList.remove('abierto'); setTimeout(() => { d.hidden = true; }, 250); } }
+    if (modo === 'abrir') { if (dx > w * 0.3) { d.classList.add('abierto'); bloquearFondo('menu'); } else { d.classList.remove('abierto'); liberarFondo('menu'); setTimeout(() => { d.hidden = true; }, 250); } }
     else if (dx < -w * 0.3) cerrarMenu();
     modo = null;
   };

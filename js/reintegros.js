@@ -284,6 +284,62 @@ function filaConfirmar(e) {
       <span class="btn-row"><button class="btn small green" data-action="reintLlego" data-id="${esc(e.id)}">Llegó</button><button class="btn small" data-action="reintOtro" data-id="${esc(e.id)}">Otro monto</button><button class="btn small ghost" data-action="reintNoLlego" data-id="${esc(e.id)}">No llegó</button></span></span></div>`;
 }
 
+// ---------- "¿Te llegó un reintegro?": se carga cuando llega ----------
+// Al cargar un gasto no se pregunta nada. Cuando ves el reintegro en tu banco o
+// billetera, ponés cuánto llegó y yo lo reparto entre las compras de ese medio que
+// tenían promo (en proporción a lo que correspondía a cada una).
+const idMedio = (w) => (w.cardId ? `card:${w.cardId}` : w.cuenta);
+/** Lo que te deberían devolver por compras recientes (sin reintegro cargado), por medio. */
+export function esperados(s, dias = 35) {
+  const desde = toISO(addDays(new Date(), -dias));
+  const tmp = { ...s, expenses: (s.expenses || []).map((e) => ({ ...e })) };
+  const out = {};
+  for (const e of tmp.expenses.filter((x) => !x.pending && !x.deEspacio && !x.reintegro && x.date >= desde).sort((a, b) => a.date.localeCompare(b.date))) {
+    const w = walletDeGasto(tmp, e); if (!w) continue;
+    const r = detectarReintegro(tmp, e); if (!r) continue;
+    e.reintegro = r; // así el tope se va usando compra a compra
+    const id = idMedio(w);
+    (out[id] = out[id] || { total: 0, compras: [] }).total += r.monto;
+    out[id].compras.push({ id: e.id, monto: r.monto, r });
+  }
+  return out;
+}
+export function repartirReintegro(s, medio, monto, fecha) {
+  const esp = esperados(s)[medio];
+  const nombre = (misMedios(s).find((m) => m.id === medio) || {}).nombre || 'Reintegro';
+  if (esp && esp.total > 0) {
+    // primero las compras más viejas (es lo que el banco suele pagar primero), cada una con lo que le correspondía
+    let resto = monto; const usadas = [];
+    for (const c of esp.compras) {
+      if (resto <= 0.009) break;
+      const parte = Math.round(Math.min(c.monto, resto) * 100) / 100;
+      resto = Math.round((resto - parte) * 100) / 100; usadas.push({ c, parte });
+    }
+    // si llegó más de lo calculado, el resto se reparte en proporción
+    if (resto > 0.009) usadas.forEach((u) => { u.parte = Math.round((u.parte + resto * u.c.monto / esp.total) * 100) / 100; });
+    for (const u of usadas) { const e = s.expenses.find((x) => x.id === u.c.id); if (e) e.reintegro = { ...u.c.r, monto: u.parte, fecha, ok: true, llego: true }; }
+    return { compras: usadas.length, notas: usadas.map((u) => (s.expenses.find((x) => x.id === u.c.id) || {}).note).filter(Boolean) };
+  }
+  // no encontré compras con promo de ese medio: entra como ingreso extra en esa cuenta
+  s.incomes.push({ id: uid(), date: fecha, amount: monto, type: 'extra', note: `Reintegro ${nombre}`, reintegro: true, ...(medio.startsWith('card:') ? {} : { accountId: medio }) });
+  return { compras: 0, notas: [] };
+}
+function llegoHtml(s) {
+  const medios = misMedios(s);
+  if (!medios.length) return '';
+  const esp = esperados(s);
+  const lista = medios.filter((m) => esp[m.id]).map((m) => `<div class="split small"><span>${esc(m.nombre)}</span><b>≈ ${money(esp[m.id].total)} · ${esp[m.id].compras.length} compra${esp[m.id].compras.length === 1 ? '' : 's'}</b></div>`).join('');
+  const def = (medios.find((m) => esp[m.id]) || medios[0]).id;
+  return `<form class="card form llego-card" data-submit="reintLlegoMedio">
+    <strong>¿Te llegó un reintegro?</strong>
+    <div class="field-row"><div class="field"><label for="ll-m">De</label><select id="ll-m" name="medio">${medios.map((m) => `<option value="${esc(m.id)}" ${m.id === def ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}</select></div>
+      <div class="field"><label for="ll-a">Monto</label><input id="ll-a" name="monto" inputmode="decimal" required placeholder="Ej: 8.000"></div></div>
+    <input type="hidden" name="fecha" value="${todayISO()}">
+    <button class="btn primary block" type="submit">${icon('check', 18)} Lo cargo</button>
+    ${lista ? `<details><summary class="small"><b>Lo que te deberían devolver</b> (compras de los últimos 35 días)</summary>${lista}<span class="small muted">Lo calculo con las promos de cada medio. Es una guía: lo que vale es lo que llega.</span></details>` : ''}
+  </form>`;
+}
+
 export function render(s) {
   const pend = reintegrosPendientes(s);
   const conf = reintegrosPorConfirmar(s);
@@ -295,16 +351,15 @@ export function render(s) {
       <span class="amount pos">+${money(e.reintegro.monto)}</span></button>`;
   return `<section class="screen">
     ${screenHead('Reintegros y cashback', '<button class="btn small" data-action="nuevoBeneficio">+ Cashback</button>', 'Lo que te devuelven por tus compras')}
+    ${llegoHtml(s)}
     <div class="stat-grid">
-      <div class="stat"><span class="k">Por cobrar</span><span class="v">${money(totalReintegros(pend))}</span><span class="small muted">${pend.length} compra${pend.length === 1 ? '' : 's'}</span></div>
-      <div class="stat"><span class="k">Cobrado este mes</span><span class="v pos">${money(reintegrosDelMes(s, mk))}</span><span class="small muted">confirmados</span></div>
+      <div class="stat"><span class="k">Cobrado este mes</span><span class="v pos">${money(reintegrosDelMes(s, mk) + (s.incomes || []).filter((i) => i.reintegro && i.date.slice(0, 7) === mk).reduce((a, i) => a + i.amount, 0))}</span><span class="small muted">lo que te llegó</span></div>
+      <div class="stat"><span class="k">Te deberían devolver</span><span class="v">≈ ${money(Object.values(esperados(s)).reduce((a, x) => a + x.total, 0))}</span><span class="small muted">según tus compras</span></div>
     </div>
     ${conf.length ? `<div class="section-title"><span>¿Te llegaron? (${conf.length})</span></div>
     <p class="small muted" style="margin:0">Se suman a tu saldo recién cuando me confirmás que llegaron y por cuánto. Así tu saldo no se aleja del real.</p>
     <div class="card tight">${conf.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(filaConfirmar).join('')}</div>` : ''}
-    <div class="section-title"><span>Por cobrar</span></div>
-    ${pend.length ? `<div class="card tight">${pend.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(fila).join('')}</div>`
-      : '<p class="empty">Nada pendiente. Cuando anotes una compra con un medio que tiene promo o cashback, lo calculo solo.</p>'}
+    ${pend.length ? `<div class="section-title"><span>Por cobrar</span></div><div class="card tight">${pend.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(fila).join('')}</div>` : ''}
     ${topesHtml(s)}
     <div class="section-title"><span>Tus cashback y beneficios propios</span><button data-action="nuevoBeneficio">+ Agregar</button></div>
     ${(s.misBeneficios || []).length ? `<div class="card tight">${s.misBeneficios.map((b) => `<button class="row" data-action="editarBeneficio" data-id="${esc(b.id)}">
@@ -316,7 +371,7 @@ export function render(s) {
     <div class="card tight">${misMedios(s).map((m) => { const r = reglaAcredita(s, m.id, m.tarjeta); return `<button class="row" data-action="editarAcredita" data-id="${esc(m.id)}">
         <span class="grow"><span class="name">${esc(m.nombre)}</span><span class="meta">${textoAcredita(r)}</span></span>${icon('chevron', 16)}</button>`; }).join('') || '<p class="empty">Cargá tus bancos y billeteras en Menú → Mis medios de pago.</p>'}</div>
     ${cob.length ? `<details class="card"><summary><strong>Cobrados (últimos 45 días)</strong> · ${money(totalReintegros(cob))}</summary><div class="card tight" style="margin-top:8px">${cob.map(fila).join('')}</div></details>` : ''}
-    <p class="small muted" style="margin:0">Cuando llega la fecha te pregunto si te llegó y por cuánto. Recién ahí se suma a tu saldo (o baja el resumen si pagaste con tarjeta), a "Hoy podés gastar" y a "Te ahorraste". Así el saldo de Pesitos no se separa del de tu banco.</p>
+    <p class="small muted" style="margin:0">Al cargar un gasto no te pregunto nada. Cuando el reintegro te llega, lo cargás acá: se suma a tu saldo, a "Hoy podés gastar" y a "Te ahorraste", y lo reparto entre las compras que tenían promo.</p>
   </section>`;
 }
 
@@ -581,6 +636,13 @@ function topeForm(s, key) {
 }
 
 export const actions = {
+  reintLlegoMedio(ctx, d) {
+    const monto = Math.round(num(d.monto) * 100) / 100;
+    if (!(monto > 0)) { toast('Poné cuánto te llegó'); return; }
+    let r = null;
+    ctx.commit((s) => { r = repartirReintegro(s, d.medio, monto, d.fecha || todayISO()); });
+    toast(r.compras ? `Listo: ${money(monto)} repartidos entre ${r.compras} compra${r.compras === 1 ? '' : 's'} (${r.notas.slice(0, 3).join(', ')}${r.notas.length > 3 ? '…' : ''})` : `Listo: sumé ${money(monto)} a tu saldo como reintegro`);
+  },
   promoUsada(ctx, el) {
     const si = el.dataset.v === 'si';
     const caja = el.closest('[data-promo-q]');

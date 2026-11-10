@@ -23,7 +23,7 @@ function planBlock(s, c) {
   if (!it) return best;
   const plan = cardPlan(s, c, it);
   return `<div class="card">
-    <div class="topbar"><strong style="font-size:14px">Próximo pago: ${dueLabel(it).toLowerCase()}</strong><span style="font-weight:800">${it.estimated ? '≈ ' : ''}${money(it.amount)}</span></div>
+    <div class="topbar" style="flex-wrap:wrap;gap:4px 10px"><strong style="font-size:14px;min-width:0">Próximo pago: ${dueLabel(it).toLowerCase()}</strong><span style="font-weight:800;white-space:nowrap">${it.estimated ? '≈ ' : ''}${money(it.amount)}</span></div>
     <span class="small muted">${esc(it.sub)}</span>
     ${plan.fromSavings > 1 ? `<div class="result warn"><strong>Tu plata disponible cubre ${money(plan.fromSalary)}</strong><span class="text">Te faltarían ${money(plan.fromSavings)}: conviene sacarlos de tus ahorros antes que financiar la tarjeta.</span></div>`
       : '<div class="result ok"><strong>Lo cubrís con tu plata disponible</strong><span class="text">Pagalo completo: así no pagás intereses.</span></div>'}

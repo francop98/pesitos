@@ -69,41 +69,7 @@ function gastoProvisorio(ctx, form, medio) {
 // Checkbox "Pagué con promo o cashback": solo si lo marcás se cuenta el reintegro.
 // Al lado te aviso si hay una promo con ese medio; al marcarlo, te muestro cuánto te
 // devuelven (y el tope si el banco no lo publica). Si no encuentro ninguna, la cargás a mano.
-function promoEnVivo(ctx, form) {
-  const box = form.querySelector('[data-promo-live]'); if (!box) return;
-  const chk = form.querySelector('[name=conPromo]'); const hint = form.querySelector('[data-promo-hint]');
-  const ingreso = (form.querySelector('[name=kind]') || {}).value === 'income';
-  const lbl = form.querySelector('[data-promo-check]'); if (lbl) lbl.hidden = ingreso;
-  const e = ingreso ? null : gastoProvisorio(ctx, form);
-  const auto = e && detectarReintegro(ctx.state, e);
-  const cands = e ? promosCandidatas(ctx.state, e) : [];
-  if (hint) hint.textContent = !(chk && chk.checked) ? (auto ? `(hay ${auto.nombre} ${auto.pct}%)` : cands.length ? `(${cands.length === 1 ? 'hay 1 promo' : `hay ${cands.length} promos`} con ese medio hoy)` : '') : '';
-  if (!chk || !chk.checked || ingreso) { box.hidden = true; box.innerHTML = ''; return; }
-  // la que elegiste (o la que reconocí por la descripción)
-  let elegida = form.dataset.promoKey || '';
-  if (elegida && elegida !== 'manual' && !cands.some((c) => c.key === elegida)) elegida = '';
-  if (!elegida && auto) elegida = auto.key;
-  const r = e && elegida && elegida !== 'manual' ? detectarReintegro(ctx.state, e, elegida) : null;
-  // ¿otro medio tuyo devuelve más?
-  let mejor = null;
-  if (e) for (const m of mediosRapidos(ctx.state)) {
-    const e2 = gastoProvisorio(ctx, form, m.v); if (!e2) continue;
-    const r2 = detectarReintegro(ctx.state, e2);
-    if (r2 && r2.monto > ((r && r.monto) || 0) + 1 && (!mejor || r2.monto > mejor.r.monto)) mejor = { m, r: r2 };
-  }
-  const tope = (form.querySelector('[name=promoTope]') || {}).value || '';
-  const pctM = (form.querySelector('[name=promoPct]') || {}).value || '';
-  const chip = (k, txt) => `<button type="button" class="chip ${k === elegida ? 'on' : ''}" data-action="quickPromoElegir" data-key="${esc(k)}" aria-pressed="${k === elegida}">${txt}</button>`;
-  box.hidden = false;
-  if (!e) { box.innerHTML = '<span class="promo-live-txt">Escribí el gasto con el monto y te digo cuánto te devuelven.</span>'; return; }
-  box.innerHTML = `${cands.length ? `<span class="small">¿Cuál usaste?</span><div class="promo-chips">${cands.map((c) => chip(c.key, `${esc(c.comercio ? c.comercio.slice(0, 28) : c.categoria ? catLabel(c.categoria) : 'En todo')} · ${c.pct}%`)).join('')}${chip('manual', 'Otra (la cargo)')}</div>` : '<span class="small">No tengo promos de ese medio para hoy. Cargala:</span>'}
-    ${r ? `<span class="promo-live-txt">💸 <b>${esc(r.nombre)} ${r.pct}%</b>: te devuelven ${r.aprox ? 'hasta ' : ''}${money(r.monto)} el ${r.fecha.slice(8)}/${r.fecha.slice(5, 7)}</span>
-      ${r.aprox ? `<span class="promo-live-q"><label class="small" for="ql-tope">El banco no publica el tope. Si lo sabés:</label><input id="ql-tope" name="promoTope" inputmode="decimal" value="${esc(tope)}" placeholder="Ej: 10.000" class="promo-tope"></span>` : ''}`
-    : elegida && elegida !== 'manual' ? '<span class="promo-live-txt">Con esa promo no te devuelven nada en esta compra (no llega a la compra mínima o ya usaste el tope).</span>'
-    : elegida === 'manual' || !cands.length ? `<span class="promo-live-q"><input name="promoPct" inputmode="decimal" value="${esc(pctM)}" placeholder="% que te devuelven" class="promo-tope" aria-label="Porcentaje de reintegro"><input name="promoTope" inputmode="decimal" value="${esc(tope)}" placeholder="Tope (opcional)" class="promo-tope" aria-label="Tope del reintegro"></span>` : ''}
-    ${mejor ? `<button type="button" class="link-btn" data-action="pickMedio" data-v="${esc(mejor.m.v)}">Con ${esc(mejor.m.label)} te devolverían ${money(mejor.r.monto)} ${icon('chevron', 12, 2.6)}</button>` : ''}
-    <input type="hidden" name="promoKey" value="${esc(elegida)}">`;
-}
+function promoEnVivo() { /* las promos ya no se marcan al cargar: se cargan cuando llegan */ }
 export { promoEnVivo };
 export function mediosRapidos(s) {
   const ppal = cuentaPrincipal(s);
@@ -159,14 +125,12 @@ export function entryForm(s, e, kind) {
          <div class="field"><label for="f-inst">Cuotas (con tarjeta)</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments > 1 ? e.installments : ''}" placeholder="1 (sin cuotas)"></div></div>
          ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime" style="padding:12px 14px"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
     ${(s.proyectos || []).some((p) => !p.cerrado || p.id === e.proyectoId) ? `<div class="field"><label for="f-proy">Proyecto (opcional)</label><select id="f-proy" name="proyectoId"><option value="">Ninguno</option>${s.proyectos.filter((p) => !p.cerrado || p.id === e.proyectoId).map((p) => `<option value="${esc(p.id)}" ${p.id === e.proyectoId ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>` : ''}
-    ${isIncome ? '' : (() => { const r = e.reintegro; const con = !!(r && !r.no); return `<label class="check"><input type="checkbox" name="conPromo" data-change="entryToggle" data-box="reint" ${con ? 'checked' : ''}> <span>💸 Pagué con promo o cashback${con ? ` <span class="small muted">· ${money(r.monto)} el ${r.fecha.split('-').reverse().join('/')}</span>` : ''}</span></label>
-      <div class="split-box reint-box" data-box-id="reint" ${con ? '' : 'hidden'}>
-      <div class="field-row"><div class="field"><label for="f-rm">Te devuelven</label><input id="f-rm" name="reintMonto" inputmode="decimal" value="${r && !r.no ? r.monto : ''}" placeholder="Automático"></div>
-      <div class="field"><label for="f-rf">Llega el</label><input id="f-rf" name="reintFecha" type="date" value="${r && !r.no ? esc(r.fecha) : ''}"></div></div>
-      ${r && !r.no ? `<span class="hint">${r.manual ? 'Lo cargaste vos.' : `Calculado con ${esc(r.nombre)} (${r.pct}%).`} Se suma a tu saldo cuando confirmás que llegó${r.cardId ? ' (baja el resumen de la tarjeta)' : ''}.</span>` : '<span class="hint">Si lo dejás vacío, lo calculo con las promos de tus medios de pago y tus cashback.</span>'}
-      ${r && !r.no ? `<label class="check"><input type="checkbox" name="reintOk" ${r.ok ? 'checked' : ''}> <span>Ya me llegó (se suma a mi saldo)</span></label>` : ''}
-      ${r && !r.no && r.key && r.key.startsWith('p:') ? `<button type="button" class="link-btn" data-action="editarTope" data-key="${esc(r.key)}" style="align-self:flex-start">${r.aprox ? 'Cargar el tope de la promo' : 'Cambiar el tope de la promo'} ${icon('chevron', 12, 2.6)}</button>` : ''}
-    </div>`; })()}
+    ${isIncome || !(e.reintegro && !e.reintegro.no) ? '' : (() => { const r = e.reintegro; return `<details class="reint-box"><summary><span>💸 Reintegro: ${money(r.monto)}</span><span class="small muted">${r.ok ? `llegó el ${r.fecha.split('-').reverse().join('/')}` : `el ${r.fecha.split('-').reverse().join('/')}`}</span></summary>
+      <input type="hidden" name="reintEdit" value="1">
+      <div class="field-row"><div class="field"><label for="f-rm">Te devolvieron</label><input id="f-rm" name="reintMonto" inputmode="decimal" value="${r.monto}"></div>
+      <div class="field"><label for="f-rf">El</label><input id="f-rf" name="reintFecha" type="date" value="${esc(r.fecha)}"></div></div>
+      <span class="hint">Poné 0 para sacarlo. Los reintegros se cargan cuando llegan, desde Reintegros.</span>
+    </details>`; })()}
     <div class="field-row">
       <div class="field"><label for="f-date">Fecha</label><input id="f-date" name="date" type="date" value="${esc(e.date || todayISO())}"></div>
       <div class="field"><label for="f-tags">Etiquetas</label><input id="f-tags" name="tags" value="${esc((e.tags || []).join(', '))}" placeholder="Ej: vacaciones, auto"></div>
@@ -458,22 +422,6 @@ export const commonActions = {
         s.expenses.push({ id: uid(), date, amount, category, note, installments: cardId ? p.installments : 1, ...(cardId ? { cardId } : { accountId }), ...(tags.length ? { tags } : {}), ...(data.proyecto ? { proyectoId: data.proyecto } : {}), ...moneda });
         {
           const ex = s.expenses[s.expenses.length - 1]; nuevoId = ex.id;
-          // solo si marcaste "Pagué con promo o cashback"
-          if (data.conPromo) {
-            const forzada = data.promoKey && data.promoKey !== 'manual' ? data.promoKey : null;
-            let r = data.promoKey === 'manual' ? null : detectarReintegro(s, ex, forzada);
-            const tope = num(data.promoTope);
-            // tope que cargaste al anotar (la promo no lo publica)
-            if (r && tope > 0 && r.key && r.key.startsWith('p:')) { s.topesAprendidos = { ...(s.topesAprendidos || {}), [r.key]: { manual: true, cap: tope, periodo: 'semana', desde: todayISO() } }; r = detectarReintegro(s, ex, forzada); }
-            // no la conozco: la que cargaste a mano
-            const pctM = num(data.promoPct);
-            if (!r && pctM > 0 && pctM < 100) {
-              const monto = Math.round(Math.min(ex.amount * pctM / 100, tope || Infinity) * 100) / 100;
-              r = { monto, pct: pctM, key: `m:${ex.id}`, nombre: ex.cardId ? `Tarjeta ${(s.cards.find((c) => c.id === ex.cardId) || {}).name || ''}`.trim() : nombreCuenta(s, ex.accountId || cuentaPrincipal(s)), manual: true,
-                fecha: toISO(addDays(parseISO(ex.date), 7)), ...(ex.cardId ? { cardId: ex.cardId } : { cuenta: ex.accountId || cuentaPrincipal(s) }) };
-            }
-            if (r) { ex.reintegro = r; reint = r; }
-          } else ex.sinReintegro = true;
         }
         if (chosenCat && chosenCat !== p.category) { const key = merchantKey(note); if (key) s.learned[key] = chosenCat; }
         // recuerdo con qué pagaste en ese comercio, para proponértelo la próxima vez
@@ -552,8 +500,6 @@ export const commonActions = {
     const m = key && (ctx.state.medioAprendido || {})[key];
     if (m !== undefined && m !== null && form.querySelector('[name=medio]') && mediosRapidos(ctx.state).some((x) => x.v === m)) elegirMedio(ctx, form, m, false, true);
   },
-  promoCheck(ctx, el) { const form = el.closest('form'); if (form) { delete form.dataset.promoKey; promoEnVivo(ctx, form); } },
-  quickPromoElegir(ctx, el) { const form = el.closest('form'); form.dataset.promoKey = el.dataset.key; promoEnVivo(ctx, form); },
   pickMedio(ctx, el) {
     const form = el.closest('form');
     if (el.dataset.v.startsWith('falta:')) {
@@ -765,18 +711,11 @@ export const commonActions = {
         if (prevDeuda) Object.assign(prevDeuda, datos); else if (monto > 0) s.deudas.push({ id: uid(), pagos: [], ...datos });
         msg = shared.paidByMe ? `Guardado: ${shared.with} te debe ${money(monto)}` : `Guardado: le debés ${money(monto)} a ${shared.with}`;
       } else if (prevDeuda && !(prevDeuda.pagos || []).length) s.deudas = s.deudas.filter((x) => x !== prevDeuda);
-      // reintegro: lo cargado a mano manda; si no, lo calculo
-      const rm = num(d.reintMonto);
-      if (!d.conPromo) item.sinReintegro = true;
-      else {
-        const auto = detectarReintegro(s, item);
-        const prevR = prev && prev.reintegro;
-        if (rm > 0 && !(auto && Math.abs(auto.monto - rm) < 1 && (!d.reintFecha || d.reintFecha === auto.fecha))) {
-          const base = auto || (prevR && !prevR.no ? prevR : null) || {};
-          item.reintegro = { ...base, monto: rm, fecha: d.reintFecha || base.fecha || toISO(addDays(parseISO(item.date), 7)), nombre: base.nombre || 'Reintegro', pct: base.pct || 0, key: base.key || `m:${id}`, manual: true,
-            ...(item.cardId ? { cardId: item.cardId, cuenta: undefined } : { cuenta: item.accountId || s.cuentaPrincipal, cardId: undefined }) };
-        } else if (auto) item.reintegro = auto;
-        if (item.reintegro) { if (d.reintOk) item.reintegro.ok = true; else delete item.reintegro.ok; }
+      // reintegro: se carga cuando llega (Reintegros). Acá solo se corrige o se saca.
+      const prevR = prev && prev.reintegro;
+      if (prevR) {
+        if (d.reintEdit) { const rm = num(d.reintMonto); if (rm > 0) item.reintegro = { ...prevR, monto: rm, fecha: d.reintFecha || prevR.fecha }; else item.sinReintegro = true; }
+        else item.reintegro = prevR;
       }
       const i = s.expenses.findIndex((x) => x.id === d.id);
       if (i >= 0) s.expenses[i] = item; else s.expenses.push(item);

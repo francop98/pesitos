@@ -59,7 +59,8 @@ a:hover { color: var(--green-dark); }
 .section-title a, .section-title button { font-size: 13px; font-weight: 700; text-decoration: none; background: none; border: none; color: var(--green-text); padding: 0; }
 
 .wordmark { display: inline-flex; align-items: flex-end; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--ink); }
-.wordmark svg { margin: 0 0.04em 0.1em; }
+.wordmark svg { margin: 0 0.04em 0.1em; flex-shrink: 0; }
+.wordmark { flex-shrink: 0; white-space: nowrap; }
 
 .avatar { width: 44px; height: 44px; border-radius: 22px; border: none; background: var(--line); color: var(--ink); font-weight: 800; font-size: 16px; display: grid; place-items: center; }
 
@@ -203,7 +204,9 @@ button.row { cursor: pointer; }
 
 /* ---------- navegación: volver y transiciones ---------- */
 .head-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.icon-btn.back { background: var(--card); border: 1px solid var(--line); }
+.icon-btn.back { background: var(--green); color: #fff; border: none; border-radius: 14px; box-shadow: 0 6px 14px -6px rgba(31, 90, 61, .55); transition: transform .12s ease, box-shadow .12s ease; }
+.icon-btn.back:active { transform: scale(.94); box-shadow: 0 2px 6px -3px rgba(31, 90, 61, .5); }
+.icon-btn.back svg { stroke-width: 2.6; }
 .month-nav { display: flex; align-items: center; justify-content: space-between; background: var(--card); border-radius: 14px; padding: 4px; }
 .month-nav span { font-weight: 800; font-size: 15px; }
 .month-nav .icon-btn { background: transparent; }

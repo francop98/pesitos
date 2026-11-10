@@ -84,7 +84,8 @@ export const conTxt = (con) => (!con ? '' : con.length ? `con ${con.length > 1 ?
 
 /** Botón del encabezado de Inicio: en qué modo estás. */
 export function chipModo(s) {
-  if (s.demo || (!s.espacio && !(s.espacios || []).length)) return '';
+  // solo en un espacio compartido (en tu plata personal, el modo se cambia desde el menú)
+  if (s.demo || !s.espacio) return '';
   return `<button class="chip modo-chip ${s.espacio ? 'compartido' : ''}" data-action="openEspacios" aria-label="Cambiar de modo: ahora ${esc(nombreModo(s))}">${icon(s.espacio ? 'people' : 'user', 14, 2.2)} ${esc(nombreModo(s))}${s.espacio && (s.espacio.con || []).length ? `<span class="modo-con"> · ${esc(conTxt(s.espacio.con))}</span>` : ''}</button>`;
 }
 

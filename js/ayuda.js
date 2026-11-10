@@ -4,7 +4,7 @@
 // (y cuando quieras desde ? → Ayuda). Ayuda: preguntas frecuentes por tema.
 // =========================================================
 
-import { openModal, closeModal, icon, wordmark } from './interfaz.js';
+import { openModal, closeModal, icon, wordmark, bloquearFondo, liberarFondo } from './interfaz.js';
 import { esc } from './formato.js';
 
 const PASOS = [
@@ -33,7 +33,7 @@ export function abrirTutorial({ alTerminar } = {}) {
       <div class="btn-row"><button class="btn" data-tuto="atras">Atrás</button><button class="btn primary" data-tuto="seguir">Siguiente</button></div>
     </div></div>`;
   capa.hidden = false;
-  document.body.style.overflow = 'hidden';
+  bloquearFondo('tutorial');
   const pista = capa.querySelector('.tuto-pista');
   const ir = (n) => {
     i = Math.max(0, Math.min(PASOS.length - 1, n));
@@ -43,7 +43,7 @@ export function abrirTutorial({ alTerminar } = {}) {
     capa.querySelector('[data-tuto=atras]').style.visibility = i ? 'visible' : 'hidden';
     capa.querySelector('[data-tuto=seguir]').textContent = i === PASOS.length - 1 ? '¡Empezar!' : 'Siguiente';
   };
-  const cerrar = () => { capa.hidden = true; capa.innerHTML = ''; document.body.style.overflow = ''; document.removeEventListener('keydown', teclas); if (alTerminar) alTerminar(); };
+  const cerrar = () => { capa.hidden = true; capa.innerHTML = ''; liberarFondo('tutorial'); document.removeEventListener('keydown', teclas); if (alTerminar) alTerminar(); };
   const teclas = (e) => { if (e.key === 'ArrowRight') ir(i + 1); if (e.key === 'ArrowLeft') ir(i - 1); if (e.key === 'Escape') cerrar(); };
   document.addEventListener('keydown', teclas);
   capa.onclick = (e) => {
