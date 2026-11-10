@@ -43,7 +43,9 @@ body { min-height: 100dvh; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 a { color: var(--link); }
-a:hover { color: var(--green-dark); }
+@media (hover: hover) { a:hover { color: var(--green-dark); } }
+html { -webkit-tap-highlight-color: transparent; }
+.dia-fila:hover, .dia-fila:active, .dia-fila:focus { color: inherit; }
 :focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -993,3 +995,22 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .rubro-fila { grid-template-columns: 84px minmax(0, 1fr); }
 .rubro-fila.otra span:last-child { color: var(--muted); }
 .rubro-card.sin { opacity: .92; }
+
+/* v32: volver arriba */
+.arriba { position: fixed; right: max(16px, calc((100vw - 480px) / 2 + 16px)); bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 25; width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--green); color: #fff; display: grid; place-items: center; box-shadow: 0 8px 18px -6px rgba(31, 90, 61, .6); cursor: pointer; animation: up .18s ease-out; }
+.arriba.en-hoja { z-index: 40; bottom: calc(20px + env(safe-area-inset-bottom)); }
+.arriba[hidden] { display: none; }
+/* v33: onboarding con barra de progreso */
+.guide-top { flex-direction: column; align-items: stretch; gap: 12px; }
+.guide-top-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.guide-progreso { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .22); overflow: hidden; }
+.guide-progreso span { display: block; height: 100%; background: var(--lime); border-radius: 3px; transition: width .35s ease; }
+.guide-paso { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, .85); text-align: center; margin-top: -6px; }
+.guide-controls .ahorro-op.sug { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.guide-usd { font-size: 14px; }
+.guide-monto { gap: 10px; }
+.guide-fijos { gap: 8px; }
+.guide-cuenta { gap: 8px; }
+.guide-monto input[name=cobroTxt], .guide-fijos input { min-height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); padding: 10px 14px; font-size: 16px; width: 100%; box-sizing: border-box; color: var(--ink); font-family: inherit; }
+.guide-fijos .field-row { gap: 12px; }
+.guide-fijos label { font-weight: 700; font-size: 14px; }

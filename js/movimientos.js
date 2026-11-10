@@ -84,19 +84,20 @@ export function render(s) {
     </a>
     ${ahorroPesitos || offset === 0 ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos en ${monthLabel(mk).split(' ')[0]}</b><span class="small">${ahorroPesitos ? `${reintMes ? `Reintegros ${money(reintMes)} · ` : ''}promos y desafíos` : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
 
-    <div class="tabs" role="tablist" aria-label="Sección">
-      <button role="tab" data-action="movVista" data-v="lista" aria-pressed="${vista === 'lista'}">Movimientos</button>
-      <button role="tab" data-action="movVista" data-v="fijos" aria-pressed="${vista === 'fijos'}">Gastos fijos${nFijos ? ` (${nFijos})` : ''}</button>
-    </div>
-
-    ${vista === 'lista' ? `
+    ${`
       ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
       <div class="chips">${[['todo', 'Todo'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']].map(([f, l]) => `<button class="chip toggle" data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${l}</button>`).join('')}</div>
       ${dias.length ? dias.map((d) => `<div class="dia-grupo"><span class="dia-t">${esc(relDay(d.date))}</span><div class="card tight">${d.items.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('')}</div></div>`).join('')
         : `<div class="card"><p class="empty">${offset ? 'No hay movimientos en este mes.' : 'Todavía no anotaste nada este mes. Cargá tus gastos desde Inicio.'}</p></div>`}
-`
-    : `
-      <p class="small muted" style="margin:0">Lo que pagás todos los meses. Se descuenta solo de lo que podés gastar${fixed ? `: ${money(fixed)} este mes` : ''}. Los vencimientos los ves en Por pagar.</p>
+`}
+  </section>`;
+}
+
+/** Gastos fijos (se ven en Por pagar → Fijos). */
+export function fijosHtml(s) {
+  const mk = monthKey(); const offset = 0; const today = new Date().getDate();
+  const fixed = fixedTotal(s, mk);
+  return `      <p class="small muted" style="margin:0">Lo que pagás todos los meses. Se descuenta solo de lo que podés gastar${fixed ? `: ${money(fixed)} este mes` : ''}. Los vencimientos los ves en Agenda.</p>
       <div class="card tight">
       ${s.fixed.length ? s.fixed.filter((f) => fixedActive(f, mk) || (f.endMonth && f.endMonth >= addMonthKey(mk, -2))).map((f) => {
         if (!fixedActive(f, mk)) return `<button class="row" data-action="editFixed" data-id="${f.id}"><span class="grow"><span class="name">${esc(f.name)}</span><span class="meta">Terminó en ${monthLabel(f.endMonth)}</span></span><span class="pill ok">Terminado</span></button>`;
@@ -108,8 +109,7 @@ export function render(s) {
         return `<button class="row" data-action="editFixed" data-id="${f.id}"><span class="grow"><span class="name">${esc(f.name)}</span>${extra ? `<span class="meta">${extra}</span>` : ''}</span><span class="amount">${f.variable ? '≈ ' : ''}${money(f.amount)}</span>${status}</button>`;
       }).join('') : `<div style="padding:14px 0;display:flex;flex-direction:column;gap:8px"><p class="text"><b>¿Qué es un gasto fijo?</b> Lo que pagás todos los meses por un monto parecido: alquiler, expensas, servicios, prepaga, cuotas, suscripciones.</p><p class="text muted">Cargalos una vez con el nombre que quieras y los descuento solos. Si algo no cuadra, te lo sugiero.</p></div>`}
       </div>
-      <button class="btn primary block" data-action="newFixed">+ Agregar gasto fijo</button>`}
-  </section>`;
+      <button class="btn primary block" data-action="newFixed">+ Agregar gasto fijo</button>`;
 }
 
 // primer mes con movimientos (para el selector de mes)

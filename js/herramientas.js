@@ -23,11 +23,7 @@ const GRUPOS = [
     { action: 'openGoalCalc', icon: 'sprout', title: '¿Cuánto ahorrar por mes?', text: 'Para una fecha, con lo que podés por mes, con rendimiento o en dólares.' },
   ]],
   ['Invertir', [
-    { action: 'openInversiones', icon: 'chart', title: 'Letras, bonos y acciones', text: 'Qué es cada inversión, su riesgo y dónde se compra. Con las tasas de las letras de hoy.' },
-  ]],
-  ['Organizar', [
-    { action: 'irProyectos', icon: 'folder', title: 'Proyectos', text: 'Lo que gastás en una obra, un viaje o un evento, aparte.' },
-    { action: 'irDeudas', icon: 'people', title: 'Deudas y préstamos', text: 'Lo que te deben y lo que debés, en pesos o en dólares.' },
+    { action: 'openInversiones', icon: 'chart', title: 'Letras, bonos, cauciones y acciones', text: 'Qué es cada inversión (plazo fijo, cauciones, letras, bonos, ON, acciones, CEDEARs), su riesgo y dónde se compra. Con las tasas de las letras de hoy.' },
   ]],
   ['Monedas', [
     { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Todos los dólares (oficial, blue, MEP, CCL, tarjeta, cripto), euro, real, pesos uruguayos y chilenos, bitcoin y oro.' },

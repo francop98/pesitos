@@ -4,7 +4,7 @@
 import { reintegrosCobrados, totalReintegros } from './reintegros.js';
 import { money, pesos, esc, num, todayISO, monthName, monedaActual } from './formato.js';
 import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
-import { HOLDING_TYPES, holdingType, ASSETS, assetById } from './categorias.js';
+import { HOLDING_TYPES, holdingType, ASSETS, assetById, allCategories, catLabel } from './categorias.js';
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar } from './cotizaciones.js';
 import { planAhorroHtml } from './asesor.js';
@@ -14,7 +14,7 @@ import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModal
 import { uid } from './almacenamiento.js';
 import { lessonCard } from './aprender.js';
 import { BILLETERAS_QUE_RINDEN, tnaDe, valorHoy, rinde, refreshRendimientos, tasaDe, textoTasa, nombreBilletera } from './rendimientos.js';
-import { parseAmount } from './interprete.js';
+import { parseAmount, guessCategory } from './interprete.js';
 
 const nf = (d) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: d, minimumFractionDigits: 0 });
 export function fmtAsset(amount, assetId) {
@@ -73,13 +73,17 @@ export function render(s) {
   const items = s.holdings.map((h) => ({ ...h, ars: holdingArs(s, h) }));
   const tips = insights(s).filter((t) => t.id === 'idle' && !((s.tipsNo || {}).idle >= todayISO()));
   const metasHtml = `
-    <div class="section-title"><span>Metas</span><button data-action="openGoalForm">+ Nueva meta</button></div>
+    <div class="section-title"><span>Metas y fondos</span><button data-action="openGoalForm">+ Nueva</button></div>
     ${taparMontos(`<div class="card tight">
-      ${s.goals.length ? s.goals.map((g) => `<button class="row" data-action="openGoal" data-id="${g.id}">
+      ${s.goals.length ? s.goals.map((g) => g.tipo === 'fondo' ? `<button class="row" data-action="openGoal" data-id="${g.id}">
+        <span class="cat-icon green">${icon('wallet', 18)}</span>
+        <span class="grow"><span class="name">${esc(g.name)} <span class="pill" style="margin-left:4px">Fondo</span></span><span class="meta">${esc(goalEta(g).text)}</span></span>
+        <span class="amount ${g.saved < 0 ? 'neg' : ''}">${money(g.saved)}</span>
+      </button>` : `<button class="row" data-action="openGoal" data-id="${g.id}">
         ${ring(goalPct(g), 40, 5, `${g.name}`)}
         <span class="grow"><span class="name">${esc(g.name)}${g.main ? ' <span class="pill lime" style="margin-left:4px">Principal</span>' : ''}</span><span class="meta">${g.target ? `${money(g.saved)} de ${money(g.target)} · ` : ''}${esc(goalEta(g).text)}</span></span>
         <span class="amount">${Math.round(goalPct(g) * 100)}%</span>
-      </button>`).join('') : '<p class="empty">¿Para qué estás ahorrando? Creá una meta (un viaje, un fondo de emergencia) y te muestro cuánto llevás y cuándo llegás.</p>'}
+      </button>`).join('') : '<p class="empty"><b>Metas:</b> algo con un objetivo (un viaje, cambiar el auto). <b>Fondos:</b> plata que juntás todos los meses para gastos que vuelven (salud, mantenimiento del auto, regalos) y de donde la sacás cuando aparecen.</p>'}
     </div>`, 'ahorro')}
 `;
 
@@ -124,20 +128,29 @@ export function render(s) {
   </section>`;
 }
 
-function goalForm(g = {}) {
+function goalForm(g = {}, s = {}) {
+  const fondo = g.tipo === 'fondo';
   return `<form class="form" data-submit="saveGoal">
     <input type="hidden" name="id" value="${esc(g.id || '')}">
-    ${g.id ? '' : '<p class="small muted" style="margin:0">Una meta es para qué ahorrás. Te muestro cuánto llevás y en qué mes llegás. Cada vez que apartes plata, tocá la meta y sumala con <b>Aportar</b>.</p>'}
-    <div class="field"><label for="g-n">Meta</label><input id="g-n" name="name" value="${esc(g.name || '')}" placeholder="Ej: Viaje, fondo de emergencia, auto" required></div>
+    <input type="hidden" name="tipo" value="${fondo ? 'fondo' : 'meta'}">
+    <div class="seg" role="radiogroup" aria-label="Tipo">
+      <button type="button" role="radio" data-action="goalTipo" data-v="meta" aria-checked="${!fondo}">Meta</button>
+      <button type="button" role="radio" data-action="goalTipo" data-v="fondo" aria-checked="${fondo}">Fondo</button>
+    </div>
+    <p class="small muted" style="margin:0" data-g-txt>${fondo ? 'Un fondo es plata que juntás todos los meses para gastos que vuelven (salud, el auto, regalos). Cuando aparece el gasto, lo sacás del fondo y no te baja lo que podés gastar.' : 'Una meta es para qué ahorrás (un viaje, cambiar el auto). Te muestro cuánto llevás y en qué mes llegás.'}</p>
+    <div class="field"><label for="g-n">Nombre</label><input id="g-n" name="name" value="${esc(g.name || '')}" placeholder="Ej: Viaje, Salud, Cambiar el auto" required></div>
     <div class="field-row">
-      <div class="field"><label for="g-t">Cuánto necesitás</label><input id="g-t" name="target" inputmode="decimal" value="${g.target || ''}" placeholder="Ej: 1.500.000"></div>
+      <div class="field"><label for="g-t" data-g-tl>${fondo ? 'Tope del fondo (opcional)' : 'Cuánto necesitás'}</label><input id="g-t" name="target" inputmode="decimal" value="${g.target || ''}" placeholder="${fondo ? 'Sin tope' : 'Ej: 1.500.000'}"></div>
       <div class="field"><label for="g-s">Ya tenés</label><input id="g-s" name="saved" inputmode="decimal" value="${g.saved || ''}" placeholder="Ej: 0"></div>
     </div>
-    <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="decimal" value="${g.monthly || ''}" placeholder="Ej: 100.000"><span class="hint">Con esto calculo cuándo llegás.</span></div>
-    <label class="check"><input type="checkbox" name="main" ${g.main ? 'checked' : ''}> <span>Es mi meta principal<br><span class="small muted">Aparece en Inicio con su avance. Podés tener una sola; si marcás otra, esta deja de serlo.</span></span></label>
-    <span class="small muted">La meta no cambia lo que podés gastar por día. Lo que apartás cada mes lo define tu forma de ahorrar (acá en Mi plata → Plan).</span>
+    <div class="field"><label for="g-m">Aporte por mes</label><input id="g-m" name="monthly" inputmode="decimal" value="${g.monthly || ''}" placeholder="Ej: 30.000"></div>
+    <div data-g-fondo ${fondo ? '' : 'hidden'}>
+      <div class="field"><label for="g-c">¿Para qué gastos? (opcional)</label><select id="g-c" name="categoria"><option value="">Cualquiera</option>${allCategories().map((c) => `<option value="${c.id}" ${c.id === g.categoria ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select><span class="hint">Al cargar un gasto de esa categoría te propongo sacarlo del fondo.</span></div>
+      <label class="check"><input type="checkbox" name="auto" ${g.auto !== false ? 'checked' : ''}> <span>Apartarlo todos los meses<br><span class="small muted">El aporte se suma a lo que te toca ahorrar y se descuenta de lo que podés gastar, como tus reglas.</span></span></label>
+    </div>
+    <label class="check" data-g-main ${fondo ? 'hidden' : ''}><input type="checkbox" name="main" ${g.main ? 'checked' : ''}> <span>Es mi meta principal<br><span class="small muted">Aparece en Inicio con su avance.</span></span></label>
     <button class="btn primary block" type="submit">Guardar</button>
-    ${g.id ? `<button class="btn ghost block" type="button" data-action="deleteGoal" data-id="${g.id}">Borrar meta</button>` : ''}
+    ${g.id ? `<button class="btn ghost block" type="button" data-action="deleteGoal" data-id="${g.id}">Borrar</button>` : ''}
   </form>`;
 }
 
@@ -250,10 +263,35 @@ export const actions = {
     const t = f.querySelector('[data-tna]');
     if (t) t.hidden = el.value !== 'manual';
   },
-  openGoalForm() { openModal('Nueva meta', goalForm()); },
+  openGoalForm(ctx) { openModal('Nueva meta o fondo', goalForm({}, ctx.state)); },
+  goalTipo(ctx, el) {
+    const f = el.closest('form'); const fondo = el.dataset.v === 'fondo';
+    f.querySelector('[name=tipo]').value = el.dataset.v;
+    f.querySelectorAll('[data-action=goalTipo]').forEach((b) => b.setAttribute('aria-checked', String(b === el)));
+    f.querySelector('[data-g-fondo]').hidden = !fondo; f.querySelector('[data-g-main]').hidden = fondo;
+    f.querySelector('[data-g-tl]').textContent = fondo ? 'Tope del fondo (opcional)' : 'Cuánto necesitás';
+    f.querySelector('#g-t').placeholder = fondo ? 'Sin tope' : 'Ej: 1.500.000';
+    f.querySelector('[data-g-txt]').textContent = fondo ? 'Un fondo es plata que juntás todos los meses para gastos que vuelven (salud, el auto, regalos). Cuando aparece el gasto, lo sacás del fondo y no te baja lo que podés gastar.' : 'Una meta es para qué ahorrás (un viaje, cambiar el auto). Te muestro cuánto llevás y en qué mes llegás.';
+  },
   openGoal(ctx, el) {
     const g = ctx.state.goals.find((x) => x.id === el.dataset.id);
     if (!g) return;
+    if (g.tipo === 'fondo') {
+      const usos = ctx.state.expenses.filter((e) => e.fondoId === g.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+      openModal(g.name, `<div class="card green"><span class="hero-label">Hay en el fondo</span><span class="hero-number" style="font-size:32px">${money(g.saved)}</span><span class="small on-green-muted">${esc(goalEta(g).text)}</span></div>
+        <form class="form card" data-submit="usarFondo"><input type="hidden" name="id" value="${g.id}">
+          <strong>Usar del fondo</strong>
+          <div class="field-row"><div class="field"><label for="uf-a">Monto</label><input id="uf-a" name="amount" inputmode="decimal" required placeholder="Ej: 25.000"></div>
+          <div class="field"><label for="uf-n">En qué</label><input id="uf-n" name="note" placeholder="Ej: Dentista"></div></div>
+          <span class="hint">Lo anoto como gasto${g.categoria ? ` de ${esc(catLabel(g.categoria))}` : ''}, sale del fondo y no te baja lo que podés gastar.</span>
+          <button class="btn primary block" type="submit">Usar</button></form>
+        <form class="form" data-submit="contribute"><input type="hidden" name="id" value="${g.id}">
+          <div class="field"><label for="c-a">Sumar al fondo</label><input id="c-a" name="amount" inputmode="decimal" placeholder="Ej: 30.000" required></div>
+          <button class="btn green block" type="submit">Aportar</button></form>
+        ${usos.length ? `<div class="card tight"><strong style="padding:8px 0 0">Lo que salió del fondo</strong>${usos.map((e) => `<div class="row"><span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${esc(catLabel(e.category))} · ${e.date.split('-').reverse().join('/')}</span></span><span class="amount">−${money(e.amount)}</span></div>`).join('')}</div>` : ''}
+        <button class="btn small block" data-action="editGoal" data-id="${g.id}">Editar fondo</button>`);
+      return;
+    }
     openModal(g.name, `<div class="card"><strong>${g.target ? `${money(g.saved)} de ${money(g.target)}` : `${money(g.saved)} juntados`}</strong><span class="text muted">${esc(goalEta(g).text)}</span></div>
       <form class="form" data-submit="contribute">
         <input type="hidden" name="id" value="${g.id}">
@@ -264,7 +302,18 @@ export const actions = {
   },
   editGoal(ctx, el) {
     const g = ctx.state.goals.find((x) => x.id === el.dataset.id);
-    if (g) openModal('Editar meta', goalForm(g), { push: true });
+    if (g) openModal(g.tipo === 'fondo' ? 'Editar fondo' : 'Editar meta', goalForm(g, ctx.state), { push: true });
+  },
+  usarFondo(ctx, d) {
+    const amount = num(d.amount); if (!amount) return;
+    let queda = 0; let nombre = '';
+    ctx.commit((s) => {
+      const g = s.goals.find((x) => x.id === d.id); if (!g) return;
+      g.saved = Math.round((g.saved - amount) * 100) / 100; queda = g.saved; nombre = g.name;
+      const note = String(d.note || '').trim() || g.name;
+      s.expenses.push({ id: uid(), date: todayISO(), amount, category: g.categoria || guessCategory(note, s.learned), note, installments: 1, fromSavings: true, fondoId: g.id });
+    });
+    closeModal(); toast(queda < 0 ? `Listo, pero el fondo "${nombre}" quedó en ${money(queda)}: te faltaba plata` : `Listo: salió del fondo "${nombre}". Quedan ${money(queda)}`);
   },
   contribute(ctx, d) {
     const amount = num(d.amount);
@@ -281,13 +330,14 @@ export const actions = {
   saveGoal(ctx, d) {
     if (!String(d.name || '').trim()) return;
     ctx.commit((s) => {
-      const data = { name: d.name.trim(), target: num(d.target), saved: num(d.saved), monthly: num(d.monthly), main: !!d.main };
+      const fondo = d.tipo === 'fondo';
+      const data = { name: d.name.trim(), target: num(d.target), saved: num(d.saved), monthly: num(d.monthly), main: !fondo && !!d.main, tipo: fondo ? 'fondo' : 'meta', ...(fondo ? { categoria: d.categoria || '', auto: !!d.auto } : {}) };
       if (data.main) s.goals.forEach((g) => { g.main = false; });
-      if (!s.goals.length) data.main = true;
+      if (!fondo && !s.goals.some((g) => g.tipo !== 'fondo' && g.id !== d.id)) data.main = true;
       const g = s.goals.find((x) => x.id === d.id);
       if (g) Object.assign(g, data); else s.goals.push({ id: uid(), ...data });
     });
-    closeModal(); toast('Meta guardada');
+    closeModal(); toast(d.tipo === 'fondo' ? 'Fondo guardado' : 'Meta guardada');
   },
   deleteGoal(ctx, el) { closeModal(); borrarConDeshacer(ctx, 'Meta borrada', (s) => { s.goals = s.goals.filter((x) => x.id !== el.dataset.id); }); },
   newHolding(ctx) { refreshRendimientos(ctx); openModal('¿Dónde ahorrás?', holdingForm({}, ctx.state)); },

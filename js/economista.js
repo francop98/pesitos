@@ -198,7 +198,7 @@ const DONDE = [
   [/saldo|cuenta/, 'El saldo de cada cuenta está en Mi plata → Cuentas.'],
   [/ahorro|inversion/, 'Tus ahorros están en Mi plata → Ahorros, y tu forma de ahorrar en Mi plata → Plan de ahorro.'],
   [/promo|beneficio|descuento/, 'Las promos están en Inicio → "Tu día" → Promo de hoy, o en Beneficios.'],
-  [/fijo|alquiler|servicio/, 'Los gastos fijos están en Movimientos → Fijos.'],
+  [/fijo|alquiler|servicio/, 'Los gastos fijos están en Por pagar → Fijos.'],
   [/pin|huella|contrasena|clave/, 'El PIN y la huella están en Menú ☰ → PIN de seguridad y huella. La contraseña, tocando tu nombre arriba del menú.'],
   [/copia|backup|exportar|excel|pdf/, 'Para descargar tus datos: Menú ☰ → Copia de seguridad. Para un Excel o PDF del mes: Movimientos → Estadísticas.'],
   [/tope|presupuesto|limite/, 'Los topes por categoría están en Movimientos → Estadísticas: tocá una categoría.'],

@@ -2,6 +2,7 @@
 // el cobro, alerta si no alcanza, vista calendario, totales por cuenta,
 // historial de cumplimiento y recordatorios.
 
+import { fijosHtml } from './movimientos.js';
 import { fixedFormExt } from './movimientos.js';
 import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday , monthDiff} from './formato.js';
 import { allCategories, walletName } from './categorias.js';
@@ -154,15 +155,16 @@ export function render(s) {
   const empty = !items.length;
 
   return `<section class="screen">
-    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : `<span class="head-actions"><button class="icon-btn" data-action="newRecordatorio" aria-label="Nuevo recordatorio">${icon('bell', 20)}</button><button class="btn small" data-action="newBill">+ Pago</button></span>`, 'Vencimientos, tarjetas y cobros')}
+    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : view === 'fijos' ? '<button class="btn small" data-action="newFixed">+ Fijo</button>' : `<span class="head-actions"><button class="icon-btn" data-action="newRecordatorio" aria-label="Nuevo recordatorio">${icon('bell', 20)}</button><button class="btn small" data-action="newBill">+ Pago</button></span>`, 'Vencimientos, tarjetas y cobros')}
 
-    <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(4,minmax(0,1fr))">
       <button role="tab" data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista'}">Agenda</button>
+      <button role="tab" data-action="setPayView" data-v="fijos" aria-pressed="${view === 'fijos'}">Fijos</button>
       <button role="tab" data-action="setPayView" data-v="calendario" aria-pressed="${view === 'calendario'}">Calendario</button>
       <button role="tab" data-action="setPayView" data-v="tarjetas" aria-pressed="${view === 'tarjetas'}">Tarjetas</button>
     </div>
 
-    ${view === 'tarjetas' ? tarjetasCuerpo(s) : `
+    ${view === 'tarjetas' ? tarjetasCuerpo(s) : view === 'fijos' ? fijosHtml(s) : `
 
     <div class="card green" style="gap:6px;padding:20px">
       <span class="hero-label">Hasta tu próximo cobro (${shortDate(cycle.nextISO)}) tenés que pagar</span>

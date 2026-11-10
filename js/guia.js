@@ -124,7 +124,7 @@ function apply(ctx, qid, input) {
     if (!no) {
       switch (q.id) {
         case 'salary':
-          s.incomes.push({ id: uid(), date: todayISO(), amount, type: 'sueldo', note: 'Sueldo' });
+          s.incomes.push({ id: uid(), date: todayISO(), amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) });
           msg = 'Listo, ya calculo tu día';
           break;
         case 'goal': {

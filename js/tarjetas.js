@@ -10,6 +10,7 @@ import { allWallets, walletName, catLabel } from './categorias.js';
 import { cardPlan } from './flujo.js';
 import { payOptions } from './pagos.js';
 import { uid } from './almacenamiento.js';
+import { guessCategory } from './interprete.js';
 import { lessonCard } from './aprender.js';
 
 // Plan para pagar el próximo resumen + mejor día para compras grandes
@@ -157,8 +158,20 @@ export function cuerpo(s) {
       <p class="text muted">Con el día de cierre y de vencimiento te muestro cuánto viene en cada resumen, las cuotas que te quedan y cuánto tenés comprometido a futuro.</p>
       <button class="btn green small" data-action="newCard">Agregar tarjeta</button>
     </div>`}
-    ${s.cards.length ? '<p class="small muted" style="margin:0">Para que una compra entre acá, elegí la tarjeta en "Medio de pago" al anotarla, o escribí su nombre en la carga rápida (por ejemplo: "Zapatillas 180.000 en 6 cuotas visa").</p>' : ''}
+    ${s.cards.length ? `<button class="btn primary block" data-action="nuevaCompraTarjeta">${icon('card', 18)} Cargar una compra con tarjeta</button>
+    <p class="small muted" style="margin:0">Las compras con tarjeta (en una o en cuotas) se cargan acá. También podés escribirla en la carga rápida con el nombre de la tarjeta (por ejemplo: "Zapatillas 180.000 en 6 cuotas visa").</p>` : ''}
   `;
+}
+
+function compraForm(s, cardId) {
+  return `<form class="form" data-submit="guardarCompraTarjeta">
+    <div class="field"><label for="ct-c">Tarjeta</label><select id="ct-c" name="cardId">${s.cards.map((c) => `<option value="${esc(c.id)}" ${c.id === cardId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="field"><label for="ct-n">¿Qué compraste?</label><input id="ct-n" name="note" required placeholder="Ej: Heladera, zapatillas"></div>
+    <div class="field-row"><div class="field"><label for="ct-a">Total de la compra</label><input id="ct-a" name="amount" inputmode="decimal" required placeholder="Ej: 540.000"></div>
+      <div class="field"><label for="ct-q">Cuotas</label><input id="ct-q" name="n" inputmode="numeric" placeholder="1"></div></div>
+    <div class="field"><label for="ct-d">Fecha</label><input id="ct-d" name="date" type="date" value="${new Date().toISOString().slice(0, 10)}"></div>
+    <span class="hint">El valor de cada cuota lo calculo solo y te muestro en qué resumen cae cada una.</span>
+    <button class="btn primary block" type="submit">Guardar</button></form>`;
 }
 
 function cardForm(s, c = {}) {
@@ -194,6 +207,13 @@ function cardForm(s, c = {}) {
 }
 
 export const actions = {
+  nuevaCompraTarjeta(ctx, el) { openModal('Compra con tarjeta', compraForm(ctx.state, (el && el.dataset.card) || (ctx.state.cards[0] || {}).id)); },
+  guardarCompraTarjeta(ctx, d) {
+    const amount = num(d.amount); const n = Math.max(1, Math.min(72, parseInt(d.n, 10) || 1));
+    if (!amount || !String(d.note || '').trim()) { toast('Completá qué compraste y el total'); return; }
+    ctx.commit((s) => { s.expenses.push({ id: uid(), date: d.date || new Date().toISOString().slice(0, 10), amount, category: guessCategory(d.note, s.learned), note: String(d.note).trim(), installments: n, cardId: d.cardId }); });
+    closeModal(); toast(n > 1 ? `Listo: ${n} cuotas de ${money(amount / n)}` : 'Listo: compra cargada en la tarjeta');
+  },
   newCard(ctx) { openModal('Nueva tarjeta', cardForm(ctx.state)); },
   editCard(ctx, el) { const c = ctx.state.cards.find((x) => x.id === el.dataset.id); if (c) openModal('Editar tarjeta', cardForm(ctx.state, c)); },
   saveCard(ctx, d) {

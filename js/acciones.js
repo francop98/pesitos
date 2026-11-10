@@ -121,9 +121,11 @@ export function entryForm(s, e, kind) {
            ${[0, 1, 2, 3].map((i) => `<div class="field-row"><select name="sc${i}" aria-label="Categoría ${i + 1}">${catOptions((splits[i] || {}).category || (i === 0 ? e.category : ''))}</select><input name="sa${i}" inputmode="decimal" aria-label="Monto ${i + 1}" placeholder="Monto" value="${montoTxt((splits[i] || {}).amount)}"></div>`).join('')}
            <span class="hint">Las partes tienen que sumar el total. La que dejes vacía no se usa.</span>
          </div>
-         <div class="field-row"><div class="field"><label for="f-medio">Con qué pagaste</label><select id="f-medio" name="medio">${medioOptions(s, medio)}</select></div>
-         <div class="field"><label for="f-inst">Cuotas (con tarjeta)</label><input id="f-inst" name="installments" inputmode="numeric" value="${e.installments > 1 ? e.installments : ''}" placeholder="1 (sin cuotas)"></div></div>
+         <div class="field"><label for="f-medio">Con qué pagaste</label><select id="f-medio" name="medio">${medioOptions(s, medio)}</select></div>
+         <input type="hidden" name="installments" value="${e.installments > 1 ? e.installments : 1}">
+         ${e.installments > 1 ? `<span class="hint">En ${e.installments} cuotas: las cuotas se manejan en Por pagar → Tarjetas.</span>` : ''}
          ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime" style="padding:12px 14px"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
+    ${!isIncome && (s.goals || []).some((g) => g.tipo === 'fondo') ? `<div class="field"><label for="f-fondo">¿Sale de un fondo?</label><select id="f-fondo" name="fondoId"><option value="">No, de la plata del mes</option>${s.goals.filter((g) => g.tipo === 'fondo').map((g) => `<option value="${esc(g.id)}" ${g.id === e.fondoId ? 'selected' : ''}>Fondo ${esc(g.name)} (hay ${money(g.saved)})</option>`).join('')}</select><span class="hint">Si sale de un fondo, no te baja lo que podés gastar.</span></div>` : ''}
     ${(s.proyectos || []).some((p) => !p.cerrado || p.id === e.proyectoId) ? `<div class="field"><label for="f-proy">Proyecto (opcional)</label><select id="f-proy" name="proyectoId"><option value="">Ninguno</option>${s.proyectos.filter((p) => !p.cerrado || p.id === e.proyectoId).map((p) => `<option value="${esc(p.id)}" ${p.id === e.proyectoId ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>` : ''}
     ${isIncome || !(e.reintegro && !e.reintegro.no) ? '' : (() => { const r = e.reintegro; return `<details class="reint-box"><summary><span>💸 Reintegro: ${money(r.monto)}</span><span class="small muted">${r.ok ? `llegó el ${r.fecha.split('-').reverse().join('/')}` : `el ${r.fecha.split('-').reverse().join('/')}`}</span></summary>
       <input type="hidden" name="reintEdit" value="1">
@@ -171,7 +173,13 @@ function walletsBody(s) {
   const mine = new Set(s.wallets);
   const groups = ['Bancos', 'Billeteras', 'Tarjetas'];
   const all = [...WALLETS, ...(s.customWallets || [])];
-  return `<p class="text muted">Tocá los que usás. Con eso cruzo los descuentos de cada día y te aviso el día antes.</p>
+  const cuentas = listaCuentas(s).filter((c) => c.id !== 'efectivo' || true);
+  const ppal = cuentaPrincipal(s);
+  const sueldo = s.cuentaSueldo || ppal;
+  return `${cuentas.length > 1 ? `<div class="card form">
+      <div class="field"><label for="w-ppal">Cuenta del día a día (principal)</label><select id="w-ppal" data-change="setPrincipal">${cuentas.map((c) => `<option value="${esc(c.id)}" ${c.id === ppal ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><span class="hint">Donde solés tener la plata: la uso cuando cargás un gasto rápido sin elegir con qué pagaste.</span></div>
+      <div class="field"><label for="w-sue">Donde te depositan el sueldo</label><select id="w-sue" data-change="setCuentaSueldo">${cuentas.map((c) => `<option value="${esc(c.id)}" ${c.id === sueldo ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><span class="hint">Cuando cargás el sueldo, entra en esta cuenta.</span></div></div>` : ''}
+    <p class="text muted">Tocá los que usás. Con eso cruzo los descuentos de cada día y te aviso el día antes.</p>
     ${groups.map((g) => `<div class="field"><label>${g}</label><div class="chips">${all.filter((w) => w.kind === g).map((w) => `<button class="chip toggle" data-action="toggleWallet" data-id="${esc(w.id)}" aria-pressed="${mine.has(w.id)}">${esc(w.name)}</button>`).join('')}</div></div>`).join('')}
     <form class="form card" data-submit="addWallet" autocomplete="off">
       <strong style="font-size:14px">¿No está el tuyo?</strong>
@@ -408,7 +416,7 @@ export const commonActions = {
     const B = monedaBase(ctx.state);
     const currency = /\b(us\$|u\$s|usd|dolar(es)?)\b|us\$|u\$s/.test(t) ? 'USD' : /\b(euros?|eur)\b|€/.test(t) ? 'EUR' : /\b(reales?|brl)\b|r\$/.test(t) ? 'BRL' : /\b(pesos|ars)\b/.test(t) ? 'ARS' : B;
     const rate = currency === B ? 1 : aBase(ctx.state, currency);
-    if (currency !== B && !rate) { toast('No tengo la cotización ahora: cargalo desde "Gasto detallado"'); return; }
+    if (currency !== B && !rate) { toast('No tengo la cotización ahora: cargalo desde "Añadir detalles"'); return; }
     const amount = Math.round(p.amount * rate * 100) / 100;
     const moneda = { ...(currency === B ? {} : { currency, original: p.amount, rate }), ...(ctx.state.espacio ? { por: ctx.miNombre || '', porUid: ctx.uid } : {}) };
     const note = p.note.replace(/\b(us\$|u\$s|usd|dolares|dolar|euros?|reales?|pesos)\b/gi, '').replace(/\s+/g, ' ').trim() || p.note;
@@ -439,6 +447,11 @@ export const commonActions = {
       const ahora = avancePresupuesto(ctx.state, category);
       if (ahora && ahora.pct >= 1 && antes.pct < 1) msg += `. Ojo: te pasaste del presupuesto de ${catLabel(category)}`;
       else if (ahora && ahora.pct >= 0.8 && antes.pct < 0.8) msg += `. Llevás el ${Math.round(ahora.pct * 100)}% del presupuesto de ${catLabel(category)}`;
+    }
+    const fondo = kind === 'expense' && (ctx.state.goals || []).find((g) => g.tipo === 'fondo' && g.categoria && g.categoria === category);
+    if (fondo) {
+      toast(msg, { label: `Sacarlo del fondo ${fondo.name}`, fn: () => { ctx.commit((s) => { const ex = s.expenses.find((x) => x.id === nuevoId); const gf = s.goals.find((g) => g.id === fondo.id); if (ex && gf && !ex.fondoId) { ex.fondoId = gf.id; ex.fromSavings = true; gf.saved = Math.round((gf.saved - ex.amount) * 100) / 100; } }); toast(`Listo: salió del fondo ${fondo.name}`); } });
+      return;
     }
     if (reint) {
       msg += `. Te devuelven ${reint.aprox ? 'hasta ' : ''}${money(reint.monto)} (${reint.nombre} ${reint.pct}%${reint.aprox ? ', tope sin confirmar' : ''}) el ${reint.fecha.slice(8)}/${reint.fecha.slice(5, 7)}`;
@@ -665,6 +678,10 @@ export const commonActions = {
         if (medioTipo === 'acc') item.accountId = medioId;
         if (tags.length) item.tags = tags;
         if (d.proyectoId) item.proyectoId = d.proyectoId;
+      // fondo: devuelvo lo de antes y saco lo nuevo
+      if (prev && prev.fondoId) { const gf = (s.goals || []).find((g) => g.id === prev.fondoId); if (gf) gf.saved = Math.round((gf.saved + prev.amount) * 100) / 100; }
+      if (d.fondoId) { const gf = (s.goals || []).find((g) => g.id === d.fondoId); if (gf) { gf.saved = Math.round((gf.saved - amount) * 100) / 100; item.fondoId = gf.id; item.fromSavings = true; } }
+      else if (prev && prev.fromSavings && !prev.fondoId) item.fromSavings = true;
         const i = s.incomes.findIndex((x) => x.id === d.id);
         if (i >= 0) s.incomes[i] = item; else s.incomes.push(item);
         return;
@@ -730,6 +747,8 @@ export const commonActions = {
     const it = ctx.state[key].find((x) => x.id === el.dataset.id);
     closeModal();
     borrarConDeshacer(ctx, `Borraste ${it ? `"${it.note}"` : 'el movimiento'}`, (s) => {
+      const x0 = s[key].find((x) => x.id === el.dataset.id);
+      if (x0 && x0.fondoId) { const gf = (s.goals || []).find((g) => g.id === x0.fondoId); if (gf) gf.saved = Math.round((gf.saved + x0.amount) * 100) / 100; }
       s[key] = s[key].filter((x) => x.id !== el.dataset.id);
       s.deudas = (s.deudas || []).filter((x) => x.origen !== el.dataset.id || (x.pagos || []).length);
     });
@@ -831,6 +850,8 @@ export const commonActions = {
   },
 
   // ---------- medios de pago ----------
+  setCuentaSueldo(ctx, el) { ctx.commit((s) => { s.cuentaSueldo = el.value; }); toast(`Listo: el sueldo entra en ${nombreCuenta(ctx.state, el.value)}`); },
+  setPrincipal(ctx, el) { ctx.commit((s) => { s.cuentaPrincipal = el.value; }); toast(`Listo: ${nombreCuenta(ctx.state, el.value)} es tu cuenta principal`); },
   openWallets(ctx) { openModal('Mis medios de pago', `<div id="wallets-body">${walletsBody(ctx.state)}</div>`); },
   toggleWallet(ctx, el) {
     ctx.commit((s) => {
@@ -866,7 +887,7 @@ export const commonActions = {
   confirmSalary(ctx, d) {
     const amount = parseAmount(d.amount);
     if (!amount) { toast('Ingresá el monto que cobraste'); return; }
-    ctx.commit((s) => { s.incomes.push({ id: uid(), date: d.date || todayISO(), amount, type: 'sueldo', note: 'Sueldo' }); });
+    ctx.commit((s) => { s.incomes.push({ id: uid(), date: d.date || todayISO(), amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) }); });
     toast('Sueldo confirmado: ya lo comparo con los meses anteriores');
   },
   snoozeCard(ctx, el) {

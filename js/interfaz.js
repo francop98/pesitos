@@ -300,7 +300,7 @@ export function quickForm(id, s = null, medioHtml = '') {
     <div class="quick-top">
       <label class="fecha-chip">${icon('calendar', 15)} <span data-fecha-txt>Hoy</span> ${icon('chevron', 12, 2.6)}
         <input id="${id}-date" name="date" type="date" value="${toISO(new Date())}" max="${toISO(new Date())}" data-change="quickFecha" aria-label="Fecha del movimiento"></label>
-      <button type="button" class="link-btn" data-action="cargaDetallada">Más detalle ${icon('chevron', 12, 2.6)}</button>
+      <button type="button" class="link-btn" data-action="cargaDetallada">Añadir detalles ${icon('chevron', 12, 2.6)}</button>
     </div>
     <div class="kind-toggle" role="group" aria-label="Tipo de movimiento">
       <button type="button" data-action="setKind" data-kind="expense" aria-pressed="true">${icon('down', 16, 2.4)} Gasto</button>
@@ -547,3 +547,40 @@ document.addEventListener('input', (e) => {
   });
   if (nuevo !== v) { el.value = nuevo; ponerCursor(el, antes, /\d/); }
 }, true);
+
+// ---------- flechita para volver arriba ----------
+// Cuando bajás y dejás de ver la flecha de volver (o el título), aparece abajo a la
+// derecha un botón que te lleva arriba. También dentro de las hojas largas.
+(() => {
+  let btn = null;
+  const crear = () => {
+    btn = document.createElement('button');
+    btn.className = 'arriba'; btn.type = 'button'; btn.hidden = true;
+    btn.setAttribute('aria-label', 'Volver arriba');
+    btn.innerHTML = icon('up', 20, 2.6);
+    btn.addEventListener('click', () => {
+      const sheet = !modal().hidden && modal().querySelector('.modal-sheet');
+      if (sheet && sheet.scrollTop > 0) sheet.scrollTo({ top: 0, behavior: 'smooth' });
+      else window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    document.body.appendChild(btn);
+  };
+  const revisar = () => {
+    if (!btn) crear();
+    const m = modal();
+    const sheet = m && !m.hidden && m.querySelector('.modal-sheet');
+    let ver;
+    if (sheet) ver = sheet.scrollTop > 280;
+    else {
+      const head = document.querySelector('#app .screen > .topbar');
+      ver = head ? head.getBoundingClientRect().bottom < -120 : window.scrollY > 400;
+    }
+    if (document.getElementById('drawer') && !document.getElementById('drawer').hidden) ver = false;
+    if (document.querySelector('#app .guide')) ver = false; // en el arranque no hace falta
+    if (btn.hidden !== !ver) btn.hidden = !ver; // solo si cambia (si no, el observador se llama a sí mismo)
+    if (btn.classList.contains('en-hoja') !== !!sheet) btn.classList.toggle('en-hoja', !!sheet);
+  };
+  document.addEventListener('scroll', revisar, { capture: true, passive: true });
+  window.addEventListener('hashchange', () => setTimeout(revisar, 50));
+  new MutationObserver((ms) => { if (ms.some((m) => m.target !== btn)) revisar(); }).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ['hidden'] });
+})();

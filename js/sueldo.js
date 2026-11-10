@@ -123,7 +123,7 @@ export const actions = {
     ctx.commit((s) => {
       for (const x of add) {
         s.incomes = s.incomes.filter((i) => !(i.type === 'sueldo' && i.date.slice(0, 7) === x.mk));
-        s.incomes.push({ id: uid(), date: fecha(x.mk), amount: x.amount, type: 'sueldo', note: 'Sueldo' });
+        s.incomes.push({ id: uid(), date: fecha(x.mk), amount: x.amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) });
       }
     });
     closeModal(); toast(add.length === 1 ? 'Sueldo cargado' : `Cargué ${add.length} sueldos`);
@@ -135,7 +135,7 @@ export const actions = {
     const isLatest = !prev || (d.date || '') >= prev.date;
     let msg = 'Sueldo cargado';
     ctx.commit((s) => {
-      s.incomes.push({ id: uid(), date: d.date, amount, type: 'sueldo', note: 'Sueldo' });
+      s.incomes.push({ id: uid(), date: d.date, amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) });
       if (isLatest && prev && amount > prev.amount) {
         const raise = amount - prev.amount;
         msg = `Tu sueldo subió ${money(raise)}`;

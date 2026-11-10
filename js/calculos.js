@@ -60,6 +60,8 @@ export function plannedSaving(s, salary, extras = 0, expenses = []) {
     const round = sum(expenses, (e) => { const v = share(e); return Math.ceil(v / to) * to - v; });
     if (round) parts.push({ name: 'Redondeo', amount: round });
   }
+  // fondos con aporte automático (salud, el auto…): se apartan todos los meses
+  for (const g of s.goals || []) if (g.tipo === 'fondo' && g.auto !== false && g.monthly > 0 && !(g.target && g.saved >= g.target)) parts.push({ name: `Fondo ${g.name}`, amount: g.monthly });
   // ahorro de a poco para pagos grandes que vienen (agenda de pagos)
   const prov = provisions(s).reduce((a, p) => a + p.monthly, 0);
   if (prov > 0) parts.push({ name: 'Para pagos que vienen', amount: prov });
@@ -172,10 +174,14 @@ export function budget(s) {
 }
 
 // ---------- metas ----------
-export const mainGoal = (s) => s.goals.find((g) => g.main) || s.goals[0] || null;
+export const mainGoal = (s) => s.goals.find((g) => g.main && g.tipo !== 'fondo') || s.goals.find((g) => g.tipo !== 'fondo') || null;
 export const goalPct = (g) => (g.target > 0 ? Math.min(1, g.saved / g.target) : 0);
 
 export function goalEta(g) {
+  if (g.tipo === 'fondo') {
+    const ap = g.monthly ? `Aportás ${money(g.monthly)} por mes${g.auto !== false ? ' (automático)' : ''}` : 'Sin aporte mensual';
+    return { done: false, text: g.target ? `${ap} · tope ${money(g.target)}` : ap };
+  }
   if (!g.target) return { done: false, text: 'Falta definir cuánto necesitás' };
   const left = Math.max(0, g.target - g.saved);
   if (left === 0) return { done: true, text: '¡Meta cumplida!' };

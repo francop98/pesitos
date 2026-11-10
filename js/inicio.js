@@ -9,7 +9,7 @@ import { lessonCard } from './aprender.js';
 import { catLabel } from './categorias.js';
 import { alerts, dueLabel, closings, agenda } from './agenda.js';
 import { promosForDay } from './economista.js';
-import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo, patrimonio } from './cuentas.js';
+import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo, patrimonio, cuentaPrincipal } from './cuentas.js';
 import { projection, coverage } from './flujo.js';
 import { reglaDeCobro, fechaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
@@ -45,6 +45,29 @@ function salaryCard(s, b) {
     </form>
     <button class="btn ghost small" data-action="snoozeCard" data-key="salary" data-days="1" style="align-self:flex-start;min-height:36px;padding:0 4px">Todavía no cobré</button>
   </div>`;
+}
+
+// ---------- empezaste a usar Pesitos a mitad de mes ----------
+// No sabés todo lo que gastaste antes: me decís cuánta plata tenés hoy y calculo
+// lo que falta ("gastos de antes de Pesitos") para que "Hoy podés gastar" sea real.
+export function gastosDeAntes(s, tengo) {
+  const b = budget(s);
+  const mk = todayISO().slice(0, 7);
+  const fijosPagados = (s.fixed || []).reduce((a, f) => { const p = (s.paid || {})[`fixed:${f.id}:${mk}`]; return a + (p ? Number(p.amount) || f.amount : 0); }, 0);
+  const apartado = (s.transfers || []).filter((t) => t.date >= b.cycle.startISO && t.date < b.cycle.nextISO).reduce((a, t) => a + t.amount, 0);
+  return { b, fijosPagados, apartado, falta: Math.round(b.income - fijosPagados - apartado - b.variable - tengo) };
+}
+function arranqueCard(s, b) {
+  if (s.demo || s.ajusteInicial || snoozed(s, 'arranque') || b.noIncome) return '';
+  const primera = (s.expenses || []).filter((e) => !e.deEspacio).map((e) => e.date).sort()[0];
+  const hoy = todayISO();
+  // solo si empezaste a cargar en este ciclo y ya pasaron unos días desde el cobro
+  if (primera && primera < b.cycle.startISO) return '';
+  const dias = Math.round((Date.parse(hoy) - Date.parse(b.cycle.startISO)) / 86400000);
+  if (dias < 3) return '';
+  return `<div class="card lime"><strong>¿Empezaste a usar Pesitos a mitad de mes?</strong>
+    <p class="text">Cobraste hace ${dias} días y no sé qué gastaste antes. Decime cuánta plata tenés hoy (cuentas y efectivo, sin ahorros) y ajusto lo que podés gastar.</p>
+    <div class="btn-row"><button class="btn green small" data-action="openArranque">Poner mi saldo de hoy</button><button class="btn small" data-action="arranqueNo">Ya cargué todo</button></div></div>`;
 }
 
 function savingCard(s, b) {
@@ -139,8 +162,9 @@ function avisos(s, b) {
     coverageAlert(s),
     reintConfirmarCard(s),
     compararCard(s),
-    savingCard(s, b),
     salaryCard(s, b),
+    arranqueCard(s, b),
+    savingCard(s, b),
     renderQuestion(s),
     alertaPresupuestos(s),
     pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé.</span>${icon('chevron', 16)}</button>` : '',
@@ -492,6 +516,33 @@ export const actions = {
     toast(/^promo-/.test(id) ? 'Listo, no te la muestro más hoy' : 'Listo, lo oculto por un tiempo');
   },
   // lo que no gastaste, a la meta (o a ahorro): baja lo libre del ciclo
+  openArranque(ctx) {
+    const s = ctx.state;
+    openModal('Empezar con mi saldo de hoy', `<form class="form" data-submit="guardarArranque">
+      <p class="text" style="margin:0">¿Cuánta plata tenés hoy entre tus cuentas, billeteras y efectivo? Sin contar ahorros ni inversiones.</p>
+      <div class="field"><label for="ar-t">Tengo hoy</label><input id="ar-t" name="tengo" inputmode="decimal" required placeholder="Ej: 350.000" data-input="arranqueVivo"></div>
+      <p class="small" data-ar-vivo></p>
+      <span class="small muted">Con tu sueldo, tus gastos fijos ya pagados y lo que cargaste, calculo cuánto gastaste antes de empezar y lo anoto como "Gastos de antes de Pesitos" (con fecha del día de cobro, para que no cuente como gasto de hoy). ${(s.cuentas && Object.keys(s.cuentas).length) ? '' : 'También lo tomo como el saldo de tu cuenta principal.'}</span>
+      <button class="btn primary block" type="submit">Ajustar</button></form>`);
+  },
+  arranqueVivo(ctx, el) {
+    const t = num(el.value); const p = document.querySelector('[data-ar-vivo]'); if (!p) return;
+    if (!t) { p.textContent = ''; return; }
+    const g = gastosDeAntes(ctx.state, t);
+    p.innerHTML = g.falta > 0 ? `Gastaste unos <b>${money(g.falta)}</b> antes de empezar. Lo anoto y "Hoy podés gastar" queda en lo real.` : g.falta < 0 ? `Tenés ${money(-g.falta)} más de lo que da la cuenta (¿algún ingreso sin cargar?). No anoto nada.` : 'Cuadra justo.';
+  },
+  guardarArranque(ctx, d) {
+    const tengo = num(d.tengo); if (!(tengo >= 0)) return;
+    const g = gastosDeAntes(ctx.state, tengo);
+    ctx.commit((s) => {
+      if (g.falta > 0) s.expenses.push({ id: uid(), date: g.b.cycle.startISO, amount: g.falta, category: 'otros', note: 'Gastos de antes de Pesitos', installments: 1, ajusteInicial: true });
+      s.ajusteInicial = { date: todayISO(), tengo };
+      if (!s.cuentas || !Object.keys(s.cuentas).length) { s.cuentas = { [cuentaPrincipal(s)]: { saldo: tengo, desde: todayISO() } }; }
+      s.lastClose = { date: todayISO(), balance: tengo };
+    });
+    closeModal(); toast(g.falta > 0 ? `Listo: anoté ${money(g.falta)} de gastos de antes. Ya está ajustado` : 'Listo: arranco desde tu saldo de hoy');
+  },
+  arranqueNo(ctx) { ctx.commit((s) => { s.ajusteInicial = { date: todayISO(), no: true }; }); toast('Perfecto'); },
   diarioAhorrar(ctx, el) {
     const amount = Math.round(num(el.dataset.amount)); if (!amount) return;
     let name = '';
