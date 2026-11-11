@@ -17,6 +17,7 @@ import { detectarReintegro, promosCandidatas } from './reintegros.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
 import { ratesAge, arsPer, aBase, monedaBase } from './cotizaciones.js';
+import { valorHoy } from './rendimientos.js';
 import { listaCuentas, cuentaPrincipal, nombreCuenta } from './cuentas.js';
 import { avancePresupuesto } from './presupuestos.js';
 import { ASSETS } from './categorias.js';
@@ -69,6 +70,21 @@ function gastoProvisorio(ctx, form, medio) {
 // Checkbox "Pagué con promo o cashback": solo si lo marcás se cuenta el reintegro.
 // Al lado te aviso si hay una promo con ese medio; al marcarlo, te muestro cuánto te
 // devuelven (y el tope si el banco no lo publica). Si no encuentro ninguna, la cargás a mano.
+// gastos pagados con un fondo o con tus ahorros: la plata sale de ahí (y vuelve si lo borrás o lo cambiás)
+function sacarDeAhorro(s, h, monto) {
+  if (h.since) { h.amount = Math.round((valorHoy(s, h) - monto) * 100) / 100; h.since = todayISO(); } else h.amount = Math.round(((Number(h.amount) || 0) - monto) * 100) / 100;
+}
+function devolverOrigen(s, x) {
+  if (!x) return;
+  if (x.fondoId) { const gf = (s.goals || []).find((g) => g.id === x.fondoId); if (gf) gf.saved = Math.round((gf.saved + x.amount) * 100) / 100; }
+  if (x.holdingId) { const h = (s.holdings || []).find((y) => y.id === x.holdingId); if (h) sacarDeAhorro(s, h, -x.amount); }
+}
+// buscador de categorías de la carga rápida: deja solo las que coinciden
+function actions_catFiltrar(form, q) {
+  const t = normalize(String(q || '').trim());
+  form.querySelectorAll('.cat-row [data-action=pickCat]').forEach((b) => { b.hidden = !!t && b.dataset.id !== 'auto' && !normalize(b.textContent).includes(t); });
+  if (t) { const prim = [...form.querySelectorAll('.cat-row [data-action=pickCat]')].find((b) => !b.hidden && b.dataset.id !== 'auto'); if (prim) prim.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+}
 function promoEnVivo() { /* las promos ya no se marcan al cargar: se cargan cuando llegan */ }
 export { promoEnVivo };
 export function mediosRapidos(s) {
@@ -125,7 +141,18 @@ export function entryForm(s, e, kind) {
          <input type="hidden" name="installments" value="${e.installments > 1 ? e.installments : 1}">
          ${e.installments > 1 ? `<span class="hint">En ${e.installments} cuotas: las cuotas se manejan en Por pagar → Tarjetas.</span>` : ''}
          ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime" style="padding:12px 14px"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
-    ${!isIncome && (s.goals || []).some((g) => g.tipo === 'fondo') ? `<div class="field"><label for="f-fondo">¿Sale de un fondo?</label><select id="f-fondo" name="fondoId"><option value="">No, de la plata del mes</option>${s.goals.filter((g) => g.tipo === 'fondo').map((g) => `<option value="${esc(g.id)}" ${g.id === e.fondoId ? 'selected' : ''}>Fondo ${esc(g.name)} (hay ${money(g.saved)})</option>`).join('')}</select><span class="hint">Si sale de un fondo, no te baja lo que podés gastar.</span></div>` : ''}
+    ${(() => {
+      if (isIncome) return '';
+      const fondos = (s.goals || []).filter((g) => g.tipo === 'fondo');
+      const base = monedaBase(s);
+      const ahorros = (s.holdings || []).filter((h) => (h.currency || 'ARS') === base);
+      if (!fondos.length && !ahorros.length) return '';
+      const sel = e.fondoId ? `fondo:${e.fondoId}` : e.holdingId ? `ahorro:${e.holdingId}` : '';
+      return `<div class="field"><label for="f-orig">¿De dónde sale la plata?</label><select id="f-orig" name="origen"><option value="">De la plata del mes</option>
+        ${fondos.length ? `<optgroup label="Fondos">${fondos.map((g) => `<option value="fondo:${esc(g.id)}" ${sel === 'fondo:' + g.id ? 'selected' : ''}>${esc(g.name)} (hay ${money(g.saved)})</option>`).join('')}</optgroup>` : ''}
+        ${ahorros.length ? `<optgroup label="Tus ahorros">${ahorros.map((h) => `<option value="ahorro:${esc(h.id)}" ${sel === 'ahorro:' + h.id ? 'selected' : ''}>${esc(h.name)} (hay ${money(valorHoy(s, h))})</option>`).join('')}</optgroup>` : ''}
+      </select><span class="hint">Si sale de un fondo o de tus ahorros, no te baja lo que podés gastar: lo descuento de ahí.</span></div>`;
+    })()}
     ${(s.proyectos || []).some((p) => !p.cerrado || p.id === e.proyectoId) ? `<div class="field"><label for="f-proy">Proyecto (opcional)</label><select id="f-proy" name="proyectoId"><option value="">Ninguno</option>${s.proyectos.filter((p) => !p.cerrado || p.id === e.proyectoId).map((p) => `<option value="${esc(p.id)}" ${p.id === e.proyectoId ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>` : ''}
     ${isIncome || !(e.reintegro && !e.reintegro.no) ? '' : (() => { const r = e.reintegro; return `<details class="reint-box"><summary><span>💸 Reintegro: ${money(r.monto)}</span><span class="small muted">${r.ok ? `llegó el ${r.fecha.split('-').reverse().join('/')}` : `el ${r.fecha.split('-').reverse().join('/')}`}</span></summary>
       <input type="hidden" name="reintEdit" value="1">
@@ -477,7 +504,7 @@ export const commonActions = {
     openModal(kind === 'income' ? '¿Dónde entra la plata?' : '¿Con qué pagás?', `${lista.length >= 5 ? `<div class="field lista-buscar"><input type="search" placeholder="Buscar banco, billetera o tarjeta" aria-label="Buscar medio de pago" data-input="medioBuscar" autocomplete="off"></div>` : ''}
       ${grupos.map((g) => `<div class="medio-grupo"><span class="small" style="font-weight:700">${g}</span>
       <div class="medio-hoja">${lista.filter((m) => m.grupo === g).map((m) => `<button type="button" class="medio-op${m.v === actual ? ' on' : ''}" data-action="medioElegido" data-v="${esc(m.v)}">
-        <span class="cat-icon">${icon(m.tarjeta ? 'card' : 'wallet', 18)}</span><span class="grow"><span class="name">${m.falta ? '+ ' : ''}${esc(m.label)}</span>${m.principal ? '<span class="meta">Tu cuenta principal</span>' : m.falta ? '<span class="meta">Cargala para anotar con ella</span>' : m.usos ? `<span class="meta">${m.usos} ${m.usos === 1 ? 'vez' : 'veces'} en los últimos 2 meses</span>` : ''}</span>
+        <span class="cat-icon">${icon(m.tarjeta ? 'card' : 'wallet', 18)}</span><span class="grow"><span class="name">${m.falta ? '+ ' : ''}${esc(m.label)}</span>${m.principal ? '<span class="meta">Tu cuenta principal · <span class="link-chico" role="link" data-action="openWallets" data-push="1">cambiar</span></span>' : m.falta ? '<span class="meta">Cargala para anotar con ella</span>' : m.usos ? `<span class="meta">${m.usos} ${m.usos === 1 ? 'vez' : 'veces'} en los últimos 2 meses</span>` : ''}</span>
         ${m.v === actual ? icon('check', 18, 2.6) : ''}</button>`).join('')}</div></div>`).join('')}
       <p class="empty" data-medio-nada hidden>No encontré ese medio. Agregalo con el botón de abajo.</p>
       <button class="btn ghost block" data-action="openWallets">Agregar un banco, billetera o tarjeta</button>`);
@@ -534,6 +561,12 @@ export const commonActions = {
       category: cat && cat !== 'auto' ? cat : p.category, ...(tipo === 'card' ? { cardId: id } : tipo === 'acc' ? { accountId: id } : {}), ...(form.querySelector('[name=proyecto]')?.value ? { proyectoId: form.querySelector('[name=proyecto]').value } : {}) };
     openModal(kind === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto', entryForm(ctx.state, e, kind));
   },
+  catLupa(ctx, el) {
+    const form = el.closest('form'); const inp = form.querySelector('.cat-buscar');
+    inp.hidden = !inp.hidden;
+    if (inp.hidden) { inp.value = ''; actions_catFiltrar(form, ''); } else inp.focus();
+  },
+  catFiltrar(ctx, el) { actions_catFiltrar(el.closest('form'), el.value); },
   pickCat(ctx, el) {
     const form = el.closest('form');
     form.querySelector('[name=category]').value = el.dataset.id;
@@ -678,10 +711,6 @@ export const commonActions = {
         if (medioTipo === 'acc') item.accountId = medioId;
         if (tags.length) item.tags = tags;
         if (d.proyectoId) item.proyectoId = d.proyectoId;
-      // fondo: devuelvo lo de antes y saco lo nuevo
-      if (prev && prev.fondoId) { const gf = (s.goals || []).find((g) => g.id === prev.fondoId); if (gf) gf.saved = Math.round((gf.saved + prev.amount) * 100) / 100; }
-      if (d.fondoId) { const gf = (s.goals || []).find((g) => g.id === d.fondoId); if (gf) { gf.saved = Math.round((gf.saved - amount) * 100) / 100; item.fondoId = gf.id; item.fromSavings = true; } }
-      else if (prev && prev.fromSavings && !prev.fondoId) item.fromSavings = true;
         const i = s.incomes.findIndex((x) => x.id === d.id);
         if (i >= 0) s.incomes[i] = item; else s.incomes.push(item);
         return;
@@ -713,6 +742,12 @@ export const commonActions = {
       if (!item.cardId) item.installments = 1;
       if (splits && splits.length > 1) item.splits = splits;
       if (d.proyectoId) item.proyectoId = d.proyectoId;
+      // de dónde salió: devuelvo lo de antes y saco lo nuevo (fondo o ahorro)
+      devolverOrigen(s, prev);
+      const [tOrig, idOrig] = String(d.origen ?? (prev && prev.fondoId ? `fondo:${prev.fondoId}` : prev && prev.holdingId ? `ahorro:${prev.holdingId}` : '')).split(':');
+      if (tOrig === 'fondo') { const gf = (s.goals || []).find((g) => g.id === idOrig); if (gf) { gf.saved = Math.round((gf.saved - amount) * 100) / 100; item.fondoId = gf.id; item.fromSavings = true; } }
+      else if (tOrig === 'ahorro') { const h = (s.holdings || []).find((x) => x.id === idOrig); if (h) { sacarDeAhorro(s, h, amount); item.holdingId = h.id; item.fromSavings = true; delete item.accountId; } } // sale del ahorro, no de una cuenta
+      else if (prev && prev.fromSavings && !prev.fondoId && !prev.holdingId && d.origen === undefined) item.fromSavings = true;
       if (tags.length) item.tags = tags;
       if (shared) item.shared = shared;
       if (prev && prev.category !== item.category && !item.splits) {
@@ -748,7 +783,7 @@ export const commonActions = {
     closeModal();
     borrarConDeshacer(ctx, `Borraste ${it ? `"${it.note}"` : 'el movimiento'}`, (s) => {
       const x0 = s[key].find((x) => x.id === el.dataset.id);
-      if (x0 && x0.fondoId) { const gf = (s.goals || []).find((g) => g.id === x0.fondoId); if (gf) gf.saved = Math.round((gf.saved + x0.amount) * 100) / 100; }
+      devolverOrigen(s, x0);
       s[key] = s[key].filter((x) => x.id !== el.dataset.id);
       s.deudas = (s.deudas || []).filter((x) => x.origen !== el.dataset.id || (x.pagos || []).length);
     });
@@ -852,7 +887,7 @@ export const commonActions = {
   // ---------- medios de pago ----------
   setCuentaSueldo(ctx, el) { ctx.commit((s) => { s.cuentaSueldo = el.value; }); toast(`Listo: el sueldo entra en ${nombreCuenta(ctx.state, el.value)}`); },
   setPrincipal(ctx, el) { ctx.commit((s) => { s.cuentaPrincipal = el.value; }); toast(`Listo: ${nombreCuenta(ctx.state, el.value)} es tu cuenta principal`); },
-  openWallets(ctx) { openModal('Mis medios de pago', `<div id="wallets-body">${walletsBody(ctx.state)}</div>`); },
+  openWallets(ctx, el) { openModal('Mis medios de pago', `<div id="wallets-body">${walletsBody(ctx.state)}</div>`, { push: !!(el && el.dataset && el.dataset.push) }); },
   toggleWallet(ctx, el) {
     ctx.commit((s) => {
       const set = new Set(s.wallets);

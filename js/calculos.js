@@ -7,7 +7,7 @@ import { arsPer, aBase } from './cotizaciones.js';
 import { valorHoy } from './rendimientos.js';
 import { fechaDeCobro } from './feriados.js';
 import { ipcMap, expectedInflation } from './datosvivos.js';
-import { provisions } from './agenda.js';
+import { provisions, statementOf, statementAmount } from './agenda.js';
 
 const share = (e) => (e.installments > 1 ? e.amount / e.installments : e.amount);
 const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + f(x), 0);
@@ -314,11 +314,7 @@ export const savedThisMonth = (s) => s.savedByApp[monthKey()] || 0;
 
 // ---------- tarjetas de crédito ----------
 // Mes del resumen en el que entra una compra (según el día de cierre).
-export function statementMonth(card, iso) {
-  const d = parseISO(iso);
-  const mk = iso.slice(0, 7);
-  return d.getDate() <= (Number(card.closeDay) || 31) ? mk : addMonthKey(mk, 1);
-}
+export function statementMonth(card, iso) { return statementOf(card, iso); }
 
 export function cardSummary(s, card) {
   const current = statementMonth(card, toISO(startOfToday()));
@@ -343,7 +339,7 @@ export function cardSummary(s, card) {
   for (const e of s.expenses) { const r = e.reintegro; if (r && !r.no && r.cardId === card.id && r.monto > 0) { const mk = statementMonth(card, r.fecha); if (mk >= current) rein[mk] = (rein[mk] || 0) + r.monto; } }
   for (const [mk, v] of Object.entries(rein)) { const antes = byMonth[mk] || 0; byMonth[mk] = Math.max(0, antes - v); committed -= Math.min(antes, v); }
   const months = Array.from({ length: 6 }, (_, i) => { const mk = addMonthKey(current, i); return { mk, amount: byMonth[mk] || 0 }; });
-  return { current, reintegros: rein[current] || 0, next: byMonth[current] || 0, months, pending, committed, used: card.limit ? committed / card.limit : 0 };
+  return { current, reintegros: rein[current] || 0, next: statementAmount(s, card, current), months, pending, committed, used: card.limit ? committed / card.limit : 0 };
 }
 
 // ---------- resumen semanal automático (lunes a domingo, se cierra el lunes 00:00) ----------

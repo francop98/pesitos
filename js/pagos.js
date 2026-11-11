@@ -155,12 +155,11 @@ export function render(s) {
   const empty = !items.length;
 
   return `<section class="screen">
-    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : view === 'fijos' ? '<button class="btn small" data-action="newFixed">+ Fijo</button>' : `<span class="head-actions"><button class="icon-btn" data-action="newRecordatorio" aria-label="Nuevo recordatorio">${icon('bell', 20)}</button><button class="btn small" data-action="newBill">+ Pago</button></span>`, 'Vencimientos, tarjetas y cobros')}
+    ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : view === 'fijos' ? '<button class="btn small" data-action="newFixed">+ Fijo</button>' : '<button class="btn small" data-action="agregarPorPagar">+ Agregar</button>', 'Vencimientos, tarjetas y cobros')}
 
-    <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(4,minmax(0,1fr))">
-      <button role="tab" data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista'}">Agenda</button>
+    <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <button role="tab" data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista' || view === 'calendario'}">Agenda</button>
       <button role="tab" data-action="setPayView" data-v="fijos" aria-pressed="${view === 'fijos'}">Fijos</button>
-      <button role="tab" data-action="setPayView" data-v="calendario" aria-pressed="${view === 'calendario'}">Calendario</button>
       <button role="tab" data-action="setPayView" data-v="tarjetas" aria-pressed="${view === 'tarjetas'}">Tarjetas</button>
     </div>
 
@@ -180,6 +179,10 @@ export function render(s) {
     </div>` : ''}
 
 
+    <div class="seg seg-mini" role="radiogroup" aria-label="Ver como">
+      <button type="button" role="radio" data-action="setPayView" data-v="lista" aria-checked="${view === 'lista'}">${icon('menu', 15)} Lista</button>
+      <button type="button" role="radio" data-action="setPayView" data-v="calendario" aria-checked="${view === 'calendario'}">${icon('calendar', 15)} Calendario</button>
+    </div>
     ${view === 'calendario' ? calendar(s) : `
       ${empty ? `<div class="card"><strong>Todavía no hay pagos en tu agenda</strong>
         <p class="text muted">Acá aparecen solos tus gastos fijos y los resúmenes de tus tarjetas. Sumá también pagos que no son mensuales: patente, seguro, matrícula, impuestos.</p>
@@ -342,7 +345,16 @@ export const actions = {
        <button class="btn small" data-action="newRecordatorio" data-date="${iso}">+ Recordatorio este día</button>`);
   },
   togglePaid(ctx) { showPaid = !showPaid; ctx.render(); },
-  newBill(ctx, el) { openModal('Nuevo pago', billForm(ctx.state, el && el.dataset.date ? { date: el.dataset.date } : {})); },
+  agregarPorPagar(ctx) {
+    const op = (a, ic, t, d) => `<button class="row" data-action="${a}" data-push="1"><span class="cat-icon green">${icon(ic, 18)}</span><span class="grow"><span class="name">${t}</span><span class="meta">${d}</span></span>${icon('chevron', 16)}</button>`;
+    openModal('¿Qué querés agregar?', `<div class="card tight">
+      ${op('newBill', 'calendar', 'Un pago', 'Algo que vence: patente, seguro, matrícula, impuestos. Una vez o cada tanto.')}
+      ${op('newFixed', 'repeat', 'Un gasto fijo', 'Lo que pagás todos los meses: alquiler, servicios, prepaga.')}
+      ${op('newRecordatorio', 'bell', 'Un recordatorio', 'Un aviso sin monto: renovar el DNI, llamar al banco, dar de baja algo.')}
+      ${(ctx.state.cards || []).length ? op('nuevaCompraTarjeta', 'card', 'Una compra con tarjeta', 'En una o en cuotas: te muestro en qué resumen cae.') : ''}
+    </div>`);
+  },
+  newBill(ctx, el) { openModal('Nuevo pago', billForm(ctx.state, el && el.dataset.date ? { date: el.dataset.date } : {}), { push: !!(el && el.dataset && el.dataset.push) }); },
   editBill(ctx, el) { const b = (ctx.state.bills || []).find((x) => x.id === el.dataset.id); if (b) openModal('Editar pago', billForm(ctx.state, b)); },
   saveBill(ctx, d) {
     const amount = num(d.amount);
@@ -387,7 +399,7 @@ export const actions = {
     toast(`${it.name}: cobrado`);
   },
 
-  newRecordatorio(ctx, el) { openModal('Nuevo recordatorio', recordatorioForm(el && el.dataset.date ? { date: el.dataset.date } : {}), { push: !!(el && el.dataset.date) }); },
+  newRecordatorio(ctx, el) { openModal('Nuevo recordatorio', recordatorioForm(el && el.dataset.date ? { date: el.dataset.date } : {}), { push: !!(el && (el.dataset.date || el.dataset.push)) }); },
   guardarRecordatorio(ctx, d) {
     if (!String(d.name || '').trim()) { toast('Escribí qué tenés que hacer'); return; }
     ctx.commit((s) => {
@@ -413,7 +425,7 @@ export const actions = {
       if (r) openModal('Recordatorio', recordatorioForm(r));
       return;
     }
-    const goto = it.kind === 'card' ? '<button class="btn block" data-action="goTo" data-route="tarjetas">Ver el plan de pago de la tarjeta</button>'
+    const goto = it.kind === 'card' ? `<button class="btn block" data-action="verTarjeta" data-id="${esc(it.refId)}">Ver el detalle del resumen</button>`
       : it.kind === 'bill' ? `<button class="btn block" data-action="editBill" data-id="${it.refId}">Editar este pago</button>`
       : `<button class="btn block" data-action="editFixed" data-id="${it.refId}">Editar el gasto fijo</button>`;
     openModal(it.name, `<div class="card"><span class="small muted">${esc(it.sub)}</span><span style="font-size:28px;font-weight:800">${montoAgenda(it)}</span><span class="pill ${it.overdue ? 'warn' : ''}" style="align-self:flex-start">${it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado automáticamente' : dueLabel(it)}</span>
@@ -430,7 +442,19 @@ export const actions = {
         ${it.variable ? '<span class="small muted">Este gasto varía: poné lo que pagaste este mes y lo uso como referencia para los próximos.</span>' : ''}
         <button class="btn green block" type="submit">Marcar como pagado</button>
       </form>`}
+      ${!it.paid && it.kind === 'fixed' ? `<details class="card"><summary><strong>¿Este mes vence otro día?</strong></summary>
+        <form class="form" data-submit="cambiarVencMes"><input type="hidden" name="key" value="${esc(it.key)}">
+          <div class="field"><label for="pv-d">Este mes vence el</label><input id="pv-d" name="date" type="date" value="${it.dueDate.toISOString().slice(0, 10)}"></div>
+          <span class="hint">Cambia solo este mes. Para todos los meses, editá el gasto fijo.</span>
+          <button class="btn small block" type="submit">Guardar</button></form></details>` : ''}
+      ${!it.paid && it.kind === 'card' ? `<button class="btn small block" data-action="editarFechasResumen" data-id="${it.refId}">Cambiar las fechas de este resumen</button>` : ''}
       ${goto}`);
+  },
+  cambiarVencMes(ctx, d) {
+    const [, id, mk] = String(d.key).split(':');
+    if (!d.date) return;
+    ctx.commit((s) => { const f = s.fixed.find((x) => x.id === id); if (f) f.vencMes = { ...(f.vencMes || {}), [mk]: Number(d.date.slice(8)) }; });
+    closeModal(); toast(`Listo: este mes vence el ${Number(d.date.slice(8))}`);
   },
   markPaid(ctx, el) {
     // los fijos que varían: antes de marcar, preguntar cuánto fue

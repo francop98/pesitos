@@ -173,7 +173,7 @@ export const actions = {
     abrirSelectorMes({ actual: addMonthKey(hoy, -offset), min, max: hoy, accion: 'movIrMes', marcados: new Set([...s.expenses, ...s.incomes].map((x) => (x.date || '').slice(0, 7))) });
   },
   movIrMes(ctx, el) { offset = el.dataset.mk ? Math.max(0, monthDiff(el.dataset.mk, monthKey())) : 0; closeModal(); ctx.render(); },
-  newFixed(ctx) { openModal('Nuevo gasto fijo', fixedForm(ctx.state)); },
+  newFixed(ctx, el) { openModal('Nuevo gasto fijo', fixedForm(ctx.state), { push: !!(el && el.dataset && el.dataset.push) }); },
   fillFixedName(ctx, el) { const i = document.getElementById('fx-n'); if (i) { i.value = el.dataset.name; document.getElementById('fx-a')?.focus(); } },
   editFixed(ctx, el) { const f = ctx.state.fixed.find((x) => x.id === el.dataset.id); if (f) openModal('Gasto fijo', fixedForm(ctx.state, f)); },
   fixedHastaChanged(ctx, el) {

@@ -1,6 +1,7 @@
 // Inicio: cuánto podés gastar hoy, tu meta, lo que necesita tu atención
 // (sueldo del mes, ahorro, resumen semanal) y accesos rápidos.
 
+import { proyectosActivos, resumenProyecto } from './proyectos.js';
 import { money, esc, monthKey, MONTHS_LONG, MONTHS, num, todayISO, monthName, parseISO , addMonthKey } from './formato.js';
 import { budget, mainGoal, metaDiario, diarioConfig, MODOS_DIARIO, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary , monthIncome, monthExpenses, fixedTotal } from './calculos.js';
 import { insights } from './economista.js';
@@ -78,7 +79,7 @@ function savingCard(s, b) {
     return `<div class="card lime">
       <strong>Se termina tu mes y te sobran ${money(b.free)}</strong>
       <p class="text">Elegiste ahorrar lo que sobra a fin de mes. Pasalo a ahorros con un toque.</p>
-      <div class="btn-row"><button class="btn green small" data-action="pasarAhorros" data-monto="${Math.round(b.free)}">Pasarlo a ahorros</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
+      <div class="btn-row"><button class="btn green small" data-action="pasarAhorros" data-monto="${Math.round(b.free)}" data-tipo="regla">Pasarlo a ahorros</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
     </div>`;
   }
   if (b.saving <= 0 || b.estimated) return '';
@@ -241,7 +242,7 @@ function heroMensaje(s, b, payText) {
     if (b.paraAhorrar >= 1) partes.push(`<b>${money(b.paraAhorrar)}</b> para ${meta ? `"${esc(meta.name)}"` : 'ahorrar'}${adelantoMeta(meta, b.paraAhorrar)}`);
     if (b.aparte >= 1) partes.push(`ya apartaste ${money(b.aparte)}`);
     return `${linea(`No gastaste ${money(b.colchon)} de días anteriores: ${partes.join(' y ')}.`)}
-      <span class="hero-acciones">${b.paraAhorrar >= 1 ? `<button class="btn small lime" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Pasar ${money(b.paraAhorrar)} ${meta ? 'a la meta' : 'a ahorro'}</button>` : ''}<button class="link-btn on-green-muted" data-action="openDiario">Cómo se reparte</button></span>`;
+      <span class="hero-acciones">${b.paraAhorrar >= 1 ? `<button class="btn small lime" data-action="diarioAhorrar" data-amount="${b.paraAhorrar}">Pasar ${money(b.paraAhorrar)} ${meta ? 'a la meta' : 'a ahorro'}</button>` : ''}${b.paraAhorrar >= 1 ? `<button class="link-btn on-green-muted" data-action="pasarAhorros" data-monto="${b.paraAhorrar}" data-tipo="extra">Otro monto</button>` : ''}<button class="link-btn on-green-muted" data-action="openDiario">Cómo se reparte</button></span>`;
   }
   return linea(`Por día, para llegar bien: ${payText}.`);
 }
@@ -399,6 +400,7 @@ function tuDia(s) {
     ${rec ? fila('#/pagos', 'bell', 'Recordatorio', esc(rec.name), rec.days === 0 ? 'hoy' : rec.days === 1 ? 'mañana' : rec.days < 0 ? 'pendiente' : `en ${rec.days} días`) : ''}
     ${fila('#/beneficios', 'ticket', 'Promo de hoy', promo ? `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}` : 'Mirá tus beneficios', promo ? esc(promo.name) : '')}
     ${fila('#/cuentas', 'wallet', 'En tus cuentas', con ? money(totalCuentas(s)) : 'Cargá tu saldo', '')}
+    ${proyectosActivos(s).slice(0, 3).map((p) => { const r = resumenProyecto(s, p); return fila('#/proyectos', 'folder', `Proyecto · ${esc(p.nombre)}`, `${money(r.gastado)}${p.presupuesto ? ` de ${money(p.presupuesto)}` : ' gastado'}`, ''); }).join('')}
     ${tm || td ? fila('#/deudas', 'people', 'Deudas y préstamos', `${tm ? `Te deben ${money(tm)}` : ''}${tm && td ? ' · ' : ''}${td ? `Debés ${money(td)}` : ''}`, '') : ''}
   </div>`;
 }

@@ -93,13 +93,13 @@ export function ahorroDelCiclo(s) {
   const pasado = Math.round(enCiclo.filter((t) => (t.tipo ? t.tipo === 'regla' : !t.deDiario)).reduce((a, t) => a + t.amount, 0));
   return { b, sobra, toca, pasado, falta: Math.max(0, toca - pasado), partes: sobra ? [] : b.savingParts };
 }
-function formAhorrar(s, monto = 0) {
+function formAhorrar(s, monto = 0, tipoForzado = '') {
   const base = monedaBase(s);
   const lugares = (s.holdings || []).filter((h) => (h.currency || 'ARS') === base);
   const g = (s.goals || []).find((x) => x.main) || (s.goals || [])[0];
   const a = ahorroDelCiclo(s);
   const sugerido = monto || a.falta;
-  const tipo = a.falta > 0 ? 'regla' : 'extra';
+  const tipo = tipoForzado || (a.falta > 0 && !monto ? 'regla' : 'extra');
   const sinForma = !s.savingMode || s.savingMode === 'none';
   const resumen = sinForma ? '<div class="card"><strong>Todavía no elegiste cómo ahorrar</strong><span class="small">Si elegís una forma (por ejemplo, apartar el 10% apenas cobrás), te digo cuánto pasar cada mes. <a href="#/formaahorro">Elegir</a></span></div>'
     : a.sobra ? `<div class="card lime"><strong>Elegiste ahorrar lo que te sobra</strong><span class="small">${a.b.cycle.daysLeft <= 3 ? `Se termina el mes y te sobran <b>${money(a.toca)}</b>: eso es lo que te toca pasar.` : `Hoy te sobrarían ${money(a.toca)}, pero faltan ${a.b.cycle.daysLeft} días: lo ideal es pasarlo cuando termine el mes.`}</span></div>`
@@ -146,7 +146,7 @@ export function compararCard(s) {
 }
 
 export const actions = {
-  pasarAhorros(ctx, el) { openModal('Pasar a ahorros', formAhorrar(ctx.state, num(el && el.dataset.monto))); },
+  pasarAhorros(ctx, el) { openModal('Pasar a ahorros', formAhorrar(ctx.state, num(el && el.dataset.monto), (el && el.dataset.tipo) || '')); },
   ahorrarLugar(ctx, el) { const f = el.closest('form'); f.querySelector('[data-ah-nuevo]').hidden = el.value !== '__nuevo'; },
   guardarAhorrar(ctx, d) {
     const amount = Math.round(num(d.amount) * 100) / 100;

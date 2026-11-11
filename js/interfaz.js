@@ -318,7 +318,9 @@ export function quickForm(id, s = null, medioHtml = '') {
     <div class="medio-fila"><span class="medio-label">Proyecto</span><div class="medio-row" role="radiogroup" aria-label="Proyecto">
       <button type="button" class="medio-chip" role="radio" data-action="pickProyecto" data-v="" aria-checked="true">Ninguno</button>
       ${s.proyectos.filter((p) => !p.cerrado).map((p) => `<button type="button" class="medio-chip" role="radio" data-action="pickProyecto" data-v="${esc(p.id)}" aria-checked="false">📁 ${esc(p.nombre)}</button>`).join('')}</div></div>` : ''}
+    <input type="search" class="cat-buscar" placeholder="Buscar categoría" aria-label="Buscar categoría" data-input="catFiltrar" autocomplete="off" hidden>
     <div class="cat-row" role="radiogroup" aria-label="Categoría">
+      <button type="button" class="cat-chip cat-lupa" data-action="catLupa" aria-label="Buscar categoría"><span class="cat-chip-ic">${icon('search', 18)}</span><span>Buscar</span></button>
       <button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="auto" aria-checked="true"><span class="cat-chip-ic">${icon('sprout', 18)}</span><span>Automática</span></button>
       ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}
       <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>

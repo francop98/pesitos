@@ -109,6 +109,7 @@ function menuHtml(ctx) {
       ${s.demo ? '' : modoHtml(ctx)}
       ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
+      ${item('openEstado', 'check', 'Estado de la app', 'Si los datos externos (dólar, promos, tasas) están al día')}
     </div>
 
     <div class="menu-grupo ambar"><span class="menu-label">Seguridad</span>
@@ -317,6 +318,26 @@ export const menuActions = {
       <div class="btn-row"><button class="btn small" data-action="verLegalMenu" data-cual="privacidad">Política de privacidad</button><button class="btn small" data-action="verLegalMenu" data-cual="terminos">Términos y condiciones</button></div>`, { push: true });
   },
   verLegalMenu(ctx, el) { verLegal(el.dataset.cual); },
+
+  // lo que revisa solo el servidor dos veces por día (api/_lib/chequeo.js y revisarSalud)
+  async openEstado(ctx) {
+    await refreshLive(ctx, true).catch(() => {});
+    const sa = (ctx.state.live && ctx.state.live.salud) || null;
+    const hace = (iso) => { if (!iso) return 'nunca'; const h = Math.round((Date.now() - Date.parse(iso)) / 3600000); return h < 1 ? 'hace un rato' : h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} días`; };
+    const fila = (ok, nombre, det = '') => `<div class="split small" style="align-items:flex-start;gap:10px"><span>${ok === true ? '✅' : ok === 'leve' ? '🕓' : '⚠️'} ${esc(nombre)}</span><span class="muted" style="text-align:right">${esc(det)}</span></div>`;
+    if (!sa) { openModal('Estado de la app', '<p class="text" style="margin:0">Todavía no hay un chequeo guardado. El servidor revisa todo dos veces por día (9 y 15 h).</p>', { push: true }); return; }
+    const ex = sa.externas;
+    const todoOk = !(sa.problemas || []).length;
+    openModal('Estado de la app', `<div class="result ${todoOk ? 'ok' : 'warn'}"><strong>${todoOk ? 'Todo funcionando' : `${sa.problemas.length} cosa${sa.problemas.length === 1 ? '' : 's'} para revisar`}</strong><span class="text">Último chequeo automático: ${hace((ex && ex.revisado) || sa.revisado)}. Se revisa solo a las 9 y a las 15 h.</span></div>
+      ${todoOk ? '' : `<div class="card">${sa.problemas.map((x) => `<span class="small">⚠️ ${esc(x)}</span>`).join('')}</div>`}
+      <div class="card" style="gap:6px"><strong style="font-size:14px">Datos que llegan solos</strong>
+        ${fila(sa.fuente && sa.fuente.ok && !(sa.fuente.atraso >= 2), 'Promos (descuentos-ar-datos)', sa.fuente ? (sa.fuente.fecha ? `del ${String(sa.fuente.fecha).slice(8, 10)}/${String(sa.fuente.fecha).slice(5, 7)} · ${sa.promos ? sa.promos.vigentes : '?'} vigentes` : 'sin fecha') : '')}
+        ${fila(sa.ipc && sa.ipc.ok, 'Inflación (INDEC)', sa.ipc && sa.ipc.ultimo ? `último dato: ${sa.ipc.ultimo.slice(5)}/${sa.ipc.ultimo.slice(0, 4)}` : '')}
+        ${ex ? ex.fuentes.map((f) => fila(f.ok ? true : f.leve ? 'leve' : false, f.nombre, f.ok ? '' : f.detalle)).join('') : '<span class="small muted">El chequeo del dólar, tasas y feriados empieza a correr con la próxima actualización.</span>'}
+      </div>
+      ${ex && ex.pendientes && ex.pendientes.length ? `<div class="card" style="gap:6px"><strong style="font-size:14px">Para la próxima revisión (no es urgente)</strong>${ex.pendientes.map((x) => `<span class="small">🕓 ${esc(x)}</span>`).join('')}</div>` : ''}
+      <p class="small muted" style="margin:0">Si algo falla dos chequeos seguidos, te llega un aviso al celular (con los avisos activados).</p>`, { push: true });
+  },
 };
 
 export const exportName = () => `pesitos-${todayISO()}.json`;

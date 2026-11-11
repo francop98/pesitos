@@ -48,25 +48,62 @@ const mkDate = (mk, day) => { const [y, m] = mk.split('-').map(Number); return d
 
 // ---------- tarjetas ----------
 export function statementOf(card, iso) {
-  const d = parseISO(iso);
   const mk = iso.slice(0, 7);
-  return d.getDate() <= (Number(card.closeDay) || 31) ? mk : addMonthKey(mk, 1);
+  // el cierre de cada mes puede cambiar (card.fechas): comparo con el cierre real de ese mes
+  return iso <= toISO(statementDates(card, mk).close) ? mk : addMonthKey(mk, 1);
 }
-export function statementAmount(s, card, mk) {
-  let total = 0;
+export function statementAmount(s, card, mk) { return detalleResumen(s, card, mk).total; }
+
+// percepción a cuenta de Ganancias (RG 5617/2024) sobre consumos en dólares pagados en pesos
+export const PERCEPCION_USD = 30;
+/**
+ * Todo lo que trae un resumen: compras y cuotas que caen, reintegros, cargos del banco,
+ * impuestos, y lo que quedó sin pagar del resumen anterior (con su interés).
+ * total = lo que sale de tu bolsillo (en pesos; los dólares convertidos).
+ */
+export function detalleResumen(s, card, mk, prof = 1) {
+  const lineas = [];
   for (const e of s.expenses) {
     if (e.pending || e.cardId !== card.id) continue;
     const n = e.installments > 1 ? e.installments : 1;
-    const first = statementOf(card, e.date);
-    for (let k = 0; k < n; k++) if (addMonthKey(first, k) === mk) total += e.amount / n;
+    const k = monthDiffKeys(statementOf(card, e.date), mk);
+    if (k < 0 || k >= n) continue;
+    lineas.push({ e, cuota: k + 1, n, monto: e.amount / n, usd: e.currency === 'USD' ? (Number(e.original) || 0) / n : 0 });
   }
-  // reintegros que te devuelven en ese resumen
-  return Math.max(0, total - reintegrosDeResumen(s, card, mk));
+  lineas.sort((a, b) => (a.e.date < b.e.date ? 1 : -1));
+  const consumos = lineas.reduce((a, l) => a + l.monto, 0);
+  const enUsd = lineas.filter((l) => l.usd).reduce((a, l) => a + l.monto, 0);
+  const usd = lineas.reduce((a, l) => a + l.usd, 0);
+  const reintegros = Math.min(consumos, reintegrosDeResumen(s, card, mk));
+  const cargos = [];
+  // saldo que quedó sin pagar del resumen anterior + interés por financiarlo
+  if (prof > 0) {
+    const pm = addMonthKey(mk, -1);
+    const p = (s.paid || {})[`card:${card.id}:${pm}`];
+    if (p && p.amount > 0 && statementDates(card, pm).due < startOfToday()) {
+      const resto = detalleResumen(s, card, pm, prof - 1).total - p.amount;
+      if (resto > 1) {
+        cargos.push({ k: 'saldo', label: 'Lo que quedó sin pagar del resumen anterior', v: resto });
+        if (card.tna) cargos.push({ k: 'interes', label: `Interés por financiarlo (TNA ${String(card.tna).replace('.', ',')}% + IVA)`, v: resto * card.tna / 100 / 12 * 1.21 });
+      }
+    }
+  }
+  if (consumos > 0 || cargos.length) {
+    if (card.comision) cargos.push({ k: 'mant', label: 'Mantenimiento de la tarjeta + IVA', v: card.comision * 1.21 });
+    if (card.seguro) cargos.push({ k: 'seguro', label: 'Seguro y otros cargos', v: Number(card.seguro) });
+    if (card.sellos) cargos.push({ k: 'sellos', label: `Impuesto de sellos (${String(card.sellos).replace('.', ',')}%)`, v: (consumos - reintegros) * card.sellos / 100 });
+  }
+  const pagaUsd = card.dolares === 'usd';
+  if (enUsd && !pagaUsd) cargos.push({ k: 'perc', label: `Percepción Ganancias ${PERCEPCION_USD}% (por los dólares)`, v: enUsd * PERCEPCION_USD / 100, recuperable: true });
+  const extras = cargos.reduce((a, c) => a + c.v, 0);
+  const total = Math.max(0, consumos - reintegros + extras);
+  return { mk, lineas, consumos, reintegros, cargos, usd, enUsd, pagaUsd, total, pesos: Math.max(0, total - (pagaUsd ? enUsd : 0)) };
 }
 export function statementDates(card, mk) {
-  const close = mkDate(mk, Number(card.closeDay) || 25);
-  const due = Number(card.dueDay) > Number(card.closeDay) ? mkDate(mk, Number(card.dueDay)) : mkDate(addMonthKey(mk, 1), Number(card.dueDay) || 5);
-  return { close, due };
+  const f = (card.fechas || {})[mk] || {};
+  const close = f.cierre ? parseISO(f.cierre) : mkDate(mk, Number(card.closeDay) || 25);
+  const due = f.vence ? parseISO(f.vence) : Number(card.dueDay) > Number(card.closeDay) ? mkDate(mk, Number(card.dueDay)) : mkDate(addMonthKey(mk, 1), Number(card.dueDay) || 5);
+  return { close, due, cambiadas: !!(f.cierre || f.vence) };
 }
 
 // ---------- descuentos por un tiempo ----------
@@ -120,6 +157,8 @@ export function agendaBetween(s, from, to) {
     const base = { ...it, due: toISO(it.dueDate), days };
     // pago parcial (por ejemplo, el mínimo de la tarjeta): queda pendiente el resto
     if (p && Number(p.amount) < it.amount - 1) {
+      // tarjeta: vencido el resumen, lo que faltó pasa al siguiente (con interés)
+      if (it.kind === 'card' && days < 0) { items.push({ ...base, paid: true, paidInfo: p, overdue: false }); return; }
       const rest = it.amount - Number(p.amount);
       items.push({ ...base, amount: rest, sub: `Pagaste ${money(p.amount)} de ${money(it.amount)}. El resto genera intereses si no lo cancelás.`, paid: false, partial: true, paidInfo: p, overdue: days < 0 });
       return;
@@ -137,7 +176,8 @@ export function agendaBetween(s, from, to) {
     let mk = monthKey(from) < curMk ? curMk : monthKey(from);
     for (let i = 0; i < 24 && mk <= monthKey(to); i++, mk = addMonthKey(mk, 1)) {
       if (f.endMonth && mk > f.endMonth) break; // terminó (crédito o cuotas)
-      const d = mkDate(mk, Number(f.dueDay) || 10);
+      // el vencimiento de un mes puede ser otro día (f.vencMes = { 'AAAA-MM': día })
+      const d = mkDate(mk, Number((f.vencMes || {})[mk]) || Number(f.dueDay) || 10);
       if (d < from || d > to) continue;
       const cuota = f.totalCuotas && f.endMonth ? f.totalCuotas - (monthDiffKeys(mk, f.endMonth)) : 0;
       const sub = [f.autoDebit ? 'Gasto fijo · débito automático' : 'Gasto fijo', cuota > 0 ? `cuota ${cuota} de ${f.totalCuotas}` : '', f.variable ? 'monto aproximado' : '', textoDescuento(f, mk)].filter(Boolean).join(' · ');

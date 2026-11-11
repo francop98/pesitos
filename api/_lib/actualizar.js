@@ -8,6 +8,7 @@ import { db } from './firebase.js';
 import { FUENTE, promosFuente, menosDias, DIAS_RENOVAR } from './fuente.js';
 import { complementoActivo, promosComplemento } from './complemento.js';
 import { enviarAvisos, avisarDueno } from './avisos.js';
+import { revisarFuentes } from './chequeo.js';
 
 export const TZ = 'America/Argentina/Buenos_Aires';
 export const todayAR = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date()); // AAAA-MM-DD
@@ -113,6 +114,16 @@ export async function actualizar({ turno = 'manana' } = {}) {
     status.reportes = `ok: ${reportes.length}`;
   } catch (e) { status.reportes = `error: ${e.message}`; }
   const salud = revisarSalud({ today, promos: todas, fuenteOk: !!promos, fuenteFecha, ipc, ipcOk: status.ipc === 'ok', status, reportes });
+  // el resto de lo externo (dólar, tasas, feriados, ciudades, versiones): en cada corrida (9 y 15 h)
+  let ext = null;
+  try { ext = await revisarFuentes(today); status.externas = ext.problemas.length ? `${ext.problemas.length} con problemas` : 'ok'; } catch (e) { status.externas = `error: ${e.message}`; }
+  if (ext) {
+    salud.externas = ext;
+    // una fuente que falla una vez puede ser un corte momentáneo: aviso si falla dos chequeos seguidos
+    const antes = new Set(((prev.salud && prev.salud.externas && prev.salud.externas.fuentes) || []).filter((f) => !f.ok).map((f) => f.id));
+    const seguidas = ext.fuentes.filter((f) => !f.ok && !f.leve && antes.has(f.id));
+    salud.problemas.push(...seguidas.map((f) => `${f.nombre}: ${f.detalle}`));
+  }
   const doc = {
     promos: todas,
     ipc,

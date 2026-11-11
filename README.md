@@ -4,6 +4,8 @@ Web app de finanzas personales: registrás en segundos, se ordena sola, te dice 
 
 HTML, CSS y JavaScript sin frameworks ni build. Se instala en el celular como app (PWA).
 
+> **Mantenimiento:** las dependencias externas y el paso a paso para revisar que la app esté al día están en [REVISION.md](REVISION.md). El estado se ve en la app en Menú → Estado de la app.
+
 ## Cómo abrirla en VS Code
 
 1. Descomprimí el zip y abrí la carpeta `pesitos` en VS Code.
