@@ -102,7 +102,7 @@ export function fijosHtml(s) {
       ${s.fixed.length ? s.fixed.filter((f) => fixedActive(f, mk) || (f.endMonth && f.endMonth >= addMonthKey(mk, -2))).map((f) => {
         if (!fixedActive(f, mk)) return `<button class="row" data-action="editFixed" data-id="${f.id}"><span class="grow"><span class="name">${esc(f.name)}</span><span class="meta">Terminó en ${monthLabel(f.endMonth)}</span></span><span class="pill ok">Terminado</span></button>`;
         const prog = fixedProgress(f, mk);
-        const extra = [prog ? `Cuota ${prog.actual} de ${prog.total}` : (f.endMonth ? `Hasta ${monthLabel(f.endMonth)}` : ''), f.variable ? 'Varía mes a mes' : ''].filter(Boolean).join(' · ');
+        const extra = [f.empresa ? esc(f.empresa) : '', prog ? `Cuota ${prog.actual} de ${prog.total}` : (f.endMonth ? `Hasta ${monthLabel(f.endMonth)}` : ''), f.usd ? `US$ ${String(f.usd).replace('.', ',')}` : '', f.variable ? 'Varía mes a mes' : ''].filter(Boolean).join(' · ');
         const up = !f.variable && f.lastAmount && f.amount > f.lastAmount * 1.03;
         const isPaid = !!(s.paid || {})[`fixed:${f.id}:${mk}`];
         const status = up ? `<span class="pill warn">Subió ${Math.round((f.amount / f.lastAmount - 1) * 100)}%</span>` : isPaid ? '<span class="pill ok">Pagado</span>' : (offset === 0 && Number(f.dueDay) < today ? '<span class="pill warn">¿Lo pagaste?</span>' : `<span class="pill">Vence el ${f.dueDay}</span>`);
@@ -141,11 +141,20 @@ function fixedForm(s, f = {}) {
     </div>
     <div class="field" data-hasta="mes" ${f.endMonth && !f.totalCuotas ? '' : 'hidden'}><label for="fx-em">Último mes que lo pagás</label><input id="fx-em" name="endMonth" type="month" value="${esc(f.endMonth || '')}" min="${monthKey()}"></div>
     ${descuentoCampos(f)}
+    <details class="reint-box"${f.empresa || f.usd || f.varEsperada ? ' open' : ''}><summary><span>📋 Más datos</span><span class="small muted">Opcional</span></summary>
+      <div class="field"><label for="fx-e">Empresa o proveedor</label><input id="fx-e" name="empresa" value="${esc(f.empresa || '')}" placeholder="Ej: Movistar"><span class="hint">Queda anotada en cada pago: si un día cambiás de compañía, el historial lo muestra.</span></div>
+      <div class="field-row">
+        <div class="field"><label for="fx-u">Se cobra en dólares</label><input id="fx-u" name="usd" inputmode="decimal" value="${f.usd ? String(f.usd).replace('.', ',') : ''}" placeholder="US$ por mes"></div>
+        <div class="field"><label for="fx-v">Aumento normal por mes (%)</label><input id="fx-v" name="varEsperada" inputmode="decimal" value="${f.varEsperada ? String(f.varEsperada).replace('.', ',') : ''}" placeholder="Ej: 2"></div>
+      </div>
+      <span class="hint">En dólares: al pagar anotás lo que te cobraron en pesos y te muestro a qué cotización. Aumento normal: para créditos UVA o ajustables; te marco los pagos que suben bastante más o menos de eso. No calculo cuotas futuras.</span>
+    </details>
     <div class="field"><label for="fx-w">Se paga con</label><select id="fx-w" name="payWith">${payOptions(s, f.payWith)}</select></div>
     <label class="check"><input type="checkbox" name="autoDebit" ${f.autoDebit ? 'checked' : ''}> <span>Débito automático<br><span class="small muted">Se da por pagado solo el día del vencimiento; te aviso que tengas saldo.</span></span></label>
     <span class="small muted">${f.variable ? 'Cada vez que pagás, actualizo el monto aproximado.' : 'Si cambia el monto, te aviso cuánto subió.'} Cuando termina, deja de descontarse solo.</span>
     <button class="btn primary block" type="submit">Guardar</button>
     ${f.id ? '' : '<button class="btn block" type="submit" name="again" value="1">Guardar y cargar otro</button>'}
+    ${f.id ? `<button class="btn block" type="button" data-action="verHistorialFijo" data-id="${f.id}">Historial de pagos</button>` : ''}
     ${f.id ? `<button class="btn ghost block" type="button" data-action="deleteFixed" data-id="${f.id}">Borrar</button>` : ''}
   </form>`;
 }
@@ -194,7 +203,8 @@ export const actions = {
       if (!/^\d{4}-\d{2}$/.test(d.endMonth || '')) { toast('Elegí el último mes'); return; }
       endMonth = d.endMonth;
     }
-    const extra = { variable: !!d.variable, endMonth, totalCuotas };
+    const usd = num(d.usd); const varEsp = parseFloat(String(d.varEsperada || '').replace(',', '.')) || 0;
+    const extra = { variable: !!d.variable || usd > 0, endMonth, totalCuotas, empresa: String(d.empresa || '').trim(), usd: usd > 0 ? usd : 0, varEsperada: varEsp > 0 ? Math.min(50, varEsp) : 0 };
     const dsc = descuentoDe(d); if (dsc !== undefined) extra.desc = dsc;
     if (!amount || !String(d.name || '').trim()) { toast('Completá nombre y monto'); return; }
     const again = d.again === '1';

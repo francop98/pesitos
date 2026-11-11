@@ -1044,3 +1044,17 @@ details.plegable > summary::after { content: '›'; margin-left: auto; font-size
 details.plegable[open] > summary::after { transform: rotate(90deg); }
 details.plegable[open] { gap: 10px; }
 details.plegable .section-title { margin-top: 4px; }
+
+/* informe del sueldo (como una planilla) */
+.barras.inf-barras { height: 100px; }
+.barras.inf-barras .barra-par span { width: 70%; margin: 0 auto; }
+.barras.inf-barras .top { background: var(--green); }
+.tabla-inf { display: flex; flex-direction: column; font-size: 13px; }
+.tabla-inf .ti-fila { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .9fr); gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); align-items: start; }
+.tabla-inf .ti-fila > span:not(:first-child) { text-align: right; }
+.tabla-inf .ti-head { border-top: none; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.tabla-inf .pos { color: var(--green); font-weight: 700; }
+.tabla-inf .neg { color: #C2412D; font-weight: 700; }
+/* tabla del año mes a mes (Estadísticas) */
+.tabla-inf.cuatro .ti-fila { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+.tabla-inf .ti-total { font-weight: 800; border-top: 2px solid var(--line); }

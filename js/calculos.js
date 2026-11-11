@@ -272,9 +272,15 @@ export function monthExpenses(s, mk) {
 export const monthIncome = (s, mk) => sum(s.incomes.filter((i) => i.date.slice(0, 7) === mk), (i) => i.amount);
 
 // ---------- sueldo nominal vs real ----------
+// Mes trabajado al que corresponde un cobro de sueldo. Si no se cargó, se deduce:
+// lo que se cobra en la primera quincena es del mes anterior (sueldo a mes vencido).
+export function periodoDe(i) {
+  if (i.periodo && /^\d{4}-\d{2}$/.test(i.periodo)) return i.periodo;
+  return Number(i.date.slice(8, 10)) <= 15 ? addMonthKey(i.date.slice(0, 7), -1) : i.date.slice(0, 7);
+}
 export function salaryStats(s) {
   const byMonth = {};
-  s.incomes.filter((i) => i.type === 'sueldo').forEach((i) => { const mk = i.date.slice(0, 7); byMonth[mk] = (byMonth[mk] || 0) + i.amount; });
+  s.incomes.filter((i) => i.type === 'sueldo').forEach((i) => { const mk = periodoDe(i); byMonth[mk] = (byMonth[mk] || 0) + i.amount; });
   const months = Object.keys(byMonth).sort();
   if (!months.length) return null;
   const first = months[0]; const last = months[months.length - 1];

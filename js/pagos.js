@@ -4,12 +4,12 @@
 
 import { fijosHtml } from './movimientos.js';
 import { fixedFormExt } from './movimientos.js';
-import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday , monthDiff} from './formato.js';
+import { money, esc, num, todayISO, parseISO, toISO, MONTHS, MONTHS_LONG, WEEKDAYS, addMonthKey, monthKey, addDays, startOfToday, monthDiff, monthName } from './formato.js';
 import { allCategories, walletName } from './categorias.js';
 import { payCycle } from './calculos.js';
 import { agenda, agendaBetween, groups, pendingUntil, provisions, dueLabel, buildICS, REPEATS, repeatLabel, history, byAccount, statementDates, statementOf } from './agenda.js';
 import { projection, coverage, inflows } from './flujo.js';
-import { cuerpo as tarjetasCuerpo } from './tarjetas.js';
+import { cuerpo as tarjetasCuerpo, actions as accTarjetas } from './tarjetas.js';
 import { icon, screenHead, openModal, closeModal, toast, borrarConDeshacer , abrirSelectorMes, botonMes } from './interfaz.js';
 import { lessonCard } from './aprender.js';
 import { uid } from './almacenamiento.js';
@@ -248,16 +248,16 @@ const repetirCustom = (x) => `<div class="field-row repetir-custom" ${x.repeat =
   <div class="field"><label>Cada</label><input name="everyN" inputmode="numeric" value="${(x.every && x.every.n) || ''}" placeholder="Ej: 10"></div>
   <div class="field"><label>Unidad</label><select name="everyUnit">${[['dias', 'Días'], ['semanas', 'Semanas'], ['meses', 'Meses']].map(([v, l]) => `<option value="${v}" ${(x.every && x.every.unit) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
 // descuento por un tiempo (servicios, celular, internet…) y aviso para pedir otro
-export function descuentoCampos(x = {}) {
+export function descuentoCampos(x = {}, o = {}) {
   const dsc = x.desc || null;
-  return `<details class="reint-box"${dsc ? ' open' : ''}><summary><span>🏷️ Descuento por un tiempo</span><span class="small muted">${dsc ? `hasta ${dsc.hasta.split('-').reverse().join('/')}` : 'Opcional'}</span></summary>
-    <span class="small muted">Por ejemplo: "50% en el celular por 6 meses". Mientras dure, cuento el monto con descuento; después, el normal.</span>
+  return `<details class="reint-box"${dsc ? ' open' : ''}><summary><span>🏷️ ${o.titulo || 'Descuento por un tiempo'}</span><span class="small muted">${dsc ? `hasta ${dsc.hasta.split('-').reverse().join('/')}` : 'Opcional'}</span></summary>
+    <span class="small muted">${o.ayuda || 'Por ejemplo: "50% en el celular por 6 meses". Mientras dure, cuento el monto con descuento; después, el normal.'}</span>
     <div class="field-row">
-      <div class="field"><label for="ds-m">Monto con descuento</label><input id="ds-m" name="descMonto" inputmode="decimal" value="${dsc ? dsc.monto : ''}" placeholder="Ej: 12.000"></div>
-      <div class="field"><label for="ds-h">Último mes con descuento</label><input id="ds-h" name="descHasta" type="month" value="${esc(dsc ? dsc.hasta : '')}"></div>
+      <div class="field"><label for="ds-m">${o.monto || 'Monto con descuento'}</label><input id="ds-m" name="descMonto" inputmode="decimal" value="${dsc ? dsc.monto : ''}" placeholder="Ej: 12.000"></div>
+      <div class="field"><label for="ds-h">${o.hasta || 'Último mes con descuento'}</label><input id="ds-h" name="descHasta" type="month" value="${esc(dsc ? dsc.hasta : '')}"></div>
     </div>
-    <div class="field"><label for="ds-a">Recordarme pedir otro descuento el</label><input id="ds-a" name="descAvisar" type="date" value="${esc(dsc ? dsc.avisar || '' : '')}"><span class="hint">Si lo dejás vacío, te aviso el día 1 del último mes con descuento.</span></div>
-    ${dsc ? '<label class="check"><input type="checkbox" name="descQuitar"> <span>Quitar el descuento</span></label>' : ''}
+    <div class="field"><label for="ds-a">${o.avisar || 'Recordarme pedir otro descuento el'}</label><input id="ds-a" name="descAvisar" type="date" value="${esc(dsc ? dsc.avisar || '' : '')}"><span class="hint">Si lo dejás vacío, te aviso el día 1 del último mes${o.titulo ? '' : ' con descuento'}.</span></div>
+    ${dsc ? `<label class="check"><input type="checkbox" name="descQuitar"> <span>${o.quitar || 'Quitar el descuento'}</span></label>` : ''}
   </details>`;
 }
 export function descuentoDe(d) {
@@ -326,6 +326,77 @@ function incomeForm(c = {}) {
 }
 
 function findItem(s, key) { return agenda(s, 400).find((i) => i.key === key); }
+
+export const STOP_DEBIT_TXT = 'Es pedirle al banco que <b>no debite</b> un pago que tenés adherido a débito automático, solo por ese vencimiento. Se pide desde el home banking o la app del banco (suele estar en "Débitos automáticos" → "Stop debit"), normalmente hasta el día hábil anterior al vencimiento. Sirve si querés pagarlo vos (por ejemplo, desde otra cuenta o en otra fecha) o si el importe está mal y lo vas a reclamar. Ojo: el vencimiento sigue corriendo, así que tenés que pagarlo igual. En Pesitos, al marcarlo, ese mes no lo doy por debitado y queda pendiente hasta que toques "Pagué". Los meses siguientes vuelve el débito automático.';
+
+// ---------- historial de pagos de un gasto fijo ----------
+// Lo que pagaste de verdad cada mes (no estimaciones): fecha, importe, con qué,
+// empresa, cuotas que quedaban, dólares y cotización, observación, y cuánto
+// varió contra el pago anterior. Si cargaste cuánto suele subir por mes, marca
+// lo que se sale de lo normal.
+const pct1 = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v * 1000) / 10).toLocaleString('es-AR')}%`;
+const nfUsd = (v) => `US$ ${Number(v).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
+export function pagosDeFijo(s, f) {
+  const pre = `fixed:${f.id}:`;
+  const l = Object.entries(s.paid || {}).filter(([k, p]) => k.startsWith(pre) && p && Number(p.amount) > 0)
+    .map(([k, p]) => ({ key: k, mk: k.slice(pre.length), ...p, amount: Number(p.amount) })).sort((a, b) => a.mk.localeCompare(b.mk));
+  l.forEach((x, i) => { x.vari = i ? x.amount / l[i - 1].amount - 1 : null; });
+  const esp = Number(f.varEsperada);
+  l.forEach((x) => { x.raro = esp > 0 && x.vari != null && Math.abs(x.vari * 100 - esp) > 1; });
+  return l;
+}
+const MES_CAP = (mk) => `${monthName(mk, true).replace(/^./, (c) => c.toUpperCase())} ${mk.slice(0, 4)}`;
+function historialHtml(s, f) {
+  const l = pagosDeFijo(s, f);
+  const anio = monthKey().slice(0, 4);
+  const delAnio = l.filter((x) => x.mk.startsWith(anio));
+  const esp = Number(f.varEsperada);
+  const filas = [...l].reverse().map((x) => `<button class="row" data-action="editarPagoHist" data-key="${esc(x.key)}">
+      <span class="grow"><span class="name">${MES_CAP(x.mk)}</span>
+        <span class="meta">${[x.date ? `pagado el ${shortDate(x.date)}` : '', x.account ? esc(accountName(x.account)) : '', x.empresa ? esc(x.empresa) : '', x.quedan != null ? `quedan ${x.quedan} cuota${x.quedan === 1 ? '' : 's'}` : '', x.usd ? `${nfUsd(x.usd)} a $${Number(x.rate || x.amount / x.usd).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : ''].filter(Boolean).join(' · ')}</span>
+        ${x.nota ? `<span class="meta">📝 ${esc(x.nota)}</span>` : ''}</span>
+      <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="amount">${money(x.amount)}</span>${x.vari != null ? `<span class="pill ${x.raro ? 'warn' : ''}">${pct1(x.vari)}${x.raro ? ' · fuera de lo normal' : ''}</span>` : ''}</span>
+    </button>`).join('');
+  return `<div data-hist="${esc(f.id)}" style="display:flex;flex-direction:column;gap:10px">
+    <div class="stat-grid">
+      <div class="stat"><span class="k">Pagado en ${anio}</span><span class="v">${money(delAnio.reduce((a, x) => a + x.amount, 0))}</span><span class="small muted">${delAnio.length} pago${delAnio.length === 1 ? '' : 's'}</span></div>
+      <div class="stat"><span class="k">${esp > 0 ? 'Aumento normal' : 'Último cambio'}</span><span class="v">${esp > 0 ? `${String(esp).replace('.', ',')}% por mes` : l.length > 1 ? pct1(l[l.length - 1].vari) : '—'}</span><span class="small muted">${esp > 0 ? 'te marco lo que se aleja más de 1 punto' : 'contra el pago anterior'}</span></div>
+    </div>
+    ${filas ? `<div class="card tight">${filas}</div>` : '<p class="empty">Todavía no hay pagos registrados. Se anotan cuando marcás "Pagué" o registrás lo que te debitaron.</p>'}
+    <button class="btn small block" data-action="nuevoPagoHist" data-id="${esc(f.id)}">+ Cargar un pago anterior</button>
+    <span class="small muted">Tocá un pago para corregirlo o agregarle una observación. No calculo pagos futuros: solo registro lo que pagaste.</span>
+  </div>`;
+}
+function pagoHistForm(s, f, key, p = {}) {
+  const mk = key ? key.split(':')[2] : addMonthKey(monthKey(), -1);
+  return `<form class="form" data-submit="guardarPagoHist"><input type="hidden" name="id" value="${esc(f.id)}"><input type="hidden" name="key" value="${esc(key || '')}">
+    ${key ? `<p class="small muted" style="margin:0">${MES_CAP(mk)}</p>` : `<div class="field"><label for="ph-m">Mes</label><input id="ph-m" name="mk" type="month" value="${mk}" max="${monthKey()}" required></div>`}
+    <div class="field-row"><div class="field"><label for="ph-a">Importe</label><input id="ph-a" name="amount" inputmode="decimal" value="${p.amount ? String(p.amount).replace('.', ',') : ''}" required placeholder="Lo que pagaste o te debitaron"></div>
+      <div class="field"><label for="ph-d">Fecha</label><input id="ph-d" name="date" type="date" value="${esc(p.date || '')}" max="${todayISO()}"></div></div>
+    ${f.usd || p.usd ? `<div class="field"><label for="ph-u">En dólares</label><input id="ph-u" name="usd" inputmode="decimal" value="${p.usd ? String(p.usd).replace('.', ',') : f.usd ? String(f.usd).replace('.', ',') : ''}"><span class="hint">Con esto calculo a qué cotización te lo cobraron.</span></div>` : ''}
+    ${f.totalCuotas || p.quedan != null ? `<div class="field"><label for="ph-q">Cuotas que quedaban después de este pago</label><input id="ph-q" name="quedan" inputmode="numeric" value="${p.quedan != null ? p.quedan : ''}"></div>` : ''}
+    <div class="field-row"><div class="field"><label for="ph-c">Con qué</label><select id="ph-c" name="account">${payOptions(s, p.account || f.payWith || '').replace('Sin asignar', 'No sé / no importa')}</select></div>
+      <div class="field"><label for="ph-e">Empresa</label><input id="ph-e" name="empresa" value="${esc(p.empresa != null ? p.empresa : f.empresa || '')}" placeholder="Opcional"></div></div>
+    <div class="field"><label for="ph-n">Observación</label><input id="ph-n" name="nota" value="${esc(p.nota || '')}" placeholder="Ej: me descontaron por reclamo"></div>
+    <button class="btn primary block" type="submit">Guardar</button>
+    ${key ? `<button class="btn ghost block" type="button" data-action="borrarPagoHist" data-key="${esc(key)}" data-id="${esc(f.id)}">Borrar este registro</button>` : ''}
+  </form>`;
+}
+// datos extra de un pago (observación, dólares, empresa, cuotas que quedan)
+function extrasPago(s, it, d = {}) {
+  const out = {};
+  if (String(d.nota || '').trim()) out.nota = String(d.nota).trim().slice(0, 200);
+  if (it && it.kind === 'fixed') {
+    const f = s.fixed.find((x) => x.id === it.refId);
+    if (f) {
+      if (f.empresa) out.empresa = f.empresa;
+      if (f.endMonth) out.quedan = Math.max(0, monthDiff(it.key.split(':')[2], f.endMonth));
+      const usd = num(d.usd) || (f.usd ? Number(f.usd) : 0);
+      if (usd > 0) out.usd = usd;
+    }
+  }
+  return out;
+}
 
 export const actions = {
   repeatChanged(ctx, el) { const c = el.closest('form')?.querySelector('.repetir-custom'); if (c) c.hidden = el.value !== 'custom'; },
@@ -423,18 +494,29 @@ export const actions = {
     const it = findItem(ctx.state, el.dataset.key);
     if (!it) return;
     if (it.kind === 'recordatorio') {
-      if (it.key.startsWith('rec:desc:')) { if (it.refKind === 'fixed') ctx.state.fixed.find((f) => f.id === it.refId) && openModal('Gasto fijo', fixedFormExt(ctx.state, ctx.state.fixed.find((f) => f.id === it.refId))); else actions.editBill(ctx, { dataset: { id: it.refId } }); return; }
+      if (it.key.startsWith('rec:desc:')) { if (it.refKind === 'card') { accTarjetas.editCard(ctx, { dataset: { id: it.refId } }); return; } if (it.refKind === 'fixed') ctx.state.fixed.find((f) => f.id === it.refId) && openModal('Gasto fijo', fixedFormExt(ctx.state, ctx.state.fixed.find((f) => f.id === it.refId))); else actions.editBill(ctx, { dataset: { id: it.refId } }); return; }
       const r = (ctx.state.recordatorios || []).find((x) => x.id === it.refId);
       if (r) openModal('Recordatorio', recordatorioForm(r));
       return;
     }
     const goto = it.kind === 'card' ? `<button class="btn block" data-action="verTarjeta" data-id="${esc(it.refId)}">Ver el detalle del resumen</button>`
       : it.kind === 'bill' ? `<button class="btn block" data-action="editBill" data-id="${it.refId}">Editar este pago</button>`
-      : `<button class="btn block" data-action="editFixed" data-id="${it.refId}">Editar el gasto fijo</button>`;
+      : `<button class="btn block" data-action="verHistorialFijo" data-id="${it.refId}">Historial de pagos</button><button class="btn block" data-action="editFixed" data-id="${it.refId}">Editar el gasto fijo</button>`;
+    const fijo = it.kind === 'fixed' ? ctx.state.fixed.find((x) => x.id === it.refId) : null;
+    const campoUsd = fijo && fijo.usd ? `<div class="field"><label for="pp-u">En dólares</label><input id="pp-u" name="usd" inputmode="decimal" value="${String(fijo.usd).replace('.', ',')}"><span class="hint">Poné en "Monto pagado" lo que te cobraron en pesos: calculo la cotización.</span></div>` : '';
+    const campoNota = '<div class="field"><label for="pp-n">Observación</label><input id="pp-n" name="nota" placeholder="Opcional: algo para revisar o reclamar después"></div>';
+    const auto = it.paid && it.paidInfo && it.paidInfo.auto;
     openModal(it.name, `<div class="card"><span class="small muted">${esc(it.sub)}</span><span style="font-size:28px;font-weight:800">${montoAgenda(it)}</span><span class="pill ${it.overdue ? 'warn' : ''}" style="align-self:flex-start">${it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado automáticamente' : dueLabel(it)}</span>
       ${it.payWith ? `<span class="small">Se paga con ${esc(accountName(it.payWith))}</span>` : ''}
-      ${it.paidInfo && !it.paidInfo.auto ? `<span class="small">Pagado el ${shortDate(it.paidInfo.date)} · ${money(it.paidInfo.amount)}</span>` : ''}</div>
-      ${it.paid ? (it.paidInfo && it.paidInfo.auto ? '' : `<button class="btn block" data-action="unmarkPaid" data-key="${esc(it.key)}">Marcar como no pagado</button>`) : `<form class="form" data-submit="markPaidForm">
+      ${it.paidInfo && !it.paidInfo.auto ? `<span class="small">Pagado el ${shortDate(it.paidInfo.date)} · ${money(it.paidInfo.amount)}${it.paidInfo.usd ? ` · ${nfUsd(it.paidInfo.usd)}` : ''}</span>${it.paidInfo.nota ? `<span class="small">📝 ${esc(it.paidInfo.nota)}</span>` : ''}` : ''}</div>
+      ${auto ? `<form class="form" data-submit="markPaidForm"><input type="hidden" name="key" value="${esc(it.key)}">
+        <strong>${it.variable || it.kind === 'card' ? '¿Cuánto te debitaron?' : 'Registrar lo que te debitaron'}</strong>
+        <div class="field-row"><div class="field"><label for="pp-a">Importe debitado</label><input id="pp-a" name="amount" inputmode="decimal" value="${it.variable ? '' : Math.round(it.amount)}" placeholder="Mirá el movimiento en el banco" required></div>
+          <div class="field"><label for="pp-d">Fecha</label><input id="pp-d" name="date" type="date" value="${esc(it.due)}" max="${todayISO()}"></div></div>
+        <input type="hidden" name="account" value="${esc(it.payWith || '')}">
+        ${campoUsd}${campoNota}
+        <button class="btn green block" type="submit">Guardar</button></form>` : ''}
+      ${it.paid ? (auto ? '' : `${it.kind === 'fixed' ? `<button class="btn block" data-action="editarPagoHist" data-key="${esc(it.key)}">Corregir o agregar observación</button>` : ''}<button class="btn block" data-action="unmarkPaid" data-key="${esc(it.key)}">Marcar como no pagado</button>`) : `<form class="form" data-submit="markPaidForm">
         <input type="hidden" name="key" value="${esc(it.key)}">
         <div class="field-row">
           <div class="field"><label for="pp-a">Monto pagado</label><input id="pp-a" name="amount" inputmode="decimal" value="${it.amount && !it.variable ? Math.round(it.amount) : ''}" placeholder="${it.amount ? `Ej: ${Math.round(it.amount)}` : 'Cuánto pagaste'}"></div>
@@ -443,8 +525,13 @@ export const actions = {
         <div class="field"><label for="pp-c">Pagado con</label><select id="pp-c" name="account">${payOptions(ctx.state, it.payWith || '').replace('Sin asignar', 'No sé / no importa')}</select></div>
         ${it.kind === 'card' ? '<span class="small muted">Si pagaste el mínimo o una parte, poné el monto: te muestro cuánto quedó.</span>' : ''}
         ${it.variable ? '<span class="small muted">Este gasto varía: poné lo que pagaste este mes y lo uso como referencia para los próximos.</span>' : ''}
+        ${campoUsd}${campoNota}
         <button class="btn green block" type="submit">Marcar como pagado</button>
       </form>`}
+      ${!it.paid && (it.autoDebit || it.stopDebit) ? `<div class="card" style="gap:8px">
+        <button class="btn small block" data-action="stopDebit" data-key="${esc(it.key)}">${it.stopDebit ? 'Volver al débito automático este mes' : 'Este mes no se debita (stop debit): lo pago yo'}</button>
+        <details><summary class="small" style="cursor:pointer;font-weight:700">¿Qué es el stop debit?</summary>
+          <p class="small" style="margin:6px 0 0">${STOP_DEBIT_TXT}</p></details></div>` : ''}
       ${!it.paid && it.kind === 'fixed' ? `<details class="card"><summary><strong>¿Este mes vence otro día?</strong></summary>
         <form class="form" data-submit="cambiarVencMes"><input type="hidden" name="key" value="${esc(it.key)}">
           <div class="field"><label for="pv-d">Este mes vence el</label><input id="pv-d" name="date" type="date" value="${it.dueDate.toISOString().slice(0, 10)}"></div>
@@ -469,7 +556,59 @@ export const actions = {
     const amount = num(d.amount) || parseAmount(d.amount);
     const it = findItem(ctx.state, d.key);
     if (!amount && it && !it.amount) { toast('Poné cuánto pagaste'); return; }
-    pay(ctx, d.key, amount, d.date, d.account || ''); closeModal();
+    pay(ctx, d.key, amount, d.date, d.account || '', false, d); closeModal();
+  },
+  stopDebit(ctx, el) {
+    const key = el.dataset.key; let on = false;
+    ctx.commit((s) => { s.stopDebit = { ...(s.stopDebit || {}) }; if (s.stopDebit[key]) delete s.stopDebit[key]; else { s.stopDebit[key] = todayISO(); on = true; } });
+    closeModal(); toast(on ? 'Listo: este mes no lo doy por debitado. Marcalo cuando lo pagues' : 'Listo: vuelve al débito automático');
+  },
+  verHistorialFijo(ctx, el) {
+    const f = ctx.state.fixed.find((x) => x.id === el.dataset.id); if (!f) return;
+    openModal(`Historial: ${f.name}`, historialHtml(ctx.state, f), { push: !document.getElementById('modal').hidden });
+  },
+  nuevoPagoHist(ctx, el) {
+    const f = ctx.state.fixed.find((x) => x.id === el.dataset.id); if (!f) return;
+    openModal('Cargar un pago anterior', pagoHistForm(ctx.state, f, ''), { push: true });
+  },
+  editarPagoHist(ctx, el) {
+    const key = el.dataset.key; const id = key.split(':')[1];
+    const f = ctx.state.fixed.find((x) => x.id === id); if (!f) return;
+    openModal('Pago registrado', pagoHistForm(ctx.state, f, key, (ctx.state.paid || {})[key] || {}), { push: !document.getElementById('modal').hidden });
+  },
+  guardarPagoHist(ctx, d) {
+    const amount = num(d.amount) || parseAmount(d.amount);
+    const key = d.key || (/^\d{4}-\d{2}$/.test(d.mk || '') ? `fixed:${d.id}:${d.mk}` : '');
+    if (!key || !amount) { toast('Completá el mes y el importe'); return; }
+    const mk = key.split(':')[2];
+    ctx.commit((s) => {
+      s.paid = s.paid || {};
+      const prev = s.paid[key] || {};
+      const usd = num(d.usd);
+      const q = String(d.quedan || '').trim();
+      const reg = { ...prev, date: d.date || prev.date || `${mk}-${String(Math.min(28, Number((s.fixed.find((x) => x.id === d.id) || {}).dueDay) || 10)).padStart(2, '0')}`, amount };
+      if (!reg.due) reg.due = reg.date;
+      if (reg.onTime === undefined) reg.onTime = true;
+      delete reg.auto;
+      for (const [k, v] of [['account', d.account || ''], ['empresa', String(d.empresa || '').trim()], ['nota', String(d.nota || '').trim()]]) { if (v) reg[k] = v; else delete reg[k]; }
+      if (usd > 0) { reg.usd = usd; reg.rate = Math.round((amount / usd) * 100) / 100; } else { delete reg.usd; delete reg.rate; }
+      if (q !== '' && !Number.isNaN(parseInt(q, 10))) reg.quedan = parseInt(q, 10); else if (d.quedan !== undefined) delete reg.quedan;
+      s.paid[key] = reg;
+      // si es el último pago registrado de un fijo que varía, es la referencia de los próximos meses
+      const f = s.fixed.find((x) => x.id === d.id);
+      const ult = Object.keys(s.paid).filter((k) => k.startsWith(`fixed:${d.id}:`)).sort().pop();
+      if (f && f.variable && ult === key && Math.abs(amount - f.amount) >= 1) { f.lastAmount = f.amount; f.amount = amount; }
+    });
+    const f = ctx.state.fixed.find((x) => x.id === d.id);
+    if (f) openModal(`Historial: ${f.name}`, historialHtml(ctx.state, f)); else closeModal();
+    toast('Pago guardado');
+  },
+  borrarPagoHist(ctx, el) {
+    const key = el.dataset.key;
+    ctx.commit((s) => { delete s.paid[key]; s.expenses = s.expenses.filter((e) => e.fromPayment !== key); });
+    const f = ctx.state.fixed.find((x) => x.id === el.dataset.id);
+    if (f) openModal(`Historial: ${f.name}`, historialHtml(ctx.state, f)); else closeModal();
+    toast('Registro borrado');
   },
   unmarkPaid(ctx, el) {
     const key = el.dataset.key;
@@ -494,7 +633,7 @@ export const actions = {
   },
 };
 
-function pay(ctx, key, amount, date, account, corregible = false) {
+function pay(ctx, key, amount, date, account, corregible = false, datos = {}) {
   const it = findItem(ctx.state, key);
   if (!it) return;
   const paidAmount = amount || it.amount;
@@ -505,7 +644,9 @@ function pay(ctx, key, amount, date, account, corregible = false) {
     const total = (prev ? Number(prev.amount) : 0) + paidAmount;
     // de qué cuenta salió: la elegida, o la que tiene asignada el pago
     const cuenta = account !== undefined ? account : (it.payWith && it.payWith !== 'efectivo' ? it.payWith : it.payWith === 'efectivo' ? 'efectivo' : '');
-    s.paid[key] = { date: when, amount: total, due: it.due, onTime: when <= it.due, ...(cuenta ? { account: cuenta } : {}) };
+    const ex = extrasPago(s, it, datos);
+    if (ex.usd) ex.rate = Math.round((paidAmount / ex.usd) * 100) / 100;
+    s.paid[key] = { date: when, amount: total, due: it.due, onTime: when <= it.due, ...(cuenta ? { account: cuenta } : {}), ...ex };
     // fijo que varía: lo que pagaste pasa a ser el monto aproximado de los próximos meses
     if (it.kind === 'fixed') {
       const f = s.fixed.find((x) => x.id === it.refId);

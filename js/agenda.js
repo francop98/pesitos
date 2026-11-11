@@ -162,7 +162,9 @@ export function agendaBetween(s, from, to) {
   const curMk = monthKey(today);
   const paid = s.paid || {};
   const items = [];
-  const push = (it) => {
+  const push = (it0) => {
+    // "stop debit": este mes no se debita, lo pagás a mano
+    const it = it0.autoDebit && (s.stopDebit || {})[it0.key] ? { ...it0, autoDebit: false, stopDebit: true, sub: `${it0.sub} · este mes sin débito: lo pagás vos` } : it0;
     const p = paid[it.key];
     const days = daysBetween(today, it.dueDate);
     const base = { ...it, due: toISO(it.dueDate), days };

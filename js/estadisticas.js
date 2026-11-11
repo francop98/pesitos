@@ -5,7 +5,7 @@
 // =========================================================
 
 import { money, esc, monthKey, addMonthKey, monthName, todayISO, pct , MONTHS_LONG} from './formato.js';
-import { monthExpenses, monthIncome, fixedTotal, cardSummary } from './calculos.js';
+import { monthExpenses, monthIncome, fixedActive, cardSummary } from './calculos.js';
 import { catById, catLabel } from './categorias.js';
 import { merchantKey } from './interprete.js';
 import { avancePresupuesto, barra as barraTope } from './presupuestos.js';
@@ -19,7 +19,7 @@ let statsTab = 'gastos'; // 'gastos' | 'sueldo'
 /** Abrir Estadísticas en una pestaña (la ruta vieja #/sueldo llega acá). */
 export function renderVista(s, v) { statsTab = v; return render(s); }
 export const usarPestana = (v) => { statsTab = v; };
-const PERIODOS = [['mes', 'Este mes'], ['anterior', 'Mes pasado'], ['3m', '3 meses'], ['6m', '6 meses'], ['anio', 'Este año']];
+const PERIODOS = [['mes', 'Este mes'], ['anterior', 'Mes pasado'], ['3m', '3 meses'], ['6m', '6 meses'], ['anio', 'Este año'], ['anioPasado', 'Año pasado']];
 
 function meses(p = periodo) {
   const mk = monthKey();
@@ -27,6 +27,7 @@ function meses(p = periodo) {
   if (p === 'anterior') return [addMonthKey(mk, -1)];
   if (p === '3m') return [-2, -1, 0].map((k) => addMonthKey(mk, k));
   if (p === '6m') return [-5, -4, -3, -2, -1, 0].map((k) => addMonthKey(mk, k));
+  if (p === 'anioPasado') { const y = Number(mk.slice(0, 4)) - 1; return Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`); }
   if (p === 'anio') { const n = Number(mk.slice(5, 7)); return Array.from({ length: n }, (_, i) => `${mk.slice(0, 4)}-${String(i + 1).padStart(2, '0')}`); }
   return [mk];
 }
@@ -40,12 +41,25 @@ function topesSinGasto(s, cats, p) {
   return otros.length ? `<span class="small muted" style="margin-top:-6px">También tenés tope en ${otros.map((c) => esc(catById(c).label)).join(', ')}: todavía sin gastos este mes.</span>` : '';
 }
 
+// Gastos fijos de un mes: lo que pagaste de verdad si lo registraste; si no, lo cargado.
+export function fijosDelMes(s, m) {
+  // si un fijo tiene pagos registrados, cuenta desde el primero (antes no existía o no se sabe)
+  const primero = (f) => Object.keys(s.paid || {}).filter((k) => k.startsWith(`fixed:${f.id}:`) && Number(s.paid[k].amount) > 0).map((k) => k.split(':')[2]).sort()[0];
+  return (s.fixed || []).filter((f) => fixedActive(f, m) && !(primero(f) && m < primero(f))).map((f) => {
+    const p = (s.paid || {})[`fixed:${f.id}:${m}`];
+    const real = !!(p && Number(p.amount) > 0);
+    const v = real ? Number(p.amount) : (f.desc && f.desc.hasta && m <= f.desc.hasta ? Number(f.desc.monto) || 0 : Number(f.amount) || 0);
+    return { f, v, real };
+  });
+}
+const fijosMes = (s, m) => fijosDelMes(s, m).reduce((a, x) => a + x.v, 0);
+
 export function resumen(s, ms) {
   const byCat = {}; let variables = 0; let fijos = 0; let ingresos = 0;
   for (const m of ms) {
     const e = monthExpenses(s, m); variables += e.total;
     for (const [c, v] of Object.entries(e.byCat)) byCat[c] = (byCat[c] || 0) + v;
-    fijos += fixedTotal(s, m);
+    fijos += fijosMes(s, m);
     ingresos += monthIncome(s, m);
   }
   const desde = `${ms[0]}-01`; const hasta = `${ms[ms.length - 1]}-31`;
@@ -72,9 +86,38 @@ function dona(items, total) {
   return `<svg viewBox="0 0 140 140" width="150" height="150" role="img" aria-label="Gastos por categoría">${arcos}<text x="70" y="66" text-anchor="middle" style="fill:var(--muted)" font-size="10" font-weight="600">Variables</text><text x="70" y="82" text-anchor="middle" style="fill:var(--ink)" font-size="13" font-weight="800">${esc(money(total))}</text></svg>`;
 }
 
+// Cada gasto fijo en el período (crédito, teléfono, servicios...), con lo pagado de verdad
+function fijosUnoPorUno(s, ms) {
+  const acc = {};
+  for (const m of ms) for (const x of fijosDelMes(s, m)) { const a = acc[x.f.id] || (acc[x.f.id] = { f: x.f, v: 0, reales: 0, meses: 0 }); a.v += x.v; a.meses++; if (x.real) a.reales++; }
+  const l = Object.values(acc).filter((a) => a.v > 0).sort((a, b) => b.v - a.v);
+  if (!l.length) return '';
+  return `<div class="card tight"><div class="split" style="padding:4px 0 6px"><strong>Gastos fijos, uno por uno</strong><b>${money(l.reduce((a, x) => a + x.v, 0))}</b></div>
+    ${l.map((a) => `<button class="row" data-action="verHistorialFijo" data-id="${esc(a.f.id)}"><span class="grow"><span class="name">${esc(a.f.name)}</span><span class="meta">${a.reales === a.meses ? `${a.meses} pago${a.meses === 1 ? '' : 's'} registrado${a.meses === 1 ? '' : 's'}` : a.reales ? `${a.reales} de ${a.meses} meses con lo pagado; el resto, lo cargado` : 'Según el monto cargado'}${ms.length > 1 ? ` · ${money(a.v / a.meses)} por mes` : ''}</span></span><span class="amount">${money(a.v)}</span></button>`).join('')}
+  </div>`;
+}
+
+// Mes a mes del período: lo que entró, lo que salió y lo que quedó, con total y promedio
+function tablaMeses(s, ms) {
+  if (ms.length < 2) return '';
+  const hoy = monthKey();
+  const filas = ms.filter((m) => m <= hoy).map((m) => { const ing = monthIncome(s, m); const gas = monthExpenses(s, m).total + fijosMes(s, m); return { m, ing, gas, q: ing - gas }; });
+  const t = filas.reduce((a, f) => ({ ing: a.ing + f.ing, gas: a.gas + f.gas, q: a.q + f.q }), { ing: 0, gas: 0, q: 0 });
+  const n = Math.max(1, filas.length);
+  const fila = (k, f, cls = '') => `<div class="ti-fila ${cls}" role="row"><span>${k}</span><span class="pos">${money(f.ing)}</span><span>${money(f.gas)}</span><span class="${f.q >= 0 ? 'pos' : 'neg'}">${money(f.q)}</span></div>`;
+  return `<div class="card"><strong>Mes a mes</strong>
+    <div class="tabla-inf cuatro" role="table" aria-label="Ingresos y gastos de cada mes">
+      <div class="ti-fila ti-head" role="row"><span>Mes</span><span>Entró</span><span>Salió</span><span>Quedó</span></div>
+      ${filas.map((f) => fila(MONTHS_LONG[Number(f.m.slice(5)) - 1].replace(/^./, (c) => c.toUpperCase()), f)).join('')}
+      ${fila('Total', t, 'ti-total')}
+      ${fila('Promedio', { ing: t.ing / n, gas: t.gas / n, q: t.q / n })}
+    </div>
+    <span class="small muted">Salió = gastos del día a día (las compras en cuotas, de a una cuota por mes) más los gastos fijos.</span></div>`;
+}
+
 function barrasMensuales(s) {
   const ms = Array.from({ length: 6 }, (_, i) => addMonthKey(monthKey(), i - 5));
-  const datos = ms.map((m) => ({ m, ing: monthIncome(s, m), gas: monthExpenses(s, m).total + fixedTotal(s, m) }));
+  const datos = ms.map((m) => ({ m, ing: monthIncome(s, m), gas: monthExpenses(s, m).total + fijosMes(s, m) }));
   const max = Math.max(1, ...datos.flatMap((d) => [d.ing, d.gas]));
   return `<div class="barras" role="img" aria-label="Ingresos y gastos de los últimos 6 meses">${datos.map((d) => `<div class="barra-mes">
       <div class="barra-par"><span class="b-ing" style="height:${Math.round((d.ing / max) * 100)}%" title="Ingresos ${money(d.ing)}"></span><span class="b-gas" style="height:${Math.round((d.gas / max) * 100)}%" title="Gastos ${money(d.gas)}"></span></div>
@@ -201,6 +244,8 @@ export function cuerpo(s) {
     ${cats.length ? `<div class="section-title"><span>Por categoría</span><span class="small muted">Tocá una para ponerle un tope</span></div>
     <div class="card tight">${cats.map((x) => { const a = prev.byCat[x.c] || 0; const c = catById(x.c); const tope = periodo === 'mes' ? avancePresupuesto(s, x.c) : null; return `<button class="row" data-action="editPresupuesto" data-cat="${esc(x.c)}"><span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${tope ? `${barraTope(tope)}<span class="meta">Tope ${money(tope.limite)} · ${tope.pct >= 1 ? `te pasaste ${money(-tope.queda)}` : `quedan ${money(tope.queda)}`}</span>` : `<span class="meta">Antes: ${money(a)}</span>`}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(x.v)}</span>${cambio(comp(x.v, a))}</span></button>`; }).join('')}</div>
     ${topesSinGasto(s, cats, periodo)}` : ''}
+    ${tablaMeses(s, ms)}
+    ${fijosUnoPorUno(s, ms)}
     ${masDatos(s, r, ms, periodo)}
     <div class="card"><strong>Ingresos y gastos, mes a mes</strong>${barrasMensuales(s)}</div>
     ${r.comercios.length ? `<div class="card"><strong>Dónde más gastaste</strong>${r.comercios.slice(0, 6).map((c) => `<div class="split small"><span>${esc(c.nombre)} <span class="muted">· ${c.veces} vez${c.veces === 1 ? '' : 'es'}</span></span><b>${money(c.total)}</b></div>`).join('')}</div>` : ''}

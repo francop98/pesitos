@@ -707,7 +707,11 @@ export const commonActions = {
     ctx.commit((s) => {
       s.deudas = s.deudas || [];
       if (d.kind === 'income') {
-        const item = { id: d.id || uid(), date: d.date || todayISO(), amount: ars(original), type: d.type, note: d.note || (d.type === 'sueldo' ? 'Sueldo' : 'Ingreso'), ...moneda };
+        // lo que no está en este formulario (mes trabajado, concepto del trabajo) se conserva
+        const antes = s.incomes.find((x) => x.id === d.id) || {};
+        const conservar = Object.fromEntries(['periodo', 'laboral', 'concepto'].filter((k) => antes[k] !== undefined).map((k) => [k, antes[k]]));
+        if (d.type === 'sueldo') { delete conservar.laboral; delete conservar.concepto; }
+        const item = { ...conservar, id: d.id || uid(), date: d.date || todayISO(), amount: ars(original), type: d.type, note: d.note || (d.type === 'sueldo' ? 'Sueldo' : 'Ingreso'), ...moneda };
         if (medioTipo === 'acc') item.accountId = medioId;
         if (tags.length) item.tags = tags;
         if (d.proyectoId) item.proyectoId = d.proyectoId;
