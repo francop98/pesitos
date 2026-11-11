@@ -50,7 +50,17 @@ const mkDate = (mk, day) => { const [y, m] = mk.split('-').map(Number); return d
 export function statementOf(card, iso) {
   const mk = iso.slice(0, 7);
   // el cierre de cada mes puede cambiar (card.fechas): comparo con el cierre real de ese mes
+  // (y con el del mes anterior, por si ese resumen cerró recién a principios de este mes)
+  const prev = addMonthKey(mk, -1);
+  if (iso <= toISO(statementDates(card, prev).close)) return prev;
   return iso <= toISO(statementDates(card, mk).close) ? mk : addMonthKey(mk, 1);
+}
+/** "el resumen de diciembre": en cuál cae una compra con esa fecha, y si es distinto del mes de la compra. */
+export function resumenDeCompra(card, iso) {
+  const mk = statementOf(card, iso);
+  const d = statementDates(card, mk);
+  const delMes = statementDates(card, iso.slice(0, 7)).close;
+  return { mk, otro: mk > iso.slice(0, 7), estimadas: d.estimadas, cerro: `${delMes.getDate()}/${delMes.getMonth() + 1}`, mes: MESES[Number(iso.slice(5, 7)) - 1], nombre: `${MESES[Number(mk.slice(5)) - 1]}${mk.slice(0, 4) !== iso.slice(0, 4) ? ` ${mk.slice(0, 4)}` : ''}` };
 }
 export function statementAmount(s, card, mk) { return detalleResumen(s, card, mk).total; }
 
@@ -103,7 +113,8 @@ export function statementDates(card, mk) {
   const f = (card.fechas || {})[mk] || {};
   const close = f.cierre ? parseISO(f.cierre) : mkDate(mk, Number(card.closeDay) || 25);
   const due = f.vence ? parseISO(f.vence) : Number(card.dueDay) > Number(card.closeDay) ? mkDate(mk, Number(card.dueDay)) : mkDate(addMonthKey(mk, 1), Number(card.dueDay) || 5);
-  return { close, due, cambiadas: !!(f.cierre || f.vence) };
+  // estimadas: el banco no las informó todavía (salen del último resumen que cargaste)
+  return { close, due, cambiadas: !!(f.cierre || f.vence), estimadas: !(f.cierre && f.vence) };
 }
 
 // ---------- descuentos por un tiempo ----------

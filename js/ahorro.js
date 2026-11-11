@@ -8,7 +8,7 @@ import { HOLDING_TYPES, holdingType, ASSETS, assetById, allCategories, catLabel 
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar } from './cotizaciones.js';
 import { planAhorroHtml } from './asesor.js';
-import { cuerpo as cuerpoCuentas, patrimonioHtml } from './miscuentas.js';
+import { cuerpo as cuerpoCuentas, patrimonioHtml, panelAhorrar } from './miscuentas.js';
 import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
 import { uid } from './almacenamiento.js';
@@ -100,7 +100,7 @@ export function render(s) {
     </div>
     ${vista === 'sueldo' ? sueldoCuerpo(s, 'ahorro') : ''}
 
-    ${vista === 'cuentas' ? `<div class="btn-row"><button class="btn small green" data-action="pasarAhorros">${icon('sprout', 18)} Pasar a ahorros</button><button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir entre cuentas</button></div>
+    ${vista === 'cuentas' ? `<div class="btn-row"><button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir entre cuentas</button><button class="btn small" data-action="irAhorros">${icon('sprout', 18)} Pasar a ahorros</button></div>
     ${taparMontos(cuerpoCuentas(s), 'ahorro')}` : ''}
 
     ${vista === 'mis' ? taparMontos(`<div class="card green" style="gap:12px;padding:20px">
@@ -114,8 +114,9 @@ export function render(s) {
           <span class="amount">${h.ars ? money(h.ars) : fmtAsset(h.amount, h.currency)}</span>
         </button>`).join('') || '<span class="small on-green-muted">Todavía no cargaste dónde tenés tus ahorros.</span>'}
       </div>
-      <div class="btn-row"><button class="btn small lime" data-action="pasarAhorros">${icon('sprout', 16)} Pasar plata a ahorros</button><button class="btn small" data-action="newHolding" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)">+ Agregar dónde ahorrás</button></div>
+      <div class="btn-row"><button class="btn small" data-action="newHolding" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)">+ Agregar dónde ahorrás</button></div>
     </div>`, 'ahorro') : ''}
+    ${vista === 'mis' && !s.espacio ? `<div id="pasar-ahorros">${taparMontos(panelAhorrar(s), 'ahorro')}</div>` : ''}
 
     ${vista === 'mis' ? `
     ${(() => { const tot = Object.values(s.savedByApp || {}).reduce((a, v) => a + (Number(v) || 0), 0) + totalReintegros(reintegrosCobrados(s)); const meses = Object.keys(s.savedByApp || {}).filter((k) => s.savedByApp[k] > 0).sort(); return tot ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">En total te ahorraste con Pesitos</b><span class="small">Reintegros, promos y desafíos${meses.length ? ` desde ${monthName(meses[0], true)} ${meses[0].slice(0, 4)}` : ''}</span></span><b class="v">${money(tot)}</b></button>` : ''; })()}
@@ -222,6 +223,12 @@ function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS
 
 export const actions = {
   ahorroVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
+  // todo lo de pasar plata a ahorros está en Mi plata → Ahorros
+  irAhorros(ctx) {
+    vista = 'mis'; closeModal();
+    if (location.hash === '#/ahorro') ctx.render(); else ctx.go('ahorro');
+    setTimeout(() => { const el = document.getElementById('pasar-ahorros'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 120);
+  },
   patToggle(ctx) { patAbierto = !patAbierto; ctx.render(); },
   refreshQuotes(ctx) {
     toast('Actualizando cotizaciones…');

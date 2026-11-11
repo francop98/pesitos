@@ -87,7 +87,9 @@ export function demoState() {
 
   // medios de pago y tarjeta con compras en cuotas
   s.wallets = ['cuentadni', 'provincia', 'mercadopago', 'visa'];
-  const card = { id: uid(), name: 'Visa Provincia', closeDay: 24, dueDay: 5, limit: 2500000, payFrom: 'provincia' };
+  // fechas que trae el resumen (las del que cierra este mes y el anterior)
+  const fechas = { [addMonthKey(cur, -1)]: { cierre: `${addMonthKey(cur, -1)}-24`, vence: `${cur}-05` }, [cur]: { cierre: `${cur}-24`, vence: `${addMonthKey(cur, 1)}-05` } };
+  const card = { id: uid(), name: 'Visa Provincia', marca: 'visa', banco: 'provincia', closeDay: 24, dueDay: 5, limit: 2500000, payFrom: 'provincia', fechas };
   s.cards = [card];
   for (const e of s.expenses) if (e.note === 'Heladera') e.cardId = card.id;
   s.expenses.push({ id: uid(), date: `${addMonthKey(cur, -1)}-15`, amount: 180000, category: 'compras', note: 'Zapatillas', installments: 6, cardId: card.id });

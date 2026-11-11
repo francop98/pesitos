@@ -224,6 +224,8 @@ button.row { cursor: pointer; }
 /* ---------- carga rápida con Gasto / Ingreso ---------- */
 .quick-card { display: flex; flex-direction: column; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 10px; box-shadow: 0 4px 14px rgba(22, 24, 29, .06); }
 .quick-card.income { border-color: var(--lime); }
+/* Inicio: hasta que tocás la carga rápida, solo se ve el campo */
+.quick-card.compacta:not(.abierta) .cat-row, .quick-card.compacta:not(.abierta) .medio-fila, .quick-card.compacta:not(.abierta) .cat-buscar { display: none; }
 .quick-card .quick { border: 2px solid var(--green-mid); padding: 4px 4px 4px 12px; background: var(--green-soft); border-radius: 14px; transition: border-color .15s, box-shadow .15s; }
 .quick-card .quick:focus-within { border-color: var(--green); background: var(--card); box-shadow: 0 0 0 4px rgba(198, 243, 107, .55); }
 .quick-card.income .quick { border-color: #9BC93A; background: var(--lime-soft); }
@@ -1034,3 +1036,11 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .t-cuenta .t-total { border-top: 1px solid var(--line); padding-top: 8px; }
 .ok-text { color: var(--green-text); }
 .warn-text { color: var(--warn-text, #B4531A); font-weight: 600; }
+
+/* secciones plegables (Por pagar → Ver más) */
+details.plegable > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+details.plegable > summary::-webkit-details-marker { display: none; }
+details.plegable > summary::after { content: '›'; margin-left: auto; font-size: 20px; line-height: 1; color: var(--muted, #888); transition: transform .15s; }
+details.plegable[open] > summary::after { transform: rotate(90deg); }
+details.plegable[open] { gap: 10px; }
+details.plegable .section-title { margin-top: 4px; }

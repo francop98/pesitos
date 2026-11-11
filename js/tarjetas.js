@@ -5,7 +5,7 @@ import { money, esc, num, monthName, addMonthKey } from './formato.js';
 import { aBase } from './cotizaciones.js';
 import { cardSummary } from './calculos.js';
 import { icon, sprout, screenHead, openModal, closeModal, toast, borrarConDeshacer } from './interfaz.js';
-import { agenda, bestBuyDay, statementDates, statementOf, detalleResumen } from './agenda.js';
+import { agenda, bestBuyDay, statementDates, statementOf, detalleResumen, resumenDeCompra } from './agenda.js';
 import { currentPromos } from './economista.js';
 import { allWallets, walletName, catLabel } from './categorias.js';
 import { cardPlan } from './flujo.js';
@@ -44,10 +44,10 @@ function lista(s) {
   const filas = s.cards.map((c) => {
     const mk = statementOf(c, new Date().toISOString().slice(0, 10));
     const det = detalleResumen(s, c, mk);
-    const { close, due } = statementDates(c, mk);
+    const { close, due, estimadas } = statementDates(c, mk);
     const pago = (s.paid || {})[`card:${c.id}:${mk}`];
     const h = hoy0();
-    const estado = pago ? '<span class="pill ok">Pagado</span>' : close > h ? `<span class="small muted">Cierra ${enDias(dias(h, close))} · vence el ${dm(due)}</span>` : `<span class="small ${dias(h, due) <= 3 ? 'warn-text' : 'muted'}">Vence ${enDias(dias(h, due))} (${dm(due)})</span>`;
+    const estado = pago ? '<span class="pill ok">Pagado</span>' : close > h ? `<span class="small muted">${estimadas ? `Cierra cerca del ${dm(close)} (sin confirmar)` : `Cierra ${enDias(dias(h, close))} · vence el ${dm(due)}`}</span>` : `<span class="small ${dias(h, due) <= 3 ? 'warn-text' : 'muted'}">Vence ${enDias(dias(h, due))} (${dm(due)})</span>`;
     return `<button class="row" data-action="abrirTarjeta" data-id="${esc(c.id)}">
       <span class="ico">${icon('card', 18)}</span>
       <span class="grow"><span class="name" style="white-space:normal">${esc(c.name)}</span>${estado}</span>
@@ -65,7 +65,7 @@ function lista(s) {
 
 // ---------- una tarjeta ----------
 function cabecera(s, c, det, mk) {
-  const { close, due, cambiadas } = statementDates(c, mk);
+  const { close, due, estimadas } = statementDates(c, mk);
   const actual = statementOf(c, new Date().toISOString().slice(0, 10));
   const h = hoy0();
   const pago = (s.paid || {})[`card:${c.id}:${mk}`];
@@ -88,7 +88,7 @@ function cabecera(s, c, det, mk) {
     </div>
     <div style="display:flex;flex-direction:column;gap:2px">
       <span style="font-size:32px;font-weight:800;letter-spacing:-1px">${det.pagaUsd && det.usd && det.pesos < 1 ? usdTxt(det.usd) : `${money(det.pesos)}${det.pagaUsd && det.usd ? `<span style="font-size:18px"> + ${usdTxt(det.usd)}</span>` : ''}`}</span>
-      <span class="small on-green-muted">Cierra el ${dm(close)} · vence el ${dm(due)}${cambiadas ? ' (fechas corregidas)' : ''} · <button class="link-btn on-green-link" data-action="editarFechasResumen" data-id="${esc(c.id)}" data-mk="${mk}">cambiar</button></span>
+      <span class="small on-green-muted">${estimadas ? `Cierra cerca del ${dm(close)} · vence cerca del ${dm(due)} (estimadas)${mk === actual ? '' : ` · <button class="link-btn on-green-link" data-action="editarFechasResumen" data-id="${esc(c.id)}" data-mk="${mk}">poner las reales</button>`}` : `Cierra el ${dm(close)} · vence el ${dm(due)} · <button class="link-btn on-green-link" data-action="editarFechasResumen" data-id="${esc(c.id)}" data-mk="${mk}">cambiar</button>`}</span>
       <span class="small">${esc(estado)}</span>
     </div>
     <div class="t-acciones">
@@ -157,8 +157,8 @@ function tabTarjeta(s, c, sum) {
       <div class="t-grid">
         ${disponible !== null ? dato('Disponible', money(disponible), `de ${money(c.limit)}`) : dato('Disponible', '—', `<button class="link-btn" data-action="editCard" data-id="${esc(c.id)}">Cargá el límite</button>`)}
         ${dispCuotas !== null ? dato('Disponible en cuotas', money(dispCuotas), `de ${money(c.limitCuotas)}`) : dato('Comprometido', money(sum.committed), 'incluye cuotas')}
-        ${dato('Cierre', `día ${c.closeDay}`, 'de cada mes')}
-        ${dato('Vencimiento', `día ${c.dueDay}`, c.autoDebit ? 'débito automático' : c.payFrom ? `pagás con ${esc(walletName(c.payFrom))}` : '')}
+        ${(() => { const d = statementDates(c, statementOf(c, new Date().toISOString().slice(0, 10))); return `${dato('Próximo cierre', dm(d.close), d.estimadas ? 'estimado' : 'según tu resumen')}
+        ${dato('Próximo vencimiento', dm(d.due), [d.estimadas ? 'estimado' : '', c.autoDebit ? 'débito automático' : c.payFrom ? `pagás con ${esc(walletName(c.payFrom))}` : ''].filter(Boolean).join(' · '))}`; })()}
       </div>
       ${c.limit ? `<div class="bar"><span style="width:${Math.min(100, Math.round(sum.used * 100))}%"></span></div><span class="small muted">Usás el ${Math.round(sum.used * 100)}% del límite contando las cuotas que vienen.</span>` : ''}
     </div>
@@ -173,6 +173,18 @@ function tabTarjeta(s, c, sum) {
     </div>`;
 }
 
+// Las fechas no son fijas: cada resumen trae el próximo cierre y vencimiento.
+// Mientras el resumen abierto no las tenga, te las pido.
+function pedirFechas(c, mk) {
+  const d = statementDates(c, mk);
+  if (!d.estimadas) return '';
+  return `<div class="card lime" style="gap:8px">
+    <strong>¿Cuándo cierra y vence el resumen de ${monthName(mk, true)}?</strong>
+    <span class="text">Lo dice tu último resumen: <b>"próximo cierre"</b> y <b>"próximo vencimiento"</b>. Hasta que las cargues, uso fechas estimadas.</span>
+    <button class="btn small green" data-action="editarFechasResumen" data-id="${esc(c.id)}" data-mk="${mk}">Cargar las fechas</button>
+  </div>`;
+}
+
 function detalle(s, c) {
   const actual = statementOf(c, new Date().toISOString().slice(0, 10));
   const mk = addMonthKey(actual, desfase);
@@ -181,6 +193,7 @@ function detalle(s, c) {
   const tab = (v, l) => `<button role="tab" data-action="tarjetaTab" data-v="${v}" aria-pressed="${pestania === v}">${l}</button>`;
   return `${s.cards.length > 1 ? `<button class="link-btn" data-action="abrirTarjeta" data-id="" style="align-self:flex-start">‹ Todas las tarjetas</button>` : ''}
     ${cabecera(s, c, det, mk)}
+    ${pedirFechas(c, actual)}
     <div class="tabs" role="tablist" aria-label="Tarjeta" style="grid-template-columns:repeat(3,minmax(0,1fr))">${tab('resumen', 'Resumen')}${tab('cuotas', `Cuotas${sum.pending.length ? ` (${sum.pending.length})` : ''}`)}${tab('tarjeta', 'Datos')}</div>
     ${pestania === 'cuotas' ? tabCuotas(s, c, sum) : pestania === 'tarjeta' ? tabTarjeta(s, c, sum) : tabResumen(s, c, det, mk)}`;
 }
@@ -242,11 +255,11 @@ function cardForm(s, c0 = {}) {
       <div class="field"><label for="cd-b">Banco o emisor</label><select id="cd-b" name="banco"><option value="">Elegí</option>${['Bancos', 'Billeteras'].map((k) => `<optgroup label="${k}">${allWallets().filter((w) => w.kind === k).map((w) => `<option value="${esc(w.id)}" ${c.banco === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</optgroup>`).join('')}</select></div>
     </div>
     <div class="field"><label for="cd-4">Últimos 4 números</label><input id="cd-4" name="last4" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" value="${esc(c.last4 || '')}" placeholder="Ej: 4821"><span class="hint">Para distinguirla si tenés más de una. El nombre lo armo solo (por ejemplo, "Visa Galicia ••4821").</span></div>
-    <div class="field-row">
-      <div class="field"><label for="cd-c">Día de cierre</label><input id="cd-c" name="closeDay" inputmode="numeric" value="${c.closeDay || ''}" placeholder="Ej: 25" required></div>
-      <div class="field"><label for="cd-v">Día de vencimiento</label><input id="cd-v" name="dueDay" inputmode="numeric" value="${c.dueDay || ''}" placeholder="Ej: 5" required></div>
+    ${c.id ? '' : `<div class="field-row">
+      <div class="field"><label for="cd-c">Próximo cierre</label><input id="cd-c" name="cierre" type="date" required></div>
+      <div class="field"><label for="cd-v">Próximo vencimiento</label><input id="cd-v" name="vence" type="date" required></div>
     </div>
-    <span class="hint" style="margin-top:-6px">Los de siempre, más o menos. Si un mes cambian, los corregís desde la tarjeta en "Cambiar fechas de este resumen".</span>
+    <span class="hint" style="margin-top:-6px">Están en tu último resumen, cerca del total ("próximo cierre" y "próximo vencimiento"). Cada vez que te llegue un resumen nuevo, te pido las fechas del siguiente.</span>`}
     <div class="field-row">
       <div class="field"><label for="cd-l">Límite de compra</label><input id="cd-l" name="limit" inputmode="decimal" value="${c.limit || ''}" placeholder="Opcional"></div>
       <div class="field"><label for="cd-lc">Límite en cuotas</label><input id="cd-lc" name="limitCuotas" inputmode="decimal" value="${c.limitCuotas || ''}" placeholder="Si es distinto"></div>
@@ -276,21 +289,28 @@ function fechasForm(s, c, desde) {
   const mk = desde || statementOf(c, new Date().toISOString().slice(0, 10));
   const fila = (m) => { const d = statementDates(c, m); const iso = (x) => x.toISOString().slice(0, 10); return `<div class="card form"><strong>Resumen de ${monthName(m, true)}</strong>
       <input type="hidden" name="mk_${m}" value="1">
-      <div class="field-row"><div class="field"><label for="fc-${m}">Cierra el</label><input id="fc-${m}" name="cierre_${m}" type="date" value="${iso(d.close)}"></div>
-      <div class="field"><label for="fv-${m}">Vence el</label><input id="fv-${m}" name="vence_${m}" type="date" value="${iso(d.due)}"></div></div></div>`; };
+      <div class="field-row"><div class="field"><label for="fc-${m}">Cierra el</label><input id="fc-${m}" name="cierre_${m}" type="date" required value="${d.estimadas ? '' : iso(d.close)}"></div>
+      <div class="field"><label for="fv-${m}">Vence el</label><input id="fv-${m}" name="vence_${m}" type="date" required value="${d.estimadas ? '' : iso(d.due)}"></div></div></div>`; };
   return `<form class="form" data-submit="guardarFechasResumen"><input type="hidden" name="id" value="${esc(c.id)}">
-    <p class="small muted" style="margin:0">Cada resumen trae las fechas del próximo ("próximo cierre" y "próximo vencimiento"). Si cambian, ponelas acá: corrijo en qué resumen cae cada compra y los avisos.</p>
-    ${fila(mk)}${fila(addMonthKey(mk, 1))}
+    <p class="small muted" style="margin:0">Las dice el resumen anterior, cerca del total: "próximo cierre" y "próximo vencimiento". Con eso ubico cada compra en el resumen que corresponde y te aviso a tiempo.</p>
+    ${fila(mk)}
     <button class="btn primary block" type="submit">Guardar</button></form>`;
 }
+
+// días aproximados (para estimar los resúmenes que todavía no tienen fechas)
+function diasDe(cierre, vence) { return { closeDay: Number(cierre.slice(8)), dueDay: Number(vence.slice(8)) }; }
+// fechas reales de un resumen: el que cierra en el mes de "cierre"
+function fechasDe(cierre, vence) { return { ...diasDe(cierre, vence), fechas: { [cierre.slice(0, 7)]: { cierre, vence } } }; }
 
 export const actions = {
   editarFechasResumen(ctx, el) { const c = ctx.state.cards.find((x) => x.id === el.dataset.id); if (c) openModal('Fechas del resumen', fechasForm(ctx.state, c, el.dataset.mk), { push: !document.getElementById('modal').hidden }); },
   guardarFechasResumen(ctx, d) {
+    const malas = Object.keys(d).some((k) => k.startsWith('mk_') && !(d['vence_' + k.slice(3)] > d['cierre_' + k.slice(3)]));
+    if (malas) { toast('El vencimiento tiene que ser después del cierre'); return; }
     ctx.commit((s) => {
       const c = s.cards.find((x) => x.id === d.id); if (!c) return;
       c.fechas = { ...(c.fechas || {}) };
-      for (const k of Object.keys(d)) if (k.startsWith('mk_')) { const m = k.slice(3); if (d['cierre_' + m] && d['vence_' + m]) c.fechas[m] = { cierre: d['cierre_' + m], vence: d['vence_' + m] }; }
+      for (const k of Object.keys(d)) if (k.startsWith('mk_')) { const m = k.slice(3); if (d['cierre_' + m] && d['vence_' + m] > d['cierre_' + m]) { c.fechas[m] = { cierre: d['cierre_' + m], vence: d['vence_' + m] }; Object.assign(c, diasDe(d['cierre_' + m], d['vence_' + m])); } }
     });
     closeModal(); toast('Listo: actualicé las fechas del resumen');
   },
@@ -308,7 +328,10 @@ export const actions = {
     abierta = d.cardId; desfase = 0; pestania = 'resumen';
     closeModal();
     const m = (v) => (usd ? `US$ ${r2(v)}` : money(v));
-    toast(n > 1 ? `Listo: ${n} cuotas de ${m(total / n)}${total > precio ? ` (con ${m(total - precio)} de interés)` : ' sin interés'}` : 'Listo: compra cargada en la tarjeta');
+    const card = ctx.state.cards.find((x) => x.id === d.cardId);
+    const r = card && resumenDeCompra(card, d.date || new Date().toISOString().slice(0, 10));
+    const enRes = r ? ` · ${n > 1 ? 'la primera cuota va' : 'va'} en el resumen de ${r.nombre}${r.otro ? ` (el de ${r.mes} cerró el ${r.cerro})` : ''}` : '';
+    toast(`${n > 1 ? `Listo: ${n} cuotas de ${m(total / n)}${total > precio ? ` (con ${m(total - precio)} de interés)` : ' sin interés'}` : 'Listo: compra cargada'}${enRes}`);
   },
   abrirTarjeta(ctx, el) { abierta = el.dataset.id || ''; desfase = 0; pestania = 'resumen'; ctx.render(); window.scrollTo(0, 0); },
   verTarjeta(ctx, el) { abierta = el.dataset.id || ''; desfase = 0; pestania = 'resumen'; closeModal(); ctx.go('tarjetas'); },
@@ -318,11 +341,13 @@ export const actions = {
   editCard(ctx, el) { const c = ctx.state.cards.find((x) => x.id === el.dataset.id); if (c) openModal('Editar tarjeta', cardForm(ctx.state, c)); },
   saveCard(ctx, d) {
     const last4 = String(d.last4 || '').replace(/\D/g, '').slice(-4);
-    const data = { marca: d.marca || '', banco: d.banco || '', last4, limitCuotas: num(d.limitCuotas), comision: num(d.comision), seguro: num(d.seguro), sellos: Math.min(10, parseFloat(String(d.sellos || '').replace(',', '.')) || 0), closeDay: Math.min(31, Math.max(1, parseInt(d.closeDay, 10) || 25)), dueDay: Math.min(31, Math.max(1, parseInt(d.dueDay, 10) || 5)), limit: num(d.limit), tna: parseFloat(String(d.tna || '').replace(',', '.')) || 0, payFrom: d.payFrom || '', autoDebit: !!d.autoDebit, dolares: d.dolares === 'usd' ? 'usd' : 'pesos' };
+    const data = { marca: d.marca || '', banco: d.banco || '', last4, limitCuotas: num(d.limitCuotas), comision: num(d.comision), seguro: num(d.seguro), sellos: Math.min(10, parseFloat(String(d.sellos || '').replace(',', '.')) || 0), limit: num(d.limit), tna: parseFloat(String(d.tna || '').replace(',', '.')) || 0, payFrom: d.payFrom || '', autoDebit: !!d.autoDebit, dolares: d.dolares === 'usd' ? 'usd' : 'pesos' };
     data.name = nombreTarjeta(data);
+    const nueva = !ctx.state.cards.some((x) => x.id === d.id);
+    if (nueva && !(d.cierre && d.vence && d.vence > d.cierre)) { toast('El vencimiento tiene que ser después del cierre'); return; }
     ctx.commit((s) => {
       const c = s.cards.find((x) => x.id === d.id);
-      if (c) Object.assign(c, data); else s.cards.push({ id: uid(), ...data });
+      if (c) Object.assign(c, data); else s.cards.push({ id: uid(), ...data, ...fechasDe(d.cierre, d.vence) });
     });
     closeModal(); toast(`Tarjeta guardada: ${data.name}`);
   },

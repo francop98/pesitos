@@ -11,7 +11,7 @@ import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
 import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal } from './calculos.js';
-import { statementDates, statementOf } from './agenda.js';
+import { statementDates, statementOf, resumenDeCompra } from './agenda.js';
 import { demoState } from './ejemplo.js';
 import { detectarReintegro, promosCandidatas } from './reintegros.js';
 import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
@@ -468,7 +468,7 @@ export const commonActions = {
     const enMoneda = currency !== B ? ` (${currency} ${String(p.amount).replace('.', ',')})` : '';
     let msg = kind === 'income'
       ? `Ingreso anotado: ${money(amount)}${enMoneda}${when}`
-      : `Anotado en ${catLabel(category)}: ${money(amount)}${enMoneda}${p.installments > 1 && cardId ? ` en ${p.installments} cuotas` : ''}${cardId ? ' con tarjeta' : ''}${when}`;
+      : `Anotado en ${catLabel(category)}: ${money(amount)}${enMoneda}${p.installments > 1 && cardId ? ` en ${p.installments} cuotas` : ''}${cardId ? ' con tarjeta' : ''}${when}${(() => { const c = cardId && ctx.state.cards.find((x) => x.id === cardId); const r = c && resumenDeCompra(c, date); return r && r.otro ? `. Va en el resumen de ${r.nombre}: el de ${r.mes} cerró el ${r.cerro}` : ''; })()}`;
     // aviso de presupuesto al cruzar el 80% o el 100%
     if (antes) {
       const ahora = avancePresupuesto(ctx.state, category);

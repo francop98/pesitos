@@ -22,6 +22,7 @@ let view = 'lista'; // 'lista' | 'calendario' | 'tarjetas'
 /** Abrir Por pagar en una pestaña (la ruta vieja #/tarjetas llega acá). */
 export function renderVista(s, v) { view = v; return render(s); }
 let showPaid = false;
+let verMas = false; // la agenda muestra lo urgente; el resto, al tocar "Ver más"
 let calOffset = 0;
 const shortDate = (iso) => { const d = parseISO(iso); return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}`; };
 const accountName = (id) => (id === 'efectivo' ? 'Efectivo' : walletName(id));
@@ -190,21 +191,22 @@ export function render(s) {
       ${section('Vencidos', g.overdue, '¿Ya los pagaste? Marcalos para que no te avise más.')}
       ${section('Hoy', g.today)}
       ${section('Esta semana', g.week)}
-      ${section('Más adelante', g.later)}
-      ${ins.length ? `<div class="section-title"><span>Vas a cobrar este mes</span><button data-action="newIncome">+ Cobro</button></div><div class="card tight">${ins.map(inRow).join('')}</div>`
+      ${verMas ? section('Más adelante', g.later) : ''}
+      ${!verMas ? '' : ins.length ? `<div class="section-title"><span>Vas a cobrar este mes</span><button data-action="newIncome">+ Cobro</button></div><div class="card tight">${ins.map(inRow).join('')}</div>`
         : '<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div><p class="small muted" style="margin:0">No tenés más cobros este mes.</p>'}
     `}
 
-    ${accounts.length ? `<div class="section-title"><span>Esta semana, por cuenta</span></div>
-    <div class="card tight">${accounts.map((a) => `<div class="row"><span class="cat-icon">${icon('wallet', 18)}</span><span class="grow"><span class="name">${esc(a.label)}</span><span class="meta">${a.items.map((i) => esc(i.name)).join(', ')}${a.auto ? ` · ${money(a.auto)} en débito automático` : ''}</span></span><span class="amount">${money(a.total)}</span></div>`).join('')}</div>
-    <span class="small muted" style="margin-top:-6px">Tené ese saldo en cada cuenta antes de cada vencimiento${accounts.some((a) => a.auto) ? ', así no rebota ningún débito' : ''}.</span>` : ''}
+    ${verMas ? `
+    ${accounts.length ? `<details class="card plegable"><summary><strong>Cuánto tener en cada cuenta</strong> <span class="small muted">esta semana</span></summary>
+    <div class="tight">${accounts.map((a) => `<div class="row"><span class="cat-icon">${icon('wallet', 18)}</span><span class="grow"><span class="name">${esc(a.label)}</span><span class="meta">${a.items.map((i) => esc(i.name)).join(', ')}${a.auto ? ` · ${money(a.auto)} en débito automático` : ''}</span></span><span class="amount">${money(a.total)}</span></div>`).join('')}</div>
+    <span class="small muted">Tené ese saldo en cada cuenta antes de cada vencimiento${accounts.some((a) => a.auto) ? ', así no rebota ningún débito' : ''}.</span></details>` : ''}
 
-    ${prov.length ? `<div class="section-title"><span>Ahorrando para pagos grandes</span></div>
-    <div class="card tight">${prov.map((p) => `<div class="row"><span class="grow"><span class="name">${esc(p.bill.name)}</span><span class="meta">${money(p.bill.amount)} el ${shortDate(p.due)} · faltan ${p.months} meses</span></span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(p.monthly)}</span><span class="small muted">por mes</span></span></div>`).join('')}</div>
-    <span class="small muted" style="margin-top:-6px">Ya está incluido en tu ahorro del mes: así cuando llegue el pago, la plata está.</span>` : ''}
+    ${prov.length ? `<details class="card plegable"><summary><strong>Ahorrando para pagos grandes</strong> <span class="small muted">${prov.length}</span></summary>
+    <div class="tight">${prov.map((p) => `<div class="row"><span class="grow"><span class="name">${esc(p.bill.name)}</span><span class="meta">${money(p.bill.amount)} el ${shortDate(p.due)} · faltan ${p.months} meses</span></span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(p.monthly)}</span><span class="small muted">por mes</span></span></div>`).join('')}</div>
+    <span class="small muted">Ya está incluido en tu ahorro del mes: así cuando llegue el pago, la plata está.</span></details>` : ''}
 
-    ${h.total || h.increases.length ? `<div class="section-title"><span>Tu historial</span></div>
-    <div class="card">
+    ${h.total || h.increases.length ? `<details class="card plegable"><summary><strong>Tu historial de pagos</strong>${h.total ? ` <span class="small muted">${h.onTime} de ${h.total} a tiempo</span>` : ''}</summary>
+    <div style="display:flex;flex-direction:column;gap:8px">
       ${h.total ? `<div class="stat-grid three" style="gap:8px">
         <div class="quote"><span class="k">Racha a tiempo</span><span class="v">${h.streak} ${h.streak === 1 ? 'pago' : 'pagos'}</span></div>
         <div class="quote"><span class="k">A tiempo</span><span class="v">${h.onTime} de ${h.total}</span></div>
@@ -212,18 +214,16 @@ export function render(s) {
       </div>` : ''}
       ${h.increases.map((i) => `<span class="small"><b>${esc(i.name)}</b> subió ${Math.round((i.to / i.from - 1) * 100)}% (de ${money(i.from)} a ${money(i.to)}). Vale la pena comparar opciones.</span>`).join('')}
       ${h.late ? '<span class="small muted">Pagar a término evita recargos e intereses por mora.</span>' : h.total ? '<span class="small muted">¡Bien! Pagar a término te ahorra recargos e intereses.</span>' : ''}
-    </div>` : ''}
+    </div></details>` : ''}
 
     ${g.paid.length ? `<button class="btn small" data-action="togglePaid">${showPaid ? 'Ocultar' : 'Ver'} pagados (${g.paid.length})</button>${showPaid ? `<div class="card tight">${g.paid.map(row).join('')}</div>` : ''}` : ''}
 
-    <div class="card">
-      <strong style="font-size:14px">Recordatorios</strong>
-      <p class="text muted">Sumá todos tus vencimientos al calendario del celular: te avisa el día anterior y el mismo día, aunque no abras la app.</p>
+    <details class="card plegable"><summary><strong>Programados, recordatorios y avisos</strong></summary>
+      <p class="text muted" style="margin:0">Sumá todos tus vencimientos al calendario del celular: te avisa el día anterior y el mismo día, aunque no abras la app.</p>
       <div class="btn-row">
         <button class="btn small green" data-action="downloadICS">${icon('calendar', 18)} Agregar al calendario</button>
         <button class="btn small" data-action="enableNotifications">Avisos en este dispositivo</button>
       </div>
-    </div>
 
     ${(s.bills || []).length ? `<div class="section-title"><span>Tus pagos programados</span></div>
     <div class="card tight">${s.bills.map((b) => `<button class="row" data-action="editBill" data-id="${b.id}"><span class="grow"><span class="name">${esc(b.name)}</span><span class="meta">${repeatLabel(b.repeat, b)} · desde el ${shortDate(b.date)}${b.saveAhead ? ' · ahorrando de a poco' : ''}${b.autoDebit ? ' · débito automático' : ''}</span></span><span class="amount">${money(b.amount)}</span></button>`).join('')}</div>` : ''}
@@ -233,6 +233,8 @@ export function render(s) {
       : '<p class="small muted" style="margin:0">Para lo que no es un pago: sacar la plata antes de un débito, llamar para pedir un descuento, renovar algo. Te aviso ese día.</p>'}
     ${(s.expectedIncomes || []).length ? `<div class="section-title"><span>Tus cobros programados</span></div>
     <div class="card tight">${s.expectedIncomes.map((c) => `<button class="row" data-action="editIncome" data-id="${c.id}"><span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${repeatLabel(c.repeat, c)} · desde el ${shortDate(c.date)}</span></span><span class="amount pos">+${money(c.amount)}</span></button>`).join('')}</div>` : ''}
+    </details>
+    <button class="btn block" data-action="pagosVerMas">Ver menos</button>` : `<button class="btn block" data-action="pagosVerMas">${g.later.length ? `Ver lo que viene después (${g.later.length} ${g.later.length === 1 ? 'pago' : 'pagos'} · ${money(g.later.reduce((x, i) => x + i.amount, 0))})` : 'Ver más'}<br><span class="small muted" style="font-weight:500">Y los cobros que vienen</span></button>`}
 
     `}
   </section>`;
@@ -345,6 +347,7 @@ export const actions = {
        <button class="btn small" data-action="newRecordatorio" data-date="${iso}">+ Recordatorio este día</button>`);
   },
   togglePaid(ctx) { showPaid = !showPaid; ctx.render(); },
+  pagosVerMas(ctx) { verMas = !verMas; ctx.render(); },
   agregarPorPagar(ctx) {
     const op = (a, ic, t, d) => `<button class="row" data-action="${a}" data-push="1"><span class="cat-icon green">${icon(ic, 18)}</span><span class="grow"><span class="name">${t}</span><span class="meta">${d}</span></span>${icon('chevron', 16)}</button>`;
     openModal('¿Qué querés agregar?', `<div class="card tight">

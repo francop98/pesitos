@@ -140,6 +140,9 @@ function render() {
 
 const actions = Object.assign({ recargar: () => location.reload() }, commonActions, habitosActions, monedaActions, espacioActions, ticketActions, importarActions, ciudadActions, ayudaActions, guideActions, menuActions, claveActions, bloqueoActions, onboarding.actions, inicio.actions, movimientos.actions, sueldo.actions, ahorro.actions, asesor.actions, tarjetas.actions, beneficios.actions, herramientas.actions, pagos.actions, buscar.actions, presupuestos.actions, cuentas.actions, deudas.actions, estadisticas.actions, proyectos.actions, inversionesActions, reintegros.actions, reintegros.confirmarActions, {
   goBack() {
+    // las secciones del menú de abajo (y sus pestañas) vuelven siempre a Inicio
+    const r = currentRoute();
+    if (NAV_ORDER.includes(r) || ['tarjetas', 'cuentas', 'sueldo'].includes(r)) { trail.length = 0; goingBack = true; ctx.go('inicio'); return; }
     trail.pop();
     const prev = trail.pop() || 'inicio';
     goingBack = true;
@@ -182,6 +185,11 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+// En Inicio, la carga rápida muestra categorías y medio de pago recién cuando la usás
+const abrirCarga = (e) => { const f = e.target.closest && e.target.closest('.quick-card.compacta'); if (f) f.classList.add('abierta'); };
+document.addEventListener('focusin', abrirCarga);
+document.addEventListener('pointerdown', abrirCarga);
 
 window.addEventListener('hashchange', () => {
   const r = currentRoute();

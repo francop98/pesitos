@@ -3,11 +3,12 @@
 // ajustar con el saldo real y patrimonio.
 // =========================================================
 
-import { money, esc, todayISO, relDay, num } from './formato.js';
+import { money, esc, todayISO, relDay, num, parseISO, MONTHS } from './formato.js';
+const shortDate = (iso) => { const d = parseISO(iso); return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}`; };
 import { screenHead, openModal, closeModal, toast, icon, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { tasaDe, textoTasa, valorHoy } from './rendimientos.js';
-import { budget } from './calculos.js';
+import { budget, metaDiario } from './calculos.js';
 import { monedaBase } from './cotizaciones.js';
 import { listaCuentas, cuentaPrincipal, saldoCuenta, cuentasConSaldo, movimientosDeCuenta, totalCuentas, nombreCuenta, patrimonio, detalleSaldo, cuentaPuedeRendir, tnaCuenta } from './cuentas.js';
 
@@ -93,10 +94,36 @@ export function ahorroDelCiclo(s) {
   const pasado = Math.round(enCiclo.filter((t) => (t.tipo ? t.tipo === 'regla' : !t.deDiario)).reduce((a, t) => a + t.amount, 0));
   return { b, sobra, toca, pasado, falta: Math.max(0, toca - pasado), partes: sobra ? [] : b.savingParts };
 }
-function formAhorrar(s, monto = 0, tipoForzado = '') {
+// ---------- el único lugar para pasar plata a ahorros (Mi plata → Ahorros) ----------
+// Junta lo que te toca por tu forma de ahorrar, lo que no gastaste de tus días y "otro monto".
+export function panelAhorrar(s) {
+  const a = ahorroDelCiclo(s);
+  const b = a.b;
+  const meta = metaDiario(s);
+  const sinForma = !s.savingMode || s.savingMode === 'none';
+  const fila = (titulo, sub, monto, attrs, hecho = '') => `<div class="row" style="cursor:default">
+      <span class="grow"><span class="name">${titulo}</span><span class="meta">${sub}</span></span>
+      ${hecho ? `<span class="pill ok">${hecho}</span>` : `<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="amount">${money(monto)}</b><button class="btn small green" data-action="pasarAhorros" ${attrs}>Pasar</button></span>`}
+    </div>`;
+  const filas = [];
+  if (sinForma) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo de cada mes</span><span class="meta">Todavía no elegiste cuánto ahorrar por mes.</span></span><a class="btn small" href="#/formaahorro">Elegir</a></div>`);
+  else if (a.sobra) filas.push(b.cycle.daysLeft <= 3 && a.toca > 0 ? fila('Lo que te sobró del mes', 'Elegiste ahorrar lo que sobra', a.toca, `data-monto="${a.toca}" data-tipo="regla"`)
+    : `<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo que te sobre del mes</span><span class="meta">Elegiste ahorrar lo que sobra: te lo propongo cuando falten 3 días para el cobro${a.toca > 0 ? ` (hoy serían ${money(a.toca)})` : ''}.</span></span></div>`);
+  else if (a.toca > 0) filas.push(fila('Lo de este mes', a.pasado ? `Según tu forma de ahorrar (${money(a.toca)}). Ya pasaste ${money(a.pasado)}` : `Según tu forma de ahorrar${a.partes.length > 1 ? ` (${a.partes.map((p) => esc(p.name)).join(', ')})` : ''}`, a.falta, `data-monto="${a.falta}" data-tipo="regla"`, a.falta <= 0 ? 'Listo ✓' : ''));
+  if (b.paraAhorrar >= 1) filas.push(fila('Lo que no gastaste de tus días', meta ? `Va a "${esc(meta.name)}"` : 'Lo que te sobró de días anteriores', b.paraAhorrar, `data-monto="${Math.round(b.paraAhorrar)}" data-tipo="extra"${meta ? ` data-goal="${esc(meta.id)}"` : ''}`));
+  const ultimos = (s.transfers || []).filter((t) => t.holdingId || t.deDiario || t.tipo).slice(-3).reverse();
+  return `<div class="card" style="gap:8px">
+    <div class="split"><strong>Pasar a ahorros</strong><button class="btn small" data-action="pasarAhorros" data-tipo="extra">Otro monto</button></div>
+    <div class="tight" style="display:flex;flex-direction:column">${filas.join('')}</div>
+    ${ultimos.length ? `<span class="small muted">Últimos: ${ultimos.map((t) => `${money(t.amount)} el ${shortDate(t.date)}`).join(' · ')}</span>` : ''}
+    <div class="btn-row"><a class="link-btn" href="#/formaahorro">Cambiar cuánto ahorro por mes</a><button class="link-btn" data-action="openDiario">Qué pasa con lo que no gasto</button></div>
+  </div>`;
+}
+
+function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '') {
   const base = monedaBase(s);
   const lugares = (s.holdings || []).filter((h) => (h.currency || 'ARS') === base);
-  const g = (s.goals || []).find((x) => x.main) || (s.goals || [])[0];
+  const g = (metaId && (s.goals || []).find((x) => x.id === metaId)) || (s.goals || []).find((x) => x.main) || (s.goals || [])[0];
   const a = ahorroDelCiclo(s);
   const sugerido = monto || a.falta;
   const tipo = tipoForzado || (a.falta > 0 && !monto ? 'regla' : 'extra');
@@ -146,7 +173,7 @@ export function compararCard(s) {
 }
 
 export const actions = {
-  pasarAhorros(ctx, el) { openModal('Pasar a ahorros', formAhorrar(ctx.state, num(el && el.dataset.monto), (el && el.dataset.tipo) || '')); },
+  pasarAhorros(ctx, el) { const ds = (el && el.dataset) || {}; openModal('Pasar a ahorros', formAhorrar(ctx.state, num(ds.monto), ds.tipo || '', ds.goal || '')); },
   ahorrarLugar(ctx, el) { const f = el.closest('form'); f.querySelector('[data-ah-nuevo]').hidden = el.value !== '__nuevo'; },
   guardarAhorrar(ctx, d) {
     const amount = Math.round(num(d.amount) * 100) / 100;
