@@ -8,6 +8,9 @@
 // si no, lo pagó directo). Lo tuyo son los gastos del proyecto menos lo que te dieron.
 // Los movimientos guardan proyectoId. Si el proyecto se paga con ahorros, sus gastos
 // no cuentan en "Hoy podés gastar".
+// Ahorro del proyecto: si elegís ahorrar para él, se crea una meta enlazada (goal tipo
+// 'proyecto', p.metaId) a la que pasás plata desde Mi plata → Ahorros. Se ve en Mi plata → Metas.
+// Puede no tener ahorro (solo agrupar gastos).
 // =========================================================
 
 import { money, esc, num, todayISO, relDay } from './formato.js';
@@ -35,14 +38,17 @@ const enProyecto = (s, id) => ({
   gastos: s.expenses.filter((e) => !e.pending && e.proyectoId === id),
   ingresos: s.incomes.filter((i) => i.proyectoId === id),
 });
+export const metaDeProyecto = (s, p) => (p.metaId && (s.goals || []).find((g) => g.id === p.metaId)) || null;
 export function resumenProyecto(s, p) {
   const { gastos, ingresos } = enProyecto(s, p.id);
+  const meta = metaDeProyecto(s, p);
   const gastado = gastos.reduce((a, e) => a + e.amount, 0);
   const entro = ingresos.reduce((a, i) => a + i.amount, 0);
   const porCat = {};
   for (const e of gastos) porCat[e.category] = (porCat[e.category] || 0) + e.amount;
   const fechas = [...gastos, ...ingresos].map((x) => x.date).sort();
-  return { gastos, ingresos, gastado, entro, neto: entro - gastado, porCat, desde: fechas[0], hasta: fechas[fechas.length - 1], movs: gastos.length + ingresos.length };
+  const ahorrado = meta ? Number(meta.saved) || 0 : 0;
+  return { gastos, ingresos, gastado, entro, neto: entro - gastado, porCat, desde: fechas[0], hasta: fechas[fechas.length - 1], movs: gastos.length + ingresos.length, meta, ahorrado, queda: ahorrado - gastado };
 }
 
 /** Entre cuántos y cuánto puso cada uno. null si no es compartido. */
@@ -93,7 +99,7 @@ const barra = (pct) => `<div class="pres-barra ${pct >= 1 ? 'mal' : pct >= 0.8 ?
 export function render(s) {
   const p = abierto && proyectoDe(s, abierto);
   return `<section class="screen">
-    ${p ? screenHead(p.nombre, '', p.tipo && p.tipo !== 'otro' ? tipoDe(p)[1] : 'Proyecto').replace('data-action="goBack" aria-label="Volver"', 'data-action="verProyecto" data-id="" aria-label="Volver a todos los proyectos"') : screenHead('Proyectos', '<button class="btn small" data-action="nuevoProyecto">+ Nuevo</button>', 'Gastos agrupados por objetivo')}
+    ${p ? screenHead(p.nombre, '', p.tipo && p.tipo !== 'otro' ? tipoDe(p)[1] : 'Proyecto').replace('data-action="goBack" aria-label="Volver"', 'data-action="irMetas" aria-label="Volver a Metas"') : screenHead('Proyectos', '<button class="btn small" data-action="nuevoProyecto">+ Nuevo</button>', 'Gastos agrupados por objetivo')}
     ${cuerpo(s)}
   </section>`;
 }
@@ -145,6 +151,15 @@ function detalle(s, p) {
   const r = resumenProyecto(s, p);
   const cats = Object.entries(r.porCat).sort((a, b) => b[1] - a[1]);
   const movs = [...r.gastos.map((e) => ({ ...e, _k: 'e' })), ...r.ingresos.map((i) => ({ ...i, _k: 'i' }))].sort((a, b) => b.date.localeCompare(a.date));
+  const objetivo = p.presupuesto || (r.meta && r.meta.target) || 0;
+  const ahorroHtml = r.meta ? `<div class="card" style="gap:8px">
+      <div class="split"><strong>Ahorro del proyecto</strong><button class="btn small green" data-action="pasarAhorros" data-tipo="extra" data-goal="${esc(r.meta.id)}" data-otro="1">+ Sumar ahorro</button></div>
+      <div class="split"><span>Ahorrado</span><b>${money(r.ahorrado)}${objetivo ? ` <span class="small muted">de ${money(objetivo)}</span>` : ''}</b></div>
+      ${objetivo ? barra(r.ahorrado / objetivo).replace('pres-barra mal', 'pres-barra bien').replace('pres-barra ojo', 'pres-barra bien') : ''}
+      <div class="split"><span>Gastado</span><b>${money(r.gastado)}</b></div>
+      <div class="split"><span>${r.queda >= 0 ? 'Te queda de lo ahorrado' : 'Gastaste más de lo ahorrado'}</span><b class="${r.queda >= 0 ? 'pos' : 'neg'}">${money(Math.abs(r.queda))}</b></div>
+      <span class="small muted">Pasás plata desde Mi plata → Ahorros (elegís este proyecto como destino) o con "+ Sumar ahorro".</span>
+    </div>` : '';
   return `<div class="card green" style="gap:6px">
       <span class="hero-label">${esc(p.nombre)}${p.cerrado ? ' · terminado' : ''}</span>
       <span class="hero-number" style="font-size:32px">${money(r.gastado)}</span>
@@ -153,6 +168,7 @@ function detalle(s, p) {
       ${r.entro ? `<span class="small on-green-muted">Entró ${money(r.entro)} · resultado ${r.neto >= 0 ? '+' : '−'}${money(Math.abs(r.neto))}</span>` : ''}
       ${r.desde ? `<span class="small on-green-muted">Desde el ${fechaTxt(r.desde)}${r.hasta !== r.desde ? ` al ${fechaTxt(r.hasta)}` : ''} · ${p.conAhorros ? 'se paga con ahorros: no cuenta en "Hoy podés gastar"' : 'cuenta en "Hoy podés gastar"'}</span>` : ''}
     </div>
+    ${ahorroHtml}
     ${ritmo(p, r)}
     ${compartidoHtml(s, p)}
     ${cats.length ? `<div class="card"><strong>En qué se fue</strong>${cats.map(([c, v]) => `<div class="split small"><span>${esc(catLabel(c))}</span><b>${money(v)} · ${Math.round((v / Math.max(1, r.gastado)) * 100)}%</b></div>`).join('')}</div>` : ''}
@@ -178,6 +194,7 @@ function form(p = {}) {
     <span class="hint">Con presupuesto y fecha te digo si vas en ritmo y cuánto podés gastar por mes.</span>
     <div class="field"><label for="pr-c">¿Lo compartís? Con quién (opcional)</label><input id="pr-c" name="con" value="${esc((p.con || []).join(', '))}" placeholder="Ej: Sofi, Juan" maxlength="200" data-input="proyContar">
       <span class="hint" data-proy-n>${(p.con || []).length ? `Entre ${p.con.length + 1} personas (vos y ${p.con.length})` : 'Separá los nombres con coma. Se divide en partes iguales y te digo cuánto puso cada uno.'}</span></div>
+    <label class="check"><input type="checkbox" name="ahorrar" ${p.metaId || !p.id ? 'checked' : ''}> <span>Voy a ahorrar para esto<br><span class="small muted">Juntás plata para el proyecto (el presupuesto es el objetivo) y después ves cuánto gastaste de lo ahorrado. Destildalo si solo querés agrupar gastos.</span></span></label>
     <label class="check"><input type="checkbox" name="conAhorros" ${p.conAhorros ? 'checked' : ''}> <span>Lo pago con ahorros<br><span class="small muted">Sus gastos no se descuentan de "Hoy podés gastar". Dejalo sin marcar si lo pagás con la plata del mes.</span></span></label>
     ${p.id ? `<label class="check"><input type="checkbox" name="cerrado" ${p.cerrado ? 'checked' : ''}> <span>Proyecto terminado<br><span class="small muted">Deja de aparecer al cargar gastos. Lo seguís viendo acá.</span></span></label>` : ''}
     <button class="btn primary block" type="submit">Guardar</button>
@@ -197,7 +214,7 @@ function listaParaSumar(s, id) {
 }
 
 export const actions = {
-  verProyecto(ctx, el) { abierto = el.dataset.id || null; ctx.render(); window.scrollTo(0, 0); },
+  verProyecto(ctx, el) { abierto = el.dataset.id || null; if (location.hash === '#/proyectos') { ctx.render(); window.scrollTo(0, 0); } else ctx.go('proyectos'); },
   nuevoProyecto() { openModal('Nuevo proyecto', form()); },
   editarProyecto(ctx, el) { const p = proyectoDe(ctx.state, el.dataset.id); if (p) openModal('Editar proyecto', form(p)); },
   guardarProyecto(ctx, d) {
@@ -207,17 +224,34 @@ export const actions = {
     ctx.commit((s) => {
       s.proyectos = s.proyectos || [];
       const datos = { nombre, tipo: d.tipo || 'otro', fin: d.fin || '', presupuesto: num(d.presupuesto) || 0, conAhorros: !!d.conAhorros, cerrado: !!d.cerrado, con: conDeTexto(d.con) };
-      const p = s.proyectos.find((x) => x.id === d.id);
-      if (p) Object.assign(p, datos); else { id = uid(); s.proyectos.push({ id, creado: todayISO(), ...datos }); }
+      let p = s.proyectos.find((x) => x.id === d.id);
+      if (p) Object.assign(p, datos); else { id = uid(); p = { id, creado: todayISO(), ...datos }; s.proyectos.push(p); }
+      // ahorro del proyecto: una meta enlazada
+      s.goals = s.goals || [];
+      const g = p.metaId && s.goals.find((x) => x.id === p.metaId);
+      if (d.ahorrar) {
+        if (g) Object.assign(g, { name: nombre, target: datos.presupuesto || g.target || 0, ...(datos.fin ? { deadline: datos.fin } : {}) });
+        else { const nid = uid(); s.goals.push({ id: nid, name: nombre, target: datos.presupuesto || 0, saved: 0, tipo: 'proyecto', proyectoId: p.id, ...(datos.fin ? { deadline: datos.fin } : {}) }); p.metaId = nid; }
+      } else if (g) {
+        // si ya tenía plata ahorrada, la meta queda como meta común (no se pierde)
+        if (g.saved > 0) { delete g.tipo; delete g.proyectoId; } else s.goals = s.goals.filter((x) => x.id !== g.id);
+        delete p.metaId;
+      }
     });
-    abierto = id; closeModal(); toast(d.id ? 'Proyecto guardado' : 'Proyecto creado: asignale gastos al cargarlos'); ctx.render();
+    abierto = id; closeModal(); toast(d.id ? 'Proyecto guardado' : d.ahorrar ? 'Proyecto creado: pasale plata desde Mi plata → Ahorros' : 'Proyecto creado: asignale gastos al cargarlos');
+    if (location.hash === '#/proyectos') ctx.render(); else ctx.go('proyectos');
   },
   borrarProyecto(ctx, el) {
     const id = el.dataset.id; closeModal(); abierto = null;
     borrarConDeshacer(ctx, 'Proyecto borrado', (s) => {
-      s.proyectos = (s.proyectos || []).filter((p) => p.id !== id);
+      const p = (s.proyectos || []).find((x) => x.id === id);
+      const g = p && p.metaId && (s.goals || []).find((x) => x.id === p.metaId);
+      // lo ahorrado no se pierde: queda como meta común
+      if (g) { if (g.saved > 0) { delete g.tipo; delete g.proyectoId; } else s.goals = s.goals.filter((x) => x.id !== g.id); }
+      s.proyectos = (s.proyectos || []).filter((x) => x.id !== id);
       for (const x of [...s.expenses, ...s.incomes]) if (x.proyectoId === id) delete x.proyectoId;
     });
+    ctx.go('ahorro');
   },
   proyContar(ctx, el) {
     const n = conDeTexto(el.value).length; const h = el.closest('.field').querySelector('[data-proy-n]');

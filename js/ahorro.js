@@ -8,6 +8,7 @@ import { HOLDING_TYPES, holdingType, ASSETS, assetById, allCategories, catLabel 
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar, monedaBase } from './cotizaciones.js';
 import { comoAhorroHtml, desafiosHtml } from './asesor.js';
+import { resumenProyecto } from './proyectos.js';
 import { cuerpo as cuerpoCuentas, patrimonioHtml, panelAhorrar } from './miscuentas.js';
 import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
@@ -163,13 +164,30 @@ let patAbierto = false;
 /** Abrir Mi plata en una pestaña (las rutas viejas #/cuentas llegan acá). */
 export function renderVista(s, v) { vista = v; return render(s); }
 
+// Mi plata → Metas → Proyectos: ahorro para algo puntual (o solo sus gastos)
+function proyectosHtml(s) {
+  const ps = (s.proyectos || []).slice().sort((a, b) => (a.cerrado === b.cerrado ? (b.creado || '').localeCompare(a.creado || '') : a.cerrado ? 1 : -1));
+  return `<div class="section-title"><span>Proyectos</span><button data-action="nuevoProyecto">+ Nuevo proyecto</button></div>
+    ${taparMontos(`<div class="card tight">${ps.length ? ps.map((p) => {
+      const r = resumenProyecto(s, p);
+      const obj = p.presupuesto || (r.meta && r.meta.target) || 0;
+      const sub = r.meta
+        ? (r.gastado ? `Ahorrado ${money(r.ahorrado)} · gastado ${money(r.gastado)} · ${r.queda >= 0 ? `te quedan ${money(r.queda)}` : `te pasaste ${money(-r.queda)}`}` : `Ahorrando: ${money(r.ahorrado)}${obj ? ` de ${money(obj)}` : ''}`)
+        : `Gastado ${money(r.gastado)}${obj ? ` de ${money(obj)}` : ''} · sin ahorro previo`;
+      return `<button class="row" data-action="verProyecto" data-id="${esc(p.id)}">
+        ${r.meta && obj ? ring(Math.min(1, r.ahorrado / obj), 40, 5, p.nombre) : `<span class="cat-icon ${p.cerrado ? '' : 'green'}">${icon('folder', 18)}</span>`}
+        <span class="grow"><span class="name">${esc(p.nombre)}${p.cerrado ? ' <span class="pill">Terminado</span>' : ''}</span><span class="meta">${sub}</span></span>
+        ${icon('chevron', 16)}</button>`;
+    }).join('') : '<p class="empty"><b>Proyectos:</b> ahorro para algo puntual (un viaje, una obra, un evento). Juntás la plata y después ves cuánto gastaste de lo ahorrado. También sirven solo para agrupar los gastos de algo.</p>'}</div>`, 'ahorro')}`;
+}
+
 export function render(s) {
   const total = holdingsTotal(s);
   const items = s.holdings.map((h) => ({ ...h, ars: holdingArs(s, h) }));
   const metasHtml = `
-    <div class="section-title"><span>Metas y fondos</span><button data-action="openGoalForm">+ Nueva</button></div>
+    <div class="section-title"><span>Metas y fondos</span><button data-action="openGoalForm">+ Nueva meta</button></div>
     ${taparMontos(`<div class="card tight">
-      ${s.goals.length ? s.goals.map((g) => g.tipo === 'fondo' ? `<button class="row" data-action="openGoal" data-id="${g.id}">
+      ${s.goals.some((g) => g.tipo !== 'proyecto') ? s.goals.filter((g) => g.tipo !== 'proyecto').map((g) => g.tipo === 'fondo' ? `<button class="row" data-action="openGoal" data-id="${g.id}">
         <span class="cat-icon green">${icon('wallet', 18)}</span>
         <span class="grow"><span class="name">${esc(g.name)} <span class="pill" style="margin-left:4px">Fondo</span></span><span class="meta">${esc(goalEta(g).text)}</span></span>
         <span class="amount ${g.saved < 0 ? 'neg' : ''}">${money(g.saved)}</span>
@@ -206,6 +224,7 @@ export function render(s) {
 
     ` : vista === 'plan' ? `${metasHtml}
     <button class="btn small block" data-action="openGoalCalc">${icon('sprout', 18)} ¿Cuánto tengo que ahorrar por mes para llegar?</button>
+    ${proyectosHtml(s)}
     ${desafiosHtml(s)}` : ''}
   </section>`;
 }
@@ -304,6 +323,7 @@ function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS
 
 export const actions = {
   ahorroVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
+  irMetas(ctx) { vista = 'plan'; ctx.go('ahorro'); },
   ahorroIr(ctx, el) { monedaTab = el.dataset.v; const c = document.querySelector('[data-ahcar]'); if (c) c.scrollTo({ left: pasoAh(c) * (Number(el.dataset.i) + 1), behavior: 'smooth' }); },
   // Herramientas → Cotizaciones
   openCotizaciones(ctx) { openModal('Cotizaciones', `<div id="cotiz-modal" style="display:flex;flex-direction:column;gap:12px">${quotes(ctx.state, true)}</div>`); },

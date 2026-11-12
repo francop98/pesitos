@@ -135,7 +135,7 @@ export function panelAhorrar(s) {
 function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '', otro = false) {
   const base = monedaBase(s);
   const lugares = (s.holdings || []).filter((h) => (h.currency || 'ARS') === base);
-  const g = (metaId && (s.goals || []).find((x) => x.id === metaId)) || (s.goals || []).find((x) => x.main) || (s.goals || [])[0];
+  const g = (metaId && (s.goals || []).find((x) => x.id === metaId)) || (s.goals || []).find((x) => x.main) || (s.goals || []).find((x) => x.tipo !== 'proyecto');
   const a = ahorroDelCiclo(s);
   const sugerido = otro ? 0 : monto || a.falta;
   const tipo = tipoForzado || (a.falta > 0 && !monto ? 'regla' : 'extra');
@@ -158,7 +158,7 @@ function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '', otro = false) 
       <option value="__nuevo" ${lugares.length ? '' : 'selected'}>Otro lugar (lo agrego)</option></select></div>
     <div class="field-row" data-ah-nuevo ${lugares.length ? 'hidden' : ''}><div class="field"><label for="ah-n">Nombre del lugar</label><input id="ah-n" name="nombre" placeholder="Ej: Frasco Naranja X"></div>
       <div class="field"><label for="ah-t">Tasa anual (si rinde)</label><input id="ah-t" name="tna" inputmode="decimal" placeholder="Ej: 30"></div></div>
-    ${(s.goals || []).length ? `<div class="field"><label for="ah-g">Sumarlo a una meta (opcional)</label><select id="ah-g" name="goal"><option value="">Ninguna</option>${s.goals.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` : ''}
+    ${(s.goals || []).length ? `<div class="field"><label for="ah-g">Sumarlo a una meta o proyecto (opcional)</label><select id="ah-g" name="goal"><option value="">Ninguna</option>${s.goals.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${x.tipo === 'proyecto' ? 'Proyecto: ' : ''}${esc(x.name)}</option>`).join('')}</select></div>` : ''}
     <div class="field"><span class="label-like">¿Qué es esta plata?</span>
       ${sinForma ? '' : op('regla', a.sobra ? 'Lo que me sobró del mes' : 'Lo que me toca ahorrar este mes', a.sobra ? 'Baja tu "Hoy podés gastar" (es lo que te quedaba libre).' : 'No cambia tu "Hoy podés gastar": ya estaba descontado.')}
       ${op('extra', 'Algo extra, de lo que tenía para gastar', 'Baja tu "Hoy podés gastar".')}

@@ -104,7 +104,6 @@ function menuHtml(ctx) {
 
     <details class="menu-grupo verde" data-grupo="plata"${grupoAbierto('plata', true) ? ' open' : ''}><summary class="menu-label">Tu plata</summary>
       ${item('irEstadisticas', 'pie', 'Estadísticas', 'En qué se fue tu plata, mes a mes, y topes por categoría')}
-      ${item('irProyectos', 'folder', 'Proyectos', 'Lo que gastás en una obra, un viaje o un evento, aparte')}
       ${s.espacio ? '' : `${item('irDeudas', 'people', 'Deudas y préstamos', 'Lo que te deben y lo que debés')}
       ${item('irReintegros', 'coins', 'Reintegros y cashback', 'Lo que te devuelven y con qué conviene pagar')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}`}

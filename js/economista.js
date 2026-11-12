@@ -183,7 +183,7 @@ const DONDE = [
   [/cashback|reintegro|me devuelv|devoluci/, 'Los reintegros se calculan solos cuando anotás una compra con un medio que tiene promo. Los ves en Menú ☰ → Reintegros y cashback: lo que te van a devolver, cuándo, y cuando confirmás que llegó se suma a tu saldo. Ahí también cargás el cashback de tu billetera y elegís cuándo te devuelve cada una.'],
   [/recordatorio|recordar|acordarme|descuento por|pedir descuento/, 'En Por pagar tocá la campanita (arriba) para crear un recordatorio: sacar plata antes de un débito, llamar para pedir un descuento, etc. Para un descuento por unos meses (por ejemplo, el celular), editá el gasto fijo o el pago y abrí "Descuento por un tiempo": te aviso antes de que termine.'],
   [/con que (pago|conviene)|donde conviene pagar|que tarjeta uso|que billetera uso/, 'En Herramientas → "¿Con qué conviene pagar?" te muestro, para tus servicios y compras de siempre, qué banco o billetera te devuelve más (las tuyas y las que no tenés).'],
-  [/proyecto|obra|remodelacion/, 'Los proyectos se abren desde Movimientos (botón Proyectos) o Menú ☰ → Proyectos. Creás uno con su tipo (obra, viaje, evento, emprendimiento…), presupuesto y fecha objetivo, y al cargar cada gasto elegís el proyecto.'],
+  [/proyecto|obra|remodelacion/, 'Los proyectos están en Mi plata → Metas, junto a tus metas: son ahorro para algo puntual (o solo los gastos de algo). Creás uno con su tipo (obra, viaje, evento, emprendimiento…), presupuesto y fecha objetivo, y al cargar cada gasto elegís el proyecto.'],
   [/tema|oscuro|modo noche|letra/, 'El tema (Auto, Claro u Oscuro) y el tamaño de letra están en Menú ☰ → La app.'],
   [/aviso|notificacion/, 'Los avisos en el celular están en Menú ☰ → La app → Avisos en el celular.'],
   [/instal/, 'Para instalar Pesitos: Menú ☰ → La app → Instalar Pesitos como app. En iPhone: en Safari tocá Compartir → Agregar a inicio.'],
@@ -343,7 +343,7 @@ function responder(id, q, s, b) {
     }
     case 'proyectos': {
       const ps = s.proyectos || [];
-      if (!ps.length) return 'No tenés proyectos. Crealos desde Movimientos → Proyectos: le ponés un presupuesto y una fecha objetivo, y le vas sumando los gastos.';
+      if (!ps.length) return 'No tenés proyectos. Crealos desde Mi plata → Metas: le ponés un presupuesto y una fecha, ahorrás para eso y le vas sumando los gastos.';
       return ps.map((p) => { const g = s.expenses.filter((e) => e.proyectoId === p.id).reduce((a, e) => a + e.amount, 0); return `• ${p.nombre}: ${money(g)} gastados${p.presupuesto ? ` de ${money(p.presupuesto)} (${Math.round((g / p.presupuesto) * 100)}%)` : ''}${p.cerrado ? ' · terminado' : ''}`; }).join('\n');
     }
     default: return null;

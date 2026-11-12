@@ -130,7 +130,7 @@ function render() {
 
   nav.classList.toggle('en-espacio', !!state.espacio);
   const linkPlata = nav.querySelector('[data-route=ahorro]'); if (linkPlata) linkPlata.hidden = !!state.espacio;
-  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', reintegros: 'ahorro', formaahorro: 'ahorro', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
+  const navRoute = { tarjetas: 'pagos', beneficios: 'inicio', buscar: 'movimientos', presupuestos: 'inicio', cuentas: 'ahorro', sueldo: 'ahorro', reintegros: 'ahorro', formaahorro: 'ahorro', proyectos: 'ahorro', estadisticas: 'inicio', asesor: 'inicio' }[route] || route;
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.route === navRoute) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
