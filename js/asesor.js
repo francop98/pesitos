@@ -1,5 +1,5 @@
 // Asesor: lecciones (Aprendé) y consultas.
-// La forma de ahorrar y las reglas se muestran en Mi plata → Ahorros → Cómo ahorro; los desafíos, en Herramientas
+// La forma de ahorrar y las reglas se muestran en Mi plata → Ahorros → Cómo ahorro; los desafíos, en Mi plata → Metas
 // (planAhorroHtml), pero sus acciones siguen acá.
 
 import { money, esc, num, monthKey, todayISO } from './formato.js';
@@ -179,7 +179,7 @@ export function comoAhorroHtml(s, abierto = false) {
   </details>`;
 }
 
-// Herramientas → Desafíos de ahorro
+// Mi plata → Metas → Desafíos de ahorro
 export function desafiosHtml(s) {
   const ch = challengeStatus(s);
   return `<div class="section-title"><span>Desafíos de ahorro</span><button data-action="newChallenge">+ Crear desafío</button></div>

@@ -2,7 +2,7 @@
 // Pesitos — PIN de seguridad y huella / cara
 // - El PIN es de tu cuenta (4 a 6 números, se guarda solo su hash PBKDF2): sirve en
 //   todos tus dispositivos y se pide cada vez que iniciás sesión. Si querés, también
-//   al abrir la app o al volver después de un rato (configurable; por defecto, no).
+//   al abrir la app (por defecto) o al volver después de un rato (configurable).
 // - Huella o cara: de cada dispositivo (WebAuthn, sin servidor), reemplaza al PIN ahí.
 // - Al volver a la app después de un rato también se pide (configurable).
 // - "Olvidé mi PIN": cerrás sesión, volvés a entrar con tu mail o Google y creás otro.
@@ -43,7 +43,7 @@ export const olvidarSesionConPin = (uid) => { try { localStorage.removeItem(K_SE
 /** ¿Hay que pedir el PIN al abrir la app? Siempre si es un inicio de sesión; si no, según la configuración. */
 export function pedirPinAlAbrir(uid) {
   if (!sesionConPin(uid)) return true;
-  let m = -1; try { const c = JSON.parse(localStorage.getItem(clave(uid))); if (c && typeof c.minutos === 'number') m = c.minutos; } catch { /* nada */ }
+  let m = -2; // por defecto: también al abrir la app try { const c = JSON.parse(localStorage.getItem(clave(uid))); if (c && typeof c.minutos === 'number') m = c.minutos; } catch { /* nada */ }
   return m !== -1;
 }
 export const pinRehecho = (uid) => { try { localStorage.removeItem(K_RESET(uid)); } catch { /* nada */ } };
@@ -214,10 +214,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     ocultoDesde = Date.now();
     // si el bloqueo es inmediato, se tapa ya (así el selector de apps no muestra tus números)
-    if ((leer().minutos ?? -1) === 0) document.body.classList.add('bloqueado');
+    if ((leer().minutos ?? -2) === 0) document.body.classList.add('bloqueado');
     return;
   }
-  const min = leer().minutos ?? -1;
+  const min = leer().minutos ?? -2;
   if (min >= 0 && ocultoDesde && Date.now() - ocultoDesde >= min * 60000) mostrarBloqueo();
   else if (!abierto) document.body.classList.remove('bloqueado');
 });
@@ -227,12 +227,12 @@ export async function abrirConfigBloqueo(email) {
   const c = leer();
   const bio = await bioDisponible();
   openModal('PIN de seguridad', `
-    <p class="text muted" style="margin:0">Te pido el PIN cada vez que iniciás sesión. Es el mismo en todos tus dispositivos.</p>
+    <p class="text muted" style="margin:0">Te pido el PIN al iniciar sesión y, si lo dejás así, cada vez que abrís la app. Es el mismo en todos tus dispositivos.</p>
     <div class="card">
       <div class="split"><span><b>PIN</b><br><span class="small muted">${c.pin ? `Activado (${c.pin.largo} números)` : 'Sin PIN'}</span></span><button class="btn small" data-action="bloqueoPin">${c.pin ? 'Cambiar' : 'Crear PIN'}</button></div>
       <div class="split"><span><b>Huella o cara</b><br><span class="small muted">${!bio ? 'Este dispositivo no tiene o el navegador no lo permite' : c.bio ? 'Activada en este dispositivo: la uso en lugar del PIN' : 'Desactivada'}</span></span>${bio ? `<button class="btn small" data-action="bloqueoBio">${c.bio ? 'Desactivar' : 'Activar'}</button>` : ''}</div>
     </div>
-    <div class="field"><label for="bl-t">¿Cuándo te lo pido?</label><select id="bl-t" data-change="bloqueoTiempo">${[[-1, 'Solo cuando iniciás sesión'], [-2, 'También cada vez que abro la app'], [5, 'Al abrir y al volver después de 5 minutos'], [1, 'Al abrir y al volver después de 1 minuto'], [0, 'Al abrir y cada vez que vuelvo a la app']].map(([v, l]) => `<option value="${v}" ${(c.minutos ?? -1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <div class="field"><label for="bl-t">¿Cuándo te lo pido?</label><select id="bl-t" data-change="bloqueoTiempo">${[[-1, 'Solo cuando iniciás sesión'], [-2, 'También cada vez que abro la app'], [5, 'Al abrir y al volver después de 5 minutos'], [1, 'Al abrir y al volver después de 1 minuto'], [0, 'Al abrir y cada vez que vuelvo a la app']].map(([v, l]) => `<option value="${v}" ${(c.minutos ?? -2) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     <p class="small muted" style="margin:0">¿Te olvidaste el PIN? En la pantalla del PIN tocá "Olvidé mi PIN": volvés a entrar con tu mail o Google y creás otro. Tus datos no se pierden.</p>
   `, { push: true });
   window.__pesitosEmail = email;

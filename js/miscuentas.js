@@ -124,8 +124,8 @@ export function panelAhorrar(s) {
   if (b.paraAhorrar >= 1) filas.push(fila('Lo que no gastaste de tus días', meta ? `Va a "${esc(meta.name)}"` : 'Lo que te sobró de días anteriores', b.paraAhorrar, `data-monto="${Math.round(b.paraAhorrar)}" data-tipo="extra"${meta ? ` data-goal="${esc(meta.id)}"` : ''}`, '', 'diarioAhoraNo'));
   if (Number(b.decision.liberado) > 0) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo que no gastaste de tus días</span><span class="meta">Dejaste ${money(b.decision.liberado)} para gastar en los próximos días.</span></span><button class="link-btn" data-action="diarioDeshacer">Deshacer</button></div>`);
   const ultimos = (s.transfers || []).filter((t) => t.holdingId || t.deDiario || t.tipo).slice(-3).reverse();
-  return `<div class="card" style="gap:8px">
-    <div class="split"><strong>Pasar a ahorros</strong><button class="btn small" data-action="pasarAhorros" data-tipo="extra" data-otro="1">+ Pasar algo más</button></div>
+  return `<div class="card destacada" style="gap:8px">
+    <div class="split"><strong class="tit-destacada">${icon('sprout', 18)} Pasar a ahorros</strong><button class="btn small" data-action="pasarAhorros" data-tipo="extra" data-otro="1">+ Pasar algo más</button></div>
     <div class="tight" style="display:flex;flex-direction:column">${filas.join('')}</div>
     ${ultimos.length ? `<span class="small muted">Últimos: ${ultimos.map((t) => `${money(t.amount)} el ${shortDate(t.date)}`).join(' · ')}</span>` : ''}
     <div class="btn-row"><a class="link-btn" href="#/formaahorro">Cambiar cuánto ahorro por mes</a><button class="link-btn" data-action="openDiario">Qué pasa con lo que no gasto</button></div>

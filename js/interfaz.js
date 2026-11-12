@@ -432,12 +432,26 @@ function cerrarLista() {
   if (!h || h.hidden) return;
   h.classList.remove('abierta'); h.hidden = true; listaSel = null;
 }
+const conLista = (t) => { const sel = t && t.closest && t.closest('select'); return sel && !sel.disabled && !sel.multiple && sel.options.length >= MIN_OPCIONES ? sel : null; };
+// con mouse: se abre al apretar
 document.addEventListener('pointerdown', (e) => {
-  const sel = e.target.closest && e.target.closest('select');
-  if (!sel || sel.disabled || sel.multiple || sel.options.length < MIN_OPCIONES) return;
+  if (e.pointerType === 'touch') return;
+  const sel = conLista(e.target); if (!sel) return;
   e.preventDefault(); sel.blur();
   abrirLista(sel);
 }, true);
+// con el dedo: se abre solo si tocás y soltás sin mover (si estás scrolleando, no)
+let toqueSel = null;
+document.addEventListener('touchstart', (e) => { const sel = conLista(e.target); toqueSel = sel ? { sel, x: e.touches[0].clientX, y: e.touches[0].clientY, movio: false } : null; }, { passive: true, capture: true });
+document.addEventListener('touchmove', (e) => { if (toqueSel && (Math.abs(e.touches[0].clientX - toqueSel.x) > 8 || Math.abs(e.touches[0].clientY - toqueSel.y) > 8)) toqueSel.movio = true; }, { passive: true, capture: true });
+document.addEventListener('touchend', (e) => {
+  const t = toqueSel; toqueSel = null;
+  if (!t || t.movio || conLista(e.target) !== t.sel) return;
+  if (e.cancelable) e.preventDefault();
+  t.sel.blur(); abrirLista(t.sel);
+}, { passive: false, capture: true });
+// por las dudas (algunos celulares abren su propia lista con el click)
+document.addEventListener('click', (e) => { if (conLista(e.target)) e.preventDefault(); }, true);
 document.addEventListener('mousedown', (e) => { const sel = e.target.closest && e.target.closest('select'); if (sel && sel.options.length >= MIN_OPCIONES) e.preventDefault(); }, true);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarLista(); });
 

@@ -9,7 +9,6 @@ import { expectedInflation } from './datosvivos.js';
 import { parseAmount } from './interprete.js';
 import { icon, screenHead, openModal, setModalBody } from './interfaz.js';
 import { lessonCard } from './aprender.js';
-import { desafiosHtml } from './asesor.js';
 
 const GRUPOS = [
   ['Antes de comprar', [
@@ -40,7 +39,6 @@ export function render(s) {
       <span class="grow"><span class="name">${t.title}</span><span class="meta">${t.text}</span></span>
       ${icon('chevron', 16)}
     </button>`).join('')}</div>`).join('')}
-    ${desafiosHtml(s)}
   </section>`;
 }
 

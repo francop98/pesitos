@@ -1093,3 +1093,15 @@ details.menu-grupo > summary.menu-label span { font-size: 12px; font-weight: 600
 details.menu-grupo > summary.menu-label::after { content: '›'; margin-left: auto; font-size: 18px; line-height: 1; color: var(--muted); transition: transform .15s; }
 details.menu-grupo[open] > summary.menu-label::after { transform: rotate(90deg); }
 .drawer-panel > .menu-item.salir, .menu-item.salir { margin-top: 2px; }
+
+/* Tarjetas: que se distingan del fondo (borde fino y una sombra suave) */
+:where(.card, .stat) { border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(20, 30, 25, .04), 0 3px 10px rgba(20, 30, 25, .035); }
+.card.green, .card.credit { border-color: transparent; }
+/* Ahorros → "Pasar a ahorros": destacada */
+.card.destacada { border: 2px solid var(--green-mid); }
+.tit-destacada { display: inline-flex; align-items: center; gap: 6px; color: var(--green-mid); }
+/* Ahorros → "Con Pesitos te ahorraste": un logro */
+.card.logro { flex-direction: row; align-items: center; gap: 12px; background: var(--lime-soft); border: 2px solid var(--lime); text-align: left; cursor: pointer; font: inherit; color: var(--ink); width: 100%; }
+.card.logro .grow { display: flex; flex-direction: column; gap: 2px; }
+.card.logro .logro-ic { font-size: 24px; }
+.card.logro .logro-v { font-size: 18px; color: var(--lime-ink); white-space: nowrap; }

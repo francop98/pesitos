@@ -7,7 +7,7 @@ import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
 import { HOLDING_TYPES, holdingType, ASSETS, assetById, allCategories, catLabel } from './categorias.js';
 import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar, monedaBase } from './cotizaciones.js';
-import { comoAhorroHtml } from './asesor.js';
+import { comoAhorroHtml, desafiosHtml } from './asesor.js';
 import { cuerpo as cuerpoCuentas, patrimonioHtml, panelAhorrar } from './miscuentas.js';
 import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
@@ -111,21 +111,32 @@ function widgetAhorros(s) {
   const grupos = porMoneda(s);
   const total = grupos.reduce((a, g) => a + g.ars, 0);
   if (grupos.length === 1) return slideMoneda(s, grupos[0], grupos, total).replace('card green slide', 'card green');
+  // carrusel infinito (como el de Inicio): copia de la última al principio y de la primera al final
+  const n = grupos.length;
   const i = Math.max(0, grupos.findIndex((g) => g.cur === monedaTab));
-  requestAnimationFrame(() => { const c = document.querySelector('[data-ahcar]'); if (c) c.scrollLeft = pasoAh(c) * i; });
-  return `<div class="hero-wrap"><div class="hero-carrusel ah-carrusel" data-ahcar aria-roledescription="carrusel" aria-label="Tus ahorros por moneda">${grupos.map((g) => slideMoneda(s, g, grupos, total)).join('')}</div>
+  const slides = grupos.map((g) => slideMoneda(s, g, grupos, total));
+  const copia = (h) => h.replace('class="card green slide"', 'class="card green slide copia" aria-hidden="true" inert');
+  const todas = [copia(slides[n - 1]), ...slides, copia(slides[0])];
+  requestAnimationFrame(() => { const c = document.querySelector('[data-ahcar]'); if (c) c.scrollLeft = pasoAh(c) * (i + 1); });
+  return `<div class="hero-wrap"><div class="hero-carrusel ah-carrusel" data-ahcar data-n="${n}" aria-roledescription="carrusel" aria-label="Tus ahorros por moneda">${todas.join('')}</div>
     <div class="hero-puntos" role="tablist">${grupos.map((g, k) => `<button role="tab" data-action="ahorroIr" data-i="${k}" data-v="${g.cur}" aria-label="Ver ${esc(nombreMon(g.cur).toLowerCase())}" aria-selected="${k === i}"></button>`).join('')}</div></div>`;
 }
 const pasoAh = (c) => { const a = c.children[0]; const b = c.children[1]; return a && b ? b.offsetLeft - a.offsetLeft : Math.max(1, c.clientWidth); };
-// al deslizar: se marca el puntito y se recuerda la moneda
+const realAh = (c) => { const n = Number(c.dataset.n) || 1; const p = Math.round(c.scrollLeft / Math.max(1, pasoAh(c))); return (p - 1 + n) % n; };
+// al llegar a una copia, salta (sin animación) a la tarjeta real
+const vueltaAh = (c) => { const n = Number(c.dataset.n); const w = pasoAh(c); const p = Math.round(c.scrollLeft / Math.max(1, w)); if (p === 0) c.scrollLeft = w * n; else if (p === n + 1) c.scrollLeft = w; };
+let finAh = 0;
+// al deslizar: se marca el puntito, se recuerda la moneda y se da la vuelta
 document.addEventListener('scroll', (e) => {
   const c = e.target;
   if (!c || !c.matches || !c.matches('[data-ahcar]')) return;
-  const k = Math.round(c.scrollLeft / Math.max(1, pasoAh(c)));
+  const k = realAh(c);
   const puntos = c.parentElement.querySelectorAll('.hero-puntos button');
   puntos.forEach((b, j) => b.setAttribute('aria-selected', String(j === k)));
   if (puntos[k]) monedaTab = puntos[k].dataset.v;
+  clearTimeout(finAh); finAh = setTimeout(() => vueltaAh(c), 140);
 }, true);
+document.addEventListener('scrollend', (e) => { const c = e.target; if (c && c.matches && c.matches('[data-ahcar]')) { clearTimeout(finAh); vueltaAh(c); } }, true);
 
 // el cuadro de cotizaciones, pero con tu plata: cuánto son tus ahorros en cada moneda
 function conversionAhorros(s) {
@@ -140,7 +151,7 @@ function conversionAhorros(s) {
     return { label: o.nombre, main: precio ? fmtAsset(totalArs / precio, cur) : null, sub: precio ? `a ${pesos(precio)}${['BTC', 'ETH', 'USDT', 'XAU'].includes(id) ? '' : ' (venta)'}` : 'sin cotización' };
   }).filter(Boolean);
   return `<div class="card">
-    <div class="topbar"><strong style="font-size:14px">Tus ahorros en otras monedas</strong>
+    <div class="topbar"><strong style="font-size:14px">En otras monedas</strong>
       <span class="head-actions"><button class="chip" data-action="elegirCotiz">${icon('grid', 14, 2.2)} Elegir</button><button class="chip" data-action="refreshQuotes" aria-label="Actualizar cotizaciones">${icon('refresh', 14, 2.2)}</button></span></div>
     <span class="small muted">Todo lo que tenés ahorrado (${money(totalArs)}), convertido a cada cotización.</span>
     <div class="quotes">${tiles.map((x) => `<div class="quote"><span class="k">${esc(x.label)}</span><span class="v">${x.main || '—'}</span><span class="small muted">${x.sub}</span></div>`).join('')}</div>
@@ -190,11 +201,12 @@ export function render(s) {
     ${vista === 'mis' && !s.espacio ? `<div id="pasar-ahorros">${taparMontos(panelAhorrar(s), 'ahorro')}</div>${taparMontos(comoAhorroHtml(s, comoAbierto), 'ahorro')}` : ''}
 
     ${vista === 'mis' ? `
-    ${taparMontos((() => { const tot = Object.values(s.savedByApp || {}).reduce((a, v) => a + (Number(v) || 0), 0) + totalReintegros(reintegrosCobrados(s)); return tot ? `<button class="link-btn" data-action="ahorroPesitosInfo" style="align-self:flex-start">🏆 Con Pesitos te ahorraste ${money(tot)} (reintegros, promos y desafíos) ›</button>` : ''; })(), 'ahorro')}
+    ${taparMontos((() => { const tot = Object.values(s.savedByApp || {}).reduce((a, v) => a + (Number(v) || 0), 0) + totalReintegros(reintegrosCobrados(s)); return tot ? `<button class="card logro" data-action="ahorroPesitosInfo"><span class="logro-ic">🏆</span><span class="grow"><b>Con Pesitos te ahorraste</b><span class="small muted">Reintegros, promos y desafíos</span></span><b class="logro-v">${money(tot)}</b></button>` : ''; })(), 'ahorro')}
     ${taparMontos(conversionAhorros(s), 'ahorro')}
 
     ` : vista === 'plan' ? `${metasHtml}
-    <button class="btn small block" data-action="openGoalCalc">${icon('sprout', 18)} ¿Cuánto tengo que ahorrar por mes para llegar?</button>` : ''}
+    <button class="btn small block" data-action="openGoalCalc">${icon('sprout', 18)} ¿Cuánto tengo que ahorrar por mes para llegar?</button>
+    ${desafiosHtml(s)}` : ''}
   </section>`;
 }
 
@@ -292,7 +304,7 @@ function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS
 
 export const actions = {
   ahorroVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
-  ahorroIr(ctx, el) { monedaTab = el.dataset.v; const c = document.querySelector('[data-ahcar]'); if (c) c.scrollTo({ left: pasoAh(c) * Number(el.dataset.i), behavior: 'smooth' }); },
+  ahorroIr(ctx, el) { monedaTab = el.dataset.v; const c = document.querySelector('[data-ahcar]'); if (c) c.scrollTo({ left: pasoAh(c) * (Number(el.dataset.i) + 1), behavior: 'smooth' }); },
   // Herramientas → Cotizaciones
   openCotizaciones(ctx) { openModal('Cotizaciones', `<div id="cotiz-modal" style="display:flex;flex-direction:column;gap:12px">${quotes(ctx.state, true)}</div>`); },
   // todo lo de pasar plata a ahorros está en Mi plata → Ahorros

@@ -120,7 +120,7 @@ function menuHtml(ctx) {
     </details>
 
     <details class="menu-grupo ambar" data-grupo="seg"${grupoAbierto('seg') ? ' open' : ''}><summary class="menu-label">Seguridad <span>PIN, copia, privacidad</span></summary>
-      ${item('openBloqueo', 'lock', 'PIN de seguridad y huella', 'Lo que te pido al iniciar sesión')}
+      ${item('openBloqueo', 'lock', 'PIN de seguridad y huella', 'Lo que te pido al abrir la app')}
       ${item('openCopia', 'download', 'Copia de seguridad', 'Descargar o restaurar tus datos')}
       ${item('openSeguridad', 'shield', 'Privacidad', 'Cómo se cuidan tus datos')}
     </details>
