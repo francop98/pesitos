@@ -142,7 +142,10 @@ export function budget(s) {
   const income = salary + extras;
   const fixed = fixedTotal(s);
   const plan = plannedSaving(s, salary, extras, cycleExpenses(s, cycle));
-  const saving = plan.total;
+  // lo que decidiste para este ciclo en Mi plata → Ahorros: ahorrar otro monto, "ahora no",
+  // o dejar para gastar lo que no gastaste otros días
+  const decision = (s.ahorroCiclo || {})[cycle.startISO] || {};
+  const saving = decision.ahorro != null ? Math.max(0, Number(decision.ahorro) || 0) : plan.total;
   const variable = cycleVariable(s, cycle);
   const spentToday = sum(s.expenses.filter((e) => !e.pending && !deAhorros(s, e) && e.date === todayStr), share);
   // lo que pasaste a ahorro desde "Hoy podés gastar" (lo que no gastaste otros días)
@@ -160,7 +163,8 @@ export function budget(s) {
   const colchon = normalDaily > 0 ? Math.max(0, Math.round(normalDaily * transcurridos0 - (variable - spentToday))) : 0;
   // lo que se suma a tus próximos días, con un techo según el modo (lo que pasa el techo se sugiere ahorrar)
   const techoDia = cfg.tope == null ? Infinity : normalDaily * cfg.tope;
-  const gastable = Math.max(0, Math.min(colchon * reparto, colchon - aparte, techoDia * cycle.daysLeft));
+  const gastable0 = Math.max(0, Math.min(colchon * reparto, colchon - aparte, techoDia * cycle.daysLeft));
+  const gastable = Math.max(gastable0, Math.min(colchon - aparte, gastable0 + (Number(decision.liberado) || 0)));
   const paraAhorrar = Math.max(0, Math.round(colchon - gastable - aparte));
   const extraDia = gastable / cycle.daysLeft;
   const dailyBase = normalDaily > 0 ? Math.min(evenSplit, normalDaily + extraDia) : evenSplit;
@@ -170,7 +174,7 @@ export function budget(s) {
   const transcurridos = Math.max(0, cycleDays - cycle.daysLeft);
   const adelanto = normalDaily > 0 ? Math.max(0, Math.round((variable - spentToday) - normalDaily * transcurridos)) : 0;
   const usedPct = income > 0 ? Math.min(1, (fixed + saving + variable + aparte) / income) : 0;
-  return { cycle, income, salary, extras, fixed, saving, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, adelanto, colchon, paraAhorrar, extraDia, reparto, modo: cfg.modo, aparte, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
+  return { cycle, income, salary, extras, fixed, saving, savingPlan: plan.total, decision, savingParts: plan.parts, variable, spentToday, free, dailyBase, normalDaily, sobrante, adelanto, colchon, paraAhorrar, extraDia, reparto, modo: cfg.modo, aparte, todayLeft, usedPct, estimated: !salaryInCycle && !!last, noIncome: income <= 0 };
 }
 
 // ---------- metas ----------
@@ -272,11 +276,11 @@ export function monthExpenses(s, mk) {
 export const monthIncome = (s, mk) => sum(s.incomes.filter((i) => i.date.slice(0, 7) === mk), (i) => i.amount);
 
 // ---------- sueldo nominal vs real ----------
-// Mes trabajado al que corresponde un cobro de sueldo. Si no se cargó, se deduce:
-// lo que se cobra en la primera quincena es del mes anterior (sueldo a mes vencido).
+// Mes trabajado al que corresponde un cobro de sueldo (lo elegís al cargarlo).
 export function periodoDe(i) {
   if (i.periodo && /^\d{4}-\d{2}$/.test(i.periodo)) return i.periodo;
-  return Number(i.date.slice(8, 10)) <= 15 ? addMonthKey(i.date.slice(0, 7), -1) : i.date.slice(0, 7);
+  // los que se cargaron antes de existir "mes trabajado" usaban el mes de la fecha
+  return i.date.slice(0, 7);
 }
 export function salaryStats(s) {
   const byMonth = {};

@@ -1,5 +1,5 @@
 // Asesor: lecciones (Aprendé) y consultas.
-// La forma de ahorrar, las reglas y los desafíos se muestran en Mi plata → Plan de ahorro
+// La forma de ahorrar y las reglas se muestran en Mi plata → Ahorros → Cómo ahorro; los desafíos, en Herramientas
 // (planAhorroHtml), pero sus acciones siguen acá.
 
 import { money, esc, num, monthKey, todayISO } from './formato.js';
@@ -149,28 +149,22 @@ export const formaAhorro = {
           <button class="chip" data-action="editRule" data-key="${r.key}" aria-label="Cambiar ${r.name}">${r.unit === '$' ? money(v[r.param]) : v[r.param] + '%'}</button>
           <button class="switch" role="switch" aria-checked="${v.on}" aria-label="${r.name}" data-action="toggleRule" data-key="${r.key}"></button></div>`; }).join('')}
       </div>
-      <p class="small muted" style="margin:0">También podés crear reglas propias (por ejemplo, "cada vez que pido delivery, aparto $1.000") en Mi plata → Plan → Reglas de ahorro.</p>
+      <p class="small muted" style="margin:0">También podés crear reglas propias (por ejemplo, "cada vez que pido delivery, aparto $1.000") en Mi plata → Ahorros → Cómo ahorro.</p>
       ${lessonBtn()}
     </section>`;
   },
 };
 const lessonBtn = () => '<button class="btn ghost small" data-action="openLesson" data-id="modos" style="align-self:flex-start">¿Cuál me conviene?</button>';
 
-/** Forma de ahorrar, reglas y desafíos (se muestra en Mi plata → Plan de ahorro). */
-export function planAhorroHtml(s, metasHtml = '') {
-  const ch = challengeStatus(s);
+// Mi plata → Ahorros: "Cómo ahorro" (forma de ahorrar + reglas), plegado
+export function comoAhorroHtml(s, abierto = false) {
   const b = budget(s);
-  return `
-    <div class="card">
-      <div class="topbar"><strong style="font-size:14px">Tu forma de ahorrar</strong><button class="chip" data-action="changeMode">Cambiar</button></div>
-      <span class="text">${esc(MODE_LABEL(s))}</span>
-      <button class="btn ghost small" data-action="openLesson" data-id="modos" style="align-self:flex-start;min-height:36px;padding:0 4px">¿Cuál me conviene?</button>
-    </div>
-
-    ${metasHtml}
-
+  return `<details class="card plegable" id="como-ahorro"${abierto ? ' open' : ''}><summary><strong>Cómo ahorro</strong> <span class="small muted">${esc(MODE_LABEL(s))}</span></summary>
+    <div class="topbar"><strong style="font-size:14px">Tu forma de ahorrar</strong><button class="chip" data-action="changeMode">Cambiar</button></div>
+    <span class="text">${esc(MODE_LABEL(s))}</span>
+    <button class="btn ghost small" data-action="openLesson" data-id="modos" style="align-self:flex-start;min-height:36px;padding:0 4px">¿Cuál me conviene?</button>
     <div class="section-title"><span>Reglas de ahorro</span><button data-action="newRule">+ Crear regla</button></div>
-    <div class="card tight">
+    <div class="tight">
       ${BUILTIN.map((r) => { const v = s.rules[r.key]; return `<div class="row">
         <span class="grow"><span class="name">${r.name}</span><span class="meta">${esc(r.text(v))}</span></span>
         ${r.param ? `<button class="chip" data-action="editRule" data-key="${r.key}" aria-label="Cambiar ${r.name}">${r.unit === '$' ? money(v[r.param]) : v[r.param] + '%'}</button>` : ''}
@@ -181,9 +175,14 @@ export function planAhorroHtml(s, metasHtml = '') {
         <button class="switch" role="switch" aria-checked="${c.on}" aria-label="${esc(c.name)}" data-action="toggleCustomRule" data-id="${c.id}"></button>
       </div>`).join('')}
     </div>
-    ${b.saving > 0 ? `<span class="small muted" style="margin-top:-6px">Este ciclo tus reglas apartan ${money(b.saving)}: ${b.savingParts.map((p) => `${esc(p.name)} ${money(p.amount)}`).join(' · ')}.</span>` : ''}
+    ${b.savingPlan > 0 ? `<span class="small muted">Este ciclo tus reglas apartan ${money(b.savingPlan)}: ${b.savingParts.map((p) => `${esc(p.name)} ${money(p.amount)}`).join(' · ')}.</span>` : ''}
+  </details>`;
+}
 
-    <div class="section-title"><span>Desafíos</span><button data-action="newChallenge">+ Crear desafío</button></div>
+// Herramientas → Desafíos de ahorro
+export function desafiosHtml(s) {
+  const ch = challengeStatus(s);
+  return `<div class="section-title"><span>Desafíos de ahorro</span><button data-action="newChallenge">+ Crear desafío</button></div>
     ${ch ? `<div class="card">
       <div class="topbar"><strong style="font-size:14px">${esc(ch.def.name)}</strong><span class="pill ${ch.broken ? 'warn' : 'lime'}">${ch.broken ? 'Se cortó' : ch.done ? '¡Completado!' : `Día ${ch.day} de ${ch.def.days}`}</span></div>
       <div class="bar"><span style="width:${Math.round(ch.pct * 100)}%"></span></div>

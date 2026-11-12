@@ -264,14 +264,23 @@ export const botonMes = (mk, accion) => { const [y, m] = mk.split('-').map(Numbe
 // ---------- ocultar montos (Ahorro y Sueldo) ----------
 // Se recuerda en este dispositivo. Tapa los importes con puntitos; los porcentajes quedan.
 const K_OCULTAR = 'pesitos_ocultar';
-export function montosOcultos(clave) { try { return JSON.parse(localStorage.getItem(K_OCULTAR) || '{}')[clave] === true; } catch { return false; } }
+// Mi plata (clave 'ahorro'): los montos arrancan ocultos y se muestran con PIN o huella.
+// Se vuelven a ocultar al salir de Mi plata o de la app.
+const PROTEGIDAS = ['ahorro'];
+const reveladas = new Set();
+export const montoProtegido = (clave) => PROTEGIDAS.includes(clave);
+export function revelarMontos(clave, on) { if (on) reveladas.add(clave); else reveladas.delete(clave); }
+export function montosOcultos(clave) {
+  if (montoProtegido(clave)) return !reveladas.has(clave);
+  try { return JSON.parse(localStorage.getItem(K_OCULTAR) || '{}')[clave] === true; } catch { return false; }
+}
 export function alternarMontos(clave) {
   let o = {}; try { o = JSON.parse(localStorage.getItem(K_OCULTAR) || '{}'); } catch { /* nada */ }
   o[clave] = !o[clave];
   try { localStorage.setItem(K_OCULTAR, JSON.stringify(o)); } catch { /* nada */ }
   return o[clave];
 }
-export const ojoMontos = (clave) => { const o = montosOcultos(clave); return `<button class="icon-btn" data-action="alternarMontos" data-clave="${clave}" aria-pressed="${o}" aria-label="${o ? 'Mostrar los montos' : 'Ocultar los montos'}">${icon(o ? 'eyeOff' : 'eye', 20)}</button>`; };
+export const ojoMontos = (clave) => { const o = montosOcultos(clave); return `<button class="icon-btn${o && montoProtegido(clave) ? ' ojo-pide' : ''}" data-action="alternarMontos" data-clave="${clave}" aria-pressed="${o}" aria-label="${o ? 'Mostrar los montos' : 'Ocultar los montos'}">${icon(o ? 'eyeOff' : 'eye', 20)}</button>`; };
 /** Tapa los montos ($ 12.345, −$500, US$ 1.234) de un pedazo de pantalla si están ocultos. */
 export function taparMontos(html, clave) {
   if (!montosOcultos(clave)) return html;

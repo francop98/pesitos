@@ -6,8 +6,8 @@ import { money, pesos, esc, num, todayISO, monthName, monedaActual } from './for
 import { holdingsTotal, holdingArs, goalEta, goalPct } from './calculos.js';
 import { HOLDING_TYPES, holdingType, ASSETS, assetById, allCategories, catLabel } from './categorias.js';
 import { insights } from './economista.js';
-import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar } from './cotizaciones.js';
-import { planAhorroHtml } from './asesor.js';
+import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar, monedaBase } from './cotizaciones.js';
+import { comoAhorroHtml } from './asesor.js';
 import { cuerpo as cuerpoCuentas, patrimonioHtml, panelAhorrar } from './miscuentas.js';
 import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
@@ -42,11 +42,11 @@ function filaCotiz(s, id) {
   const usdV = c[id]; const ars = usdV ? arsPer(s, id) : 0;
   return { label: o.nombre, main: usdV ? `US$ ${nf(id === 'BTC' || id === 'ETH' ? 0 : 2).format(usdV)}` : null, sub: ars ? pesos(ars) : '' };
 }
-function quotes(s) {
+function quotes(s, enModal = false) {
   const rows = cotizElegidas(s).map((id) => filaCotiz(s, id)).filter(Boolean);
   const any = rows.some((x) => x.main);
   return `<div class="card">
-    <div class="topbar"><strong style="font-size:14px">Cotizaciones</strong>
+    <div class="topbar"><strong style="font-size:14px">${enModal ? 'Las que elegiste' : 'Cotizaciones'}</strong>
       <span class="head-actions"><button class="chip" data-action="elegirCotiz">${icon('grid', 14, 2.2)} Elegir</button><button class="chip" data-action="refreshQuotes" aria-label="Actualizar cotizaciones">${icon('refresh', 14, 2.2)}</button></span></div>
     ${any ? `<div class="quotes">${rows.map((x) => `<div class="quote"><span class="k">${x.label}${x.ref ? ' <span class="chip-mini">Tu referencia</span>' : ''}</span><span class="v">${x.main || '—'}</span><span class="small muted">${x.sub || ''}</span></div>`).join('')}</div>`
       : '<p class="text muted">Todavía no pude traer las cotizaciones (sin conexión). Se cargan solas apenas haya internet.</p>'}
@@ -57,13 +57,77 @@ function quotes(s) {
 function elegirCotizBody(s) {
   const sel = new Set(cotizElegidas(s));
   const grupos = [...new Set(COTIZ_OPCIONES.map((o) => o.grupo))];
-  return `<p class="small muted" style="margin:0">Tocá las que querés ver en Ahorros.</p>
+  return `<p class="small muted" style="margin:0">Tocá las que querés ver en Cotizaciones (Herramientas).</p>
     ${grupos.map((g) => `<span class="small" style="font-weight:800">${g}</span><div class="chips">${COTIZ_OPCIONES.filter((o) => o.grupo === g).map((o) => `<button class="chip toggle" data-action="toggleCotiz" data-id="${o.id}" aria-pressed="${sel.has(o.id)}">${esc(o.nombre)}</button>`).join('')}</div>`).join('')}
     <div class="field"><label for="dol-ref">Dólar para pasar tus ahorros y gastos en dólares a pesos</label><select id="dol-ref" data-change="setDolarRef">${DOLARES.map(([id, n]) => `<option value="${id}" ${id === dolarRef(s) ? 'selected' : ''}>${n}</option>`).join('')}</select>
       <span class="hint">Si cobrás o ahorrás en dólares por el banco, el MEP o el oficial suelen ser los más reales.</span></div>`;
 }
 
 let vista = 'cuentas'; // 'cuentas' | 'mis' | 'sueldo' | 'plan'
+let monedaTab = ''; // pestaña del widget de ahorros (ARS, USD, EUR...)
+let comoAbierto = false; // "Cómo ahorro" desplegado (se mantiene al tocar una regla)
+document.addEventListener('toggle', (e) => { if (e.target && e.target.id === 'como-ahorro') comoAbierto = e.target.open; }, true);
+
+// ---------- ahorros por moneda ----------
+const PLURAL = { ARS: 'Pesos', USD: 'Dólares', EUR: 'Euros', BRL: 'Reales', UYU: 'Pesos uruguayos', CLP: 'Pesos chilenos', XAU: 'Oro', BTC: 'Bitcoin', ETH: 'Ethereum', USDT: 'USDT' };
+const nombreMon = (c) => PLURAL[c] || assetById(c).label;
+/** Ahorros agrupados por moneda: [{ cur, cant (en esa moneda), ars (en tu moneda), items }], tu moneda primero. */
+function porMoneda(s) {
+  const base = monedaBase(s);
+  const g = {};
+  for (const h of s.holdings || []) {
+    const cur = h.currency || 'ARS';
+    const x = g[cur] || (g[cur] = { cur, cant: 0, ars: 0, items: [] });
+    x.cant += valorHoy(s, h); x.ars += holdingArs(s, h); x.items.push({ ...h, ars: holdingArs(s, h) });
+  }
+  if (!g[base]) g[base] = { cur: base, cant: 0, ars: 0, items: [] };
+  return Object.values(g).sort((a, b) => (a.cur === base ? -1 : b.cur === base ? 1 : b.ars - a.ars));
+}
+function cotizDe(s, cur) {
+  if (cur === 'USD') return `${nombreDolar(dolarRef(s)).toLowerCase()} a ${pesos(arsPer(s, 'USD'))}`;
+  const v = arsPer(s, cur);
+  return v ? `${assetById(cur).label.toLowerCase()} a ${pesos(v)}` : 'sin cotización';
+}
+// el widget verde: una pestaña por cada moneda en la que ahorrás
+function widgetAhorros(s) {
+  const grupos = porMoneda(s);
+  const base = monedaBase(s);
+  const total = grupos.reduce((a, g) => a + g.ars, 0);
+  const g = grupos.find((x) => x.cur === monedaTab) || grupos[0];
+  const enBase = g.cur === base;
+  const tabs = grupos.length > 1 ? `<div class="mon-tabs" role="tablist" aria-label="Moneda">${grupos.map((x) => `<button role="tab" data-action="ahorroMoneda" data-v="${x.cur}" aria-pressed="${x.cur === g.cur}">${esc(nombreMon(x.cur))}</button>`).join('')}</div>` : '';
+  return `<div class="card green" style="gap:12px;padding:20px">
+      ${tabs}
+      <span class="hero-label">Ahorrado en ${esc(nombreMon(g.cur).toLowerCase())}</span>
+      <span class="hero-number" style="font-size:30px">${enBase ? money(g.ars) : fmtAsset(g.cant, g.cur)}</span>
+      ${enBase ? (grupos.length > 1 ? `<span class="small on-green-muted">Con todas tus monedas: <b style="color:#fff">${money(total)}</b></span>` : '') : (g.ars > 0 || !g.cant ? `<span class="small on-green-muted">Equivale a <b style="color:#fff">${money(g.ars)}</b> · ${esc(cotizDe(s, g.cur))}</span>` : '<span class="small on-green-muted">Todavía no tengo la cotización: la traigo apenas haya conexión.</span>')}
+      ${g.ars > 0 && g.items.length > 1 ? `<div class="dist" role="img" aria-label="Distribución de tus ahorros en ${esc(nombreMon(g.cur).toLowerCase())}">${g.items.filter((h) => h.ars > 0).map((h) => `<span style="width:${(h.ars / g.ars) * 100}%;background:${holdingType(h.type).color}"></span>`).join('')}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:2px">
+        ${g.items.map((h) => `<button class="row" data-action="editHolding" data-id="${h.id}" style="color:#fff;border-color:rgba(255,255,255,.12);padding:8px 0">
+          <span style="width:10px;height:10px;border-radius:3px;background:${holdingType(h.type).color};flex-shrink:0"></span>
+          <span class="grow"><span class="name" style="font-weight:600">${esc(h.name || holdingType(h.type).label)}</span>${tnaDe(s, h) ? `<span class="meta on-green-muted">Rinde ${String(tnaDe(s, h)).replace('.', ',')}% anual</span>` : ''}</span>
+          <span class="amount">${enBase ? money(h.ars) : fmtAsset(valorHoy(s, h), h.currency)}</span>
+        </button>`).join('') || `<span class="small on-green-muted">${grupos.length > 1 ? `No tenés ahorros en ${esc(nombreMon(g.cur).toLowerCase())}.` : 'Todavía no cargaste dónde tenés tus ahorros.'}</span>`}
+      </div>
+      <div class="btn-row"><button class="btn small" data-action="newHolding" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)">+ Agregar dónde ahorrás</button></div>
+    </div>`;
+}
+// lo que valen tus ahorros en otras monedas (en vez de una lista de cotizaciones)
+function conversionAhorros(s) {
+  const grupos = porMoneda(s).filter((g) => g.cant > 0);
+  const base = monedaBase(s);
+  const total = grupos.reduce((a, g) => a + g.ars, 0);
+  if (!total) return '';
+  const ext = grupos.filter((g) => g.cur !== base);
+  const enUsd = base === 'ARS' ? convert(s, total, 'ARS', 'USD') : null;
+  return `<div class="card" style="gap:8px">
+    <div class="topbar"><strong style="font-size:14px">Lo que valen tus ahorros</strong><button class="chip" data-action="refreshQuotes" aria-label="Actualizar cotizaciones">${icon('refresh', 14, 2.2)}</button></div>
+    ${ext.map((g) => `<div class="split"><span>${fmtAsset(g.cant, g.cur)} <span class="small muted">(${esc(cotizDe(s, g.cur))})</span></span><b>${g.ars > 0 ? money(g.ars) : '—'}</b></div>`).join('')}
+    ${ext.length ? `<div class="split"><span>Todo junto, en pesos</span><b>${money(total)}</b></div>` : ''}
+    ${enUsd ? `<div class="split"><span>Todo junto, en dólares <span class="small muted">(${esc(nombreDolar(dolarRef(s)).toLowerCase())})</span></span><b>${fmtAsset(enUsd, 'USD')}</b></div>` : ''}
+    <span class="small muted">Con cotización de venta, ${ratesAge(s)}. <button class="link-btn" data-action="elegirCotiz">Cambiar el dólar de referencia</button> · Todas las cotizaciones están en Herramientas.</span>
+  </div>`;
+}
 let patAbierto = false;
 /** Abrir Mi plata en una pestaña (las rutas viejas #/cuentas llegan acá). */
 export function renderVista(s, v) { vista = v; return render(s); }
@@ -96,36 +160,25 @@ export function render(s) {
       <button role="tab" data-action="ahorroVista" data-v="cuentas" aria-pressed="${vista === 'cuentas'}">Cuentas</button>
       <button role="tab" data-action="ahorroVista" data-v="mis" aria-pressed="${vista === 'mis'}">Ahorros</button>
       <button role="tab" data-action="ahorroVista" data-v="sueldo" aria-pressed="${vista === 'sueldo'}">Sueldo</button>
-      <button role="tab" data-action="ahorroVista" data-v="plan" aria-pressed="${vista === 'plan'}">Plan</button>
+      <button role="tab" data-action="ahorroVista" data-v="plan" aria-pressed="${vista === 'plan'}">Metas</button>
     </div>
     ${vista === 'sueldo' ? sueldoCuerpo(s, 'ahorro') : ''}
 
     ${vista === 'cuentas' ? `<div class="btn-row"><button class="btn small" data-action="nuevaTransferencia">${icon('swap', 18)} Transferir entre cuentas</button><button class="btn small" data-action="irAhorros">${icon('sprout', 18)} Pasar a ahorros</button></div>
     ${taparMontos(cuerpoCuentas(s), 'ahorro')}` : ''}
 
-    ${vista === 'mis' ? taparMontos(`<div class="card green" style="gap:12px;padding:20px">
-      <span class="hero-label">Tenés ahorrado (en ${monedaActual() === 'USD' ? 'dólares' : 'pesos'})</span>
-      <span style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">${money(total)}</span>
-      ${total > 0 ? `<div class="dist" role="img" aria-label="Distribución de tus ahorros">${items.filter((h) => h.ars > 0).map((h) => `<span style="width:${(h.ars / total) * 100}%;background:${holdingType(h.type).color}"></span>`).join('')}</div>` : ''}
-      <div style="display:flex;flex-direction:column;gap:2px">
-        ${items.map((h) => `<button class="row" data-action="editHolding" data-id="${h.id}" style="color:#fff;border-color:rgba(255,255,255,.12);padding:8px 0">
-          <span style="width:10px;height:10px;border-radius:3px;background:${holdingType(h.type).color};flex-shrink:0"></span>
-          <span class="grow"><span class="name" style="font-weight:600">${esc(h.name || holdingType(h.type).label)}</span>${h.currency !== 'ARS' ? `<span class="meta on-green-muted">${fmtAsset(h.amount, h.currency)}</span>` : ''}${tnaDe(s, h) ? `<span class="meta on-green-muted">${h.rinde && tasaDe(s, h.rinde) ? `${esc(nombreBilletera(h.rinde))}: ${textoTasa(tasaDe(s, h.rinde), money)}` : `Rinde ${String(tnaDe(s, h)).replace('.', ',')}% anual`}${valorHoy(s, h) - h.amount >= 1 ? ` · +${money(valorHoy(s, h) - h.amount)} de intereses` : ''}</span>` : ''}</span>
-          <span class="amount">${h.ars ? money(h.ars) : fmtAsset(h.amount, h.currency)}</span>
-        </button>`).join('') || '<span class="small on-green-muted">Todavía no cargaste dónde tenés tus ahorros.</span>'}
-      </div>
-      <div class="btn-row"><button class="btn small" data-action="newHolding" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)">+ Agregar dónde ahorrás</button></div>
-    </div>`, 'ahorro') : ''}
-    ${vista === 'mis' && !s.espacio ? `<div id="pasar-ahorros">${taparMontos(panelAhorrar(s), 'ahorro')}</div>` : ''}
+    ${vista === 'mis' ? taparMontos(widgetAhorros(s), 'ahorro') : ''}
+    ${vista === 'mis' && !s.espacio ? `<div id="pasar-ahorros">${taparMontos(panelAhorrar(s), 'ahorro')}</div>${taparMontos(comoAhorroHtml(s, comoAbierto), 'ahorro')}` : ''}
 
     ${vista === 'mis' ? `
     ${(() => { const tot = Object.values(s.savedByApp || {}).reduce((a, v) => a + (Number(v) || 0), 0) + totalReintegros(reintegrosCobrados(s)); const meses = Object.keys(s.savedByApp || {}).filter((k) => s.savedByApp[k] > 0).sort(); return tot ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">En total te ahorraste con Pesitos</b><span class="small">Reintegros, promos y desafíos${meses.length ? ` desde ${monthName(meses[0], true)} ${meses[0].slice(0, 4)}` : ''}</span></span><b class="v">${money(tot)}</b></button>` : ''; })()}
-    ${quotes(s)}
+    ${taparMontos(conversionAhorros(s), 'ahorro')}
 
     ${tips.map(tipCard).join('')}
 
     <div class="btn-row"><button class="btn" data-action="openRinde">${icon('percent', 18)} ¿Dónde rinde más hoy?</button><button class="btn" data-action="showOptions">¿Dónde conviene ahorrar?</button></div>
-    ` : vista === 'plan' ? planAhorroHtml(s, metasHtml) : ''}
+    ` : vista === 'plan' ? `${metasHtml}
+    <button class="btn small block" data-action="openGoalCalc">${icon('sprout', 18)} ¿Cuánto tengo que ahorrar por mes para llegar?</button>` : ''}
   </section>`;
 }
 
@@ -223,6 +276,9 @@ function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS
 
 export const actions = {
   ahorroVista(ctx, el) { vista = el.dataset.v; ctx.render(); },
+  ahorroMoneda(ctx, el) { monedaTab = el.dataset.v; ctx.render(); },
+  // Herramientas → Cotizaciones
+  openCotizaciones(ctx) { openModal('Cotizaciones', `<div id="cotiz-modal" style="display:flex;flex-direction:column;gap:12px">${quotes(ctx.state, true)}</div>`); },
   // todo lo de pasar plata a ahorros está en Mi plata → Ahorros
   irAhorros(ctx) {
     vista = 'mis'; closeModal();
@@ -232,7 +288,7 @@ export const actions = {
   patToggle(ctx) { patAbierto = !patAbierto; ctx.render(); },
   refreshQuotes(ctx) {
     toast('Actualizando cotizaciones…');
-    refreshRates(ctx, true).then((ok) => toast(ok ? 'Cotizaciones actualizadas' : 'Sin conexión: uso las últimas guardadas'));
+    refreshRates(ctx, true).then((ok) => { toast(ok ? 'Cotizaciones actualizadas' : 'Sin conexión: uso las últimas guardadas'); const m = document.getElementById('cotiz-modal'); if (m) m.innerHTML = quotes(ctx.state, true); });
   },
   elegirCotiz(ctx) { openModal('Cotizaciones', `<div id="cotiz-body" class="form">${elegirCotizBody(ctx.state)}</div>`); },
   toggleCotiz(ctx, el) {

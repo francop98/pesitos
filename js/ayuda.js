@@ -104,9 +104,9 @@ export const AYUDA_TEMAS = [
   ] },
   { titulo: 'Ahorro y metas', ic: 'target', preguntas: [
     ['¿Cómo abro el menú?', 'Tocá ☰ arriba a la izquierda, o deslizá el dedo hacia la derecha desde la mitad izquierda de la pantalla. No empieces justo en el borde: ahí el celular usa el gesto de "atrás".'],
-    ['¿Cómo funciona la forma de ahorrar?', 'Elegís una (apartar un % al cobrar, un monto fijo, lo que sobre o redondear cada gasto) y te recuerdo hacerlo. La cambiás en Mi plata → Plan de ahorro.'],
+    ['¿Cómo funciona la forma de ahorrar?', 'Elegís una (apartar un % al cobrar, un monto fijo, lo que sobre o redondear cada gasto) y te recuerdo hacerlo. La cambiás en Mi plata → Ahorros → Cómo ahorro.'],
     ['¿Cómo cargo lo que tengo ahorrado?', 'En Mi plata → Ahorros → Agregar dónde ahorrás. Puede ser en pesos, dólares, cripto u oro (en gramos). Lo paso a pesos con la cotización del día y, si rinde, sumo los intereses solo.'],
-    ['¿Cómo creo una meta?', 'En Mi plata → Plan de ahorro → Metas. Poné cuánto necesitás y te digo cuánto apartar por mes y cuándo llegás.'],
+    ['¿Cómo creo una meta?', 'En Mi plata → Metas. Poné cuánto necesitás y te digo cuánto apartar por mes y cuándo llegás.'],
   ] },
   { titulo: 'Promos y beneficios', ic: 'ticket', preguntas: [
     ['¿De dónde salen las promos?', 'De una fuente pública que se actualiza todos los días. Te muestro solo las de tus medios de pago y tu zona.'],

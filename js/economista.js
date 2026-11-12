@@ -194,9 +194,9 @@ const DONDE = [
   [/sueldo/, 'Tu sueldo está en Movimientos → Estadísticas → Tu sueldo. También tenés un atajo en el menú ☰ → Tu sueldo.'],
   [/estadistic|grafic|en que (gasto|gaste)/, 'Las estadísticas están en Movimientos → Estadísticas (o tocando el resumen del mes).'],
   [/tarjeta/, 'Tus tarjetas están en Por pagar → Tarjetas: ahí ves cada resumen, las cuotas y cuánto tenés comprometido.'],
-  [/meta|objetivo/, 'Las metas están en Mi plata → Plan de ahorro.'],
+  [/meta|objetivo/, 'Las metas están en Mi plata → Metas.'],
   [/saldo|cuenta/, 'El saldo de cada cuenta está en Mi plata → Cuentas.'],
-  [/ahorro|inversion/, 'Tus ahorros están en Mi plata → Ahorros, y tu forma de ahorrar en Mi plata → Plan de ahorro.'],
+  [/ahorro|inversion/, 'Tus ahorros están en Mi plata → Ahorros, y tu forma de ahorrar en Mi plata → Ahorros → Cómo ahorro.'],
   [/promo|beneficio|descuento/, 'Las promos están en Inicio → "Tu día" → Promo de hoy, o en Beneficios.'],
   [/fijo|alquiler|servicio/, 'Los gastos fijos están en Por pagar → Fijos.'],
   [/pin|huella|contrasena|clave/, 'El PIN y la huella están en Menú ☰ → PIN de seguridad y huella. La contraseña, tocando tu nombre arriba del menú.'],
@@ -286,7 +286,7 @@ function responder(id, q, s, b) {
       return `Tu próximo cobro es el ${fecha(c.nextISO)}: faltan ${c.daysLeft} día${c.daysLeft === 1 ? '' : 's'}.${b.noIncome ? '' : ` Hasta ese día te quedan ${money(Math.max(0, b.free))} libres.`}`;
     }
     case 'metas': {
-      if (!s.goals.length) return 'Todavía no tenés metas. Creá una en Mi plata → Plan de ahorro: te digo cuánto apartar y cuándo llegás.';
+      if (!s.goals.length) return 'Todavía no tenés metas. Creá una en Mi plata → Metas: te digo cuánto apartar y cuándo llegás.';
       return s.goals.map((g) => `• ${g.name}: ${g.target ? `${money(g.saved)} de ${money(g.target)} (${Math.round((g.saved / g.target) * 100)}%)` : `${money(g.saved)} juntados`}. ${goalEta(g).text}.`).join('\n');
     }
     case 'promos': {

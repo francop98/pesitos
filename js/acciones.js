@@ -10,11 +10,12 @@ import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
-import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal } from './calculos.js';
+import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal, periodoDe } from './calculos.js';
 import { statementDates, statementOf, resumenDeCompra } from './agenda.js';
 import { demoState } from './ejemplo.js';
 import { detectarReintegro, promosCandidatas } from './reintegros.js';
-import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions } from './interfaz.js';
+import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions, montoProtegido, montosOcultos, revelarMontos } from './interfaz.js';
+import { bloqueoActivo, mostrarBloqueo } from './bloqueo.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
 import { ratesAge, arsPer, aBase, monedaBase } from './cotizaciones.js';
 import { valorHoy } from './rendimientos.js';
@@ -130,7 +131,8 @@ export function entryForm(s, e, kind) {
     <div class="field"><label for="f-note">Descripción</label><input id="f-note" name="note" value="${esc(e.note || '')}" placeholder="Ej: Coto, nafta, cena con amigos"></div>
     ${isIncome
       ? `<div class="field-row"><div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Sueldo</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>
-         <div class="field"><label for="f-acc">Entró en</label><select id="f-acc" name="medio">${medioOptions(s, medio, { conTarjetas: false })}</select></div></div>`
+         <div class="field"><label for="f-acc">Entró en</label><select id="f-acc" name="medio">${medioOptions(s, medio, { conTarjetas: false })}</select></div></div>
+         ${e.id && (e.type === 'sueldo' || e.laboral) ? `<div class="field"><label for="f-per">Mes trabajado</label><input id="f-per" name="periodo" type="month" value="${periodoDe(e)}"><span class="hint">A qué mes corresponde este cobro. Con esto se arma la evolución de tu sueldo.</span></div>` : ''}`
       : `<div class="field"><label for="f-cat">Categoría</label><select id="f-cat" name="category">${catOptions(e.category)}</select><span class="hint">Si la corregís, la próxima vez la reconozco sola.</span></div>
          <label class="check"><input type="checkbox" name="dividir" data-change="entryToggle" data-box="split" ${splits.length ? 'checked' : ''}> <span>Dividir en varias categorías<br><span class="small muted">Ej: en el súper compraste comida y cosas de limpieza.</span></span></label>
          <div class="split-box" data-box-id="split" ${splits.length ? '' : 'hidden'}>
@@ -487,7 +489,19 @@ export const commonActions = {
     }
     toast(msg);
   },
-  alternarMontos(ctx, el) { const o = alternarMontos(el.dataset.clave); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles'); },
+  async alternarMontos(ctx, el) {
+    const c = el.dataset.clave;
+    if (montoProtegido(c)) {
+      if (montosOcultos(c)) {
+        const conPin = bloqueoActivo();
+        if (conPin) await mostrarBloqueo();
+        revelarMontos(c, true); ctx.render();
+        toast(conPin ? 'Montos visibles hasta que salgas de Mi plata' : 'Montos visibles. Para que te pida PIN o huella, activalo en Menú → PIN de seguridad');
+      } else { revelarMontos(c, false); ctx.render(); toast('Montos ocultos'); }
+      return;
+    }
+    const o = alternarMontos(c); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles');
+  },
   quickFecha(ctx, el) {
     const t = el.closest('form').querySelector('[data-fecha-txt]');
     if (!t) return;
@@ -711,6 +725,7 @@ export const commonActions = {
         const antes = s.incomes.find((x) => x.id === d.id) || {};
         const conservar = Object.fromEntries(['periodo', 'laboral', 'concepto'].filter((k) => antes[k] !== undefined).map((k) => [k, antes[k]]));
         if (d.type === 'sueldo') { delete conservar.laboral; delete conservar.concepto; }
+        if (/^\d{4}-\d{2}$/.test(d.periodo || '')) conservar.periodo = d.periodo;
         const item = { ...conservar, id: d.id || uid(), date: d.date || todayISO(), amount: ars(original), type: d.type, note: d.note || (d.type === 'sueldo' ? 'Sueldo' : 'Ingreso'), ...moneda };
         if (medioTipo === 'acc') item.accountId = medioId;
         if (tags.length) item.tags = tags;

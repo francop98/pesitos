@@ -226,7 +226,7 @@ export const habitosActions = {
       if (r) { r.value = v; r.on = true; } else s.rules.custom.push({ id: 'aprendido', name: 'Lo que te sobraba', type: 'fixedMonthly', value: v, on: true });
       if (el.dataset.sid) s.dismissed[el.dataset.sid] = true;
     });
-    import('./interfaz.js').then((m) => m.toast(`Listo: separás ${money(v)} por mes. Lo ves en Mi plata → Plan de ahorro`));
+    import('./interfaz.js').then((m) => m.toast(`Listo: separás ${money(v)} por mes. Lo ves en Mi plata → Ahorros → Cómo ahorro`));
   },
   aprTope(ctx, el) {
     const c = el.dataset.cat; const v = Math.round(Number(el.dataset.amount) || 0); if (!c || !v) return;

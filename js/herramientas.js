@@ -9,6 +9,7 @@ import { expectedInflation } from './datosvivos.js';
 import { parseAmount } from './interprete.js';
 import { icon, screenHead, openModal, setModalBody } from './interfaz.js';
 import { lessonCard } from './aprender.js';
+import { desafiosHtml } from './asesor.js';
 
 const GRUPOS = [
   ['Antes de comprar', [
@@ -26,6 +27,7 @@ const GRUPOS = [
     { action: 'openInversiones', icon: 'chart', title: 'Letras, bonos, cauciones y acciones', text: 'Qué es cada inversión (plazo fijo, cauciones, letras, bonos, ON, acciones, CEDEARs), su riesgo y dónde se compra. Con las tasas de las letras de hoy.' },
   ]],
   ['Monedas', [
+    { action: 'openCotizaciones', icon: 'trend', title: 'Cotizaciones', text: 'Dólar oficial, blue, MEP, tarjeta, euro, real, cripto y oro. Elegís cuáles ver.' },
     { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Todos los dólares (oficial, blue, MEP, CCL, tarjeta, cripto), euro, real, pesos uruguayos y chilenos, bitcoin y oro.' },
   ]],
 ];
@@ -39,6 +41,7 @@ export function render(s) {
       <span style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-weight:800;font-size:15px">${t.title}</span><span class="small muted">${t.text}</span></span>
       ${icon('chevron', 18)}
     </button>`).join('')}`).join('')}
+    ${desafiosHtml(s)}
   </section>`;
 }
 

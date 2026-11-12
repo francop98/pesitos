@@ -171,7 +171,7 @@ export const actions = {
     openModal('Plata que te ahorraste', `<p class="text" style="margin:0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
       <div class="card"><span class="small">💸 <b>Reintegros y cashback:</b> cuando anotás un gasto con un medio que tiene promo (o un cashback que cargaste), calculo cuánto te devuelven. Cuando confirmás que llegó, se suma acá y a tu saldo.</span>
       <span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
-      <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Mi plata → Plan de ahorro, se suma lo que no gastaste.</span></div>
+      <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Herramientas → Desafíos de ahorro, se suma lo que no gastaste.</span></div>
       <a class="btn primary block" href="#/reintegros">Ver mis reintegros</a>
       <a class="btn block" href="#/beneficios">Ver las promos de hoy</a>`);
   },

@@ -291,7 +291,7 @@ function widget(s, b, payText) {
   const slides = [
     `<div class="card green hero slide">
       <span class="hero-label">${b.noIncome || b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}<button class="hero-info" data-action="openDiario" aria-label="Cómo se calcula y cómo se reparte lo que no gastás">${icon('info', 15)}</button></span>
-      <span class="hero-number">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
+      <span class="hero-number${!b.noIncome && b.todayLeft < 0 ? ' negative' : ''}">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
       ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(s, b, payText)}
     </div>`,

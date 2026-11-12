@@ -1058,3 +1058,55 @@ details.plegable .section-title { margin-top: 4px; }
 /* tabla del año mes a mes (Estadísticas) */
 .tabla-inf.cuatro .ti-fila { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
 .tabla-inf .ti-total { font-weight: 800; border-top: 2px solid var(--line); }
+
+/* pestañas de moneda en el widget de ahorros */
+.mon-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: -4px 0 2px; }
+.mon-tabs::-webkit-scrollbar { display: none; }
+.mon-tabs button { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.3); background: transparent; color: #fff; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 32px; }
+.mon-tabs button[aria-pressed="true"] { background: var(--lime); color: var(--ink, #10241A); border-color: var(--lime); }
+.pasar-fila .btn-row { gap: 6px; margin-top: 6px; }
+
+/* ==========================================================
+   Armonía (v39): los recuadros destacados ya no son un bloque
+   verde fuerte. Fondo verde muy suave, texto normal y el número
+   en verde. El color fuerte queda para lo que hay que destacar:
+   botones principales, logros (lima) y avisos (ámbar).
+   ========================================================== */
+.card.green { background: var(--green-soft); color: var(--ink); border: 1px solid color-mix(in srgb, var(--green) 14%, transparent); }
+.card.green .hero-label, .card.green .on-green-muted, .on-green-muted, .card.green .row .meta { color: var(--muted); }
+.card.green .hero-number, .card.green .pat-v { color: var(--green-text); }
+.card.green [style*="color:#fff"] { color: inherit !important; }
+.card.green .row { border-color: color-mix(in srgb, var(--green) 14%, transparent) !important; }
+.card.green .btn[style*="transparent"] { border-color: color-mix(in srgb, var(--green) 30%, transparent) !important; color: var(--green-text) !important; }
+.card.green .bar { background: color-mix(in srgb, var(--green) 14%, transparent); }
+.card.green .bar > span { background: var(--green); }
+.card.green .pres-barra { background: color-mix(in srgb, var(--green) 14%, transparent); }
+.hero-number.negative { color: var(--amber) !important; }
+.hero-carrusel > .slide { color: var(--ink); }
+.hero-msg b { color: var(--ink); }
+.hero-msg.alerta { background: var(--amber-bg); color: var(--amber-ink); }
+.hero-info { background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green-text); }
+.hero-acciones .link-btn { color: var(--green-text); opacity: 1; }
+.link-btn.on-green-link { color: var(--green-text); }
+.icon-btn.on-green, .icon-btn.back.on-green { background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green-text); }
+.card.green .btn.lime { background: var(--green); color: #fff; border-color: var(--green); }
+/* números grandes más medidos */
+.hero-number { font-size: 38px; letter-spacing: -1px; }
+.card.green [style*="font-size:34px"], .card.green [style*="font-size:32px"] { font-size: 30px !important; }
+.card.hero { padding: 18px; gap: 4px; }
+/* pestañas de moneda sobre fondo claro */
+.mon-tabs button { border-color: color-mix(in srgb, var(--green) 30%, transparent); color: var(--green-text); }
+.mon-tabs button[aria-pressed="true"] { background: var(--green); color: #fff; border-color: var(--green); }
+/* dark mode: el número un poco más claro */
+:root[data-tema="oscuro"] .card.green .hero-number { color: #9FE0BC; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .card.green .hero-number { color: #9FE0BC; } }
+/* la tarjeta de crédito también en tono suave */
+.card.credit { background: var(--green-soft); color: var(--ink); border: 1px solid color-mix(in srgb, var(--green) 14%, transparent); }
+.card.credit .chip { background: var(--card); color: var(--green-text); border-color: var(--line); }
+.card.credit .bar { background: color-mix(in srgb, var(--green) 14%, transparent); }
+.card.credit .bar > span { background: var(--green); }
+.card.credit .t-mes { background: color-mix(in srgb, var(--green) 8%, transparent); }
+.card.credit .t-mes .icon-btn { color: var(--green-text); }
+.card.credit .t-acciones .btn { background: var(--card); color: var(--ink); border-color: var(--line); }
+.card.credit .t-acciones .btn.green { background: var(--green); color: #fff; border-color: var(--green); }
+.card.credit .credit-sub, .card.credit .on-green-muted { color: var(--muted); opacity: 1; }

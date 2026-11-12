@@ -120,10 +120,10 @@ export const catLabel = (id) => catById(id).label;
 
 // Formas de ahorro / inversión. "asset" es la moneda o activo por defecto.
 export const HOLDING_TYPES = [
-  { id: 'remunerada', label: 'Cuenta remunerada o billetera', asset: 'ARS', color: '#C6F36B' },
-  { id: 'plazo_fijo', label: 'Plazo fijo', asset: 'ARS', color: '#FFFFFF' },
-  { id: 'uva', label: 'Plazo fijo UVA', asset: 'ARS', color: '#E9F7C8' },
-  { id: 'fci', label: 'Fondo común de inversión (FCI)', asset: 'ARS', color: '#A9D8BE' },
+  { id: 'remunerada', label: 'Cuenta remunerada o billetera', asset: 'ARS', color: '#9BCB3C' },
+  { id: 'plazo_fijo', label: 'Plazo fijo', asset: 'ARS', color: '#16533A' },
+  { id: 'uva', label: 'Plazo fijo UVA', asset: 'ARS', color: '#B7DB86' },
+  { id: 'fci', label: 'Fondo común de inversión (FCI)', asset: 'ARS', color: '#8FC7A8' },
   { id: 'divisas', label: 'Moneda extranjera (dólar, euro, real…)', asset: 'USD', color: '#7FB89A' },
   { id: 'cripto', label: 'Cripto (bitcoin, USDT…)', asset: 'BTC', color: '#F2B33D' },
   { id: 'oro', label: 'Oro', asset: 'XAU', color: '#E7C66B' },

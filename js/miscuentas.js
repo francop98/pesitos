@@ -60,7 +60,7 @@ export function patrimonioHtml(s, abierto = false) {
       ${pat.creditos ? `<div class="split"><span>Créditos y cuotas que faltan</span><b>−${money(pat.creditos)}</b></div>` : ''}
       ${pat.debo ? `<div class="split"><span>Debés a otras personas</span><b>−${money(pat.debo)}</b></div>` : ''}
       ${pat.conCuentas ? '' : '<span class="small muted">Para que sea exacto, cargá el saldo de tus cuentas.</span>'}
-      <button class="btn small ghost" data-action="verDeudas" style="align-self:flex-start">Ver deudas y préstamos</button>
+      ${pat.meDeben || pat.debo ? `<button class="btn small ghost" data-action="verDeudas" style="align-self:flex-start">Ver ${pat.debo && pat.meDeben ? 'lo que debés y te deben' : pat.debo ? 'a quién le debés' : 'quién te debe'}</button>` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -90,10 +90,17 @@ export function ahorroDelCiclo(s) {
   const b = budget(s);
   const sobra = s.savingMode === 'leftover';
   const toca = Math.round(sobra ? Math.max(0, b.free) : b.saving);
+  const decidido = b.decision.ahorro != null; // elegiste otro monto o "ahora no" este ciclo
   const enCiclo = (s.transfers || []).filter((t) => t.date >= b.cycle.startISO && t.date < b.cycle.nextISO);
   const pasado = Math.round(enCiclo.filter((t) => (t.tipo ? t.tipo === 'regla' : !t.deDiario)).reduce((a, t) => a + t.amount, 0));
-  return { b, sobra, toca, pasado, falta: Math.max(0, toca - pasado), partes: sobra ? [] : b.savingParts };
+  return { b, sobra, toca, pasado, falta: Math.max(0, toca - pasado), partes: sobra ? [] : b.savingParts, decidido, plan: Math.round(b.savingPlan || 0) };
 }
+// toast con cómo cambió "Hoy podés gastar" después de una decisión de ahorro
+function avisarDiario(ctx, antes, txt) {
+  const despues = budget(ctx.state).dailyBase;
+  toast(Math.abs(despues - antes) >= 1 ? `${txt}. Hoy podés gastar: ${money(antes)} → ${money(despues)}` : txt);
+}
+
 // ---------- el único lugar para pasar plata a ahorros (Mi plata → Ahorros) ----------
 // Junta lo que te toca por tu forma de ahorrar, lo que no gastaste de tus días y "otro monto".
 export function panelAhorrar(s) {
@@ -101,31 +108,36 @@ export function panelAhorrar(s) {
   const b = a.b;
   const meta = metaDiario(s);
   const sinForma = !s.savingMode || s.savingMode === 'none';
-  const fila = (titulo, sub, monto, attrs, hecho = '') => `<div class="row" style="cursor:default">
+  // cada sugerencia: Pasar (lo sugerido), Otro monto (más o menos) y Ahora no.
+  // Lo que elijas recalcula lo que podés gastar.
+  const fila = (titulo, sub, monto, attrs, hecho = '', ahoraNo = '') => `<div class="row pasar-fila" style="cursor:default;flex-wrap:wrap">
       <span class="grow"><span class="name">${titulo}</span><span class="meta">${sub}</span></span>
-      ${hecho ? `<span class="pill ok">${hecho}</span>` : `<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="amount">${money(monto)}</b><button class="btn small green" data-action="pasarAhorros" ${attrs}>Pasar</button></span>`}
+      ${hecho ? `<span class="pill ok">${hecho}</span>` : `<b class="amount">${money(monto)}</b>
+      <span class="btn-row" style="flex-basis:100%;justify-content:flex-end"><button class="link-btn" data-action="${ahoraNo}">Ahora no</button><button class="btn small" data-action="pasarAhorros" ${attrs} data-otro="1">Otro monto</button><button class="btn small green" data-action="pasarAhorros" ${attrs}>Pasar</button></span>`}
     </div>`;
   const filas = [];
   if (sinForma) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo de cada mes</span><span class="meta">Todavía no elegiste cuánto ahorrar por mes.</span></span><a class="btn small" href="#/formaahorro">Elegir</a></div>`);
-  else if (a.sobra) filas.push(b.cycle.daysLeft <= 3 && a.toca > 0 ? fila('Lo que te sobró del mes', 'Elegiste ahorrar lo que sobra', a.toca, `data-monto="${a.toca}" data-tipo="regla"`)
+  else if (a.sobra) filas.push(b.cycle.daysLeft <= 3 && a.toca > 0 && !b.decision.sobraNo ? fila('Lo que te sobró del mes', 'Elegiste ahorrar lo que sobra', a.toca, `data-monto="${a.toca}" data-tipo="regla"`, '', 'ahorroAhoraNo')
     : `<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo que te sobre del mes</span><span class="meta">Elegiste ahorrar lo que sobra: te lo propongo cuando falten 3 días para el cobro${a.toca > 0 ? ` (hoy serían ${money(a.toca)})` : ''}.</span></span></div>`);
-  else if (a.toca > 0) filas.push(fila('Lo de este mes', a.pasado ? `Según tu forma de ahorrar (${money(a.toca)}). Ya pasaste ${money(a.pasado)}` : `Según tu forma de ahorrar${a.partes.length > 1 ? ` (${a.partes.map((p) => esc(p.name)).join(', ')})` : ''}`, a.falta, `data-monto="${a.falta}" data-tipo="regla"`, a.falta <= 0 ? 'Listo ✓' : ''));
-  if (b.paraAhorrar >= 1) filas.push(fila('Lo que no gastaste de tus días', meta ? `Va a "${esc(meta.name)}"` : 'Lo que te sobró de días anteriores', b.paraAhorrar, `data-monto="${Math.round(b.paraAhorrar)}" data-tipo="extra"${meta ? ` data-goal="${esc(meta.id)}"` : ''}`));
+  else if (a.decidido) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo de este mes</span><span class="meta">${a.toca > 0 ? `Elegiste ahorrar ${money(a.toca)} en vez de ${money(a.plan)}` : `Elegiste no ahorrar este mes (tus reglas decían ${money(a.plan)})`}: ${money(Math.max(0, a.plan - a.toca))} quedaron para gastar.</span></span><button class="link-btn" data-action="ahorroDeshacer">Volver a ${money(a.plan)}</button></div>`);
+  else if (a.toca > 0) filas.push(fila('Lo de este mes', a.pasado ? `Según tu forma de ahorrar (${money(a.toca)}). Ya pasaste ${money(a.pasado)}` : `Según tu forma de ahorrar${a.partes.length > 1 ? ` (${a.partes.map((p) => esc(p.name)).join(', ')})` : ''}`, a.falta, `data-monto="${a.falta}" data-tipo="regla"`, a.falta <= 0 ? 'Listo ✓' : '', 'ahorroAhoraNo'));
+  if (b.paraAhorrar >= 1) filas.push(fila('Lo que no gastaste de tus días', meta ? `Va a "${esc(meta.name)}"` : 'Lo que te sobró de días anteriores', b.paraAhorrar, `data-monto="${Math.round(b.paraAhorrar)}" data-tipo="extra"${meta ? ` data-goal="${esc(meta.id)}"` : ''}`, '', 'diarioAhoraNo'));
+  if (Number(b.decision.liberado) > 0) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo que no gastaste de tus días</span><span class="meta">Dejaste ${money(b.decision.liberado)} para gastar en los próximos días.</span></span><button class="link-btn" data-action="diarioDeshacer">Deshacer</button></div>`);
   const ultimos = (s.transfers || []).filter((t) => t.holdingId || t.deDiario || t.tipo).slice(-3).reverse();
   return `<div class="card" style="gap:8px">
-    <div class="split"><strong>Pasar a ahorros</strong><button class="btn small" data-action="pasarAhorros" data-tipo="extra">Otro monto</button></div>
+    <div class="split"><strong>Pasar a ahorros</strong><button class="btn small" data-action="pasarAhorros" data-tipo="extra" data-otro="1">+ Pasar algo más</button></div>
     <div class="tight" style="display:flex;flex-direction:column">${filas.join('')}</div>
     ${ultimos.length ? `<span class="small muted">Últimos: ${ultimos.map((t) => `${money(t.amount)} el ${shortDate(t.date)}`).join(' · ')}</span>` : ''}
     <div class="btn-row"><a class="link-btn" href="#/formaahorro">Cambiar cuánto ahorro por mes</a><button class="link-btn" data-action="openDiario">Qué pasa con lo que no gasto</button></div>
   </div>`;
 }
 
-function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '') {
+function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '', otro = false) {
   const base = monedaBase(s);
   const lugares = (s.holdings || []).filter((h) => (h.currency || 'ARS') === base);
   const g = (metaId && (s.goals || []).find((x) => x.id === metaId)) || (s.goals || []).find((x) => x.main) || (s.goals || [])[0];
   const a = ahorroDelCiclo(s);
-  const sugerido = monto || a.falta;
+  const sugerido = otro ? 0 : monto || a.falta;
   const tipo = tipoForzado || (a.falta > 0 && !monto ? 'regla' : 'extra');
   const sinForma = !s.savingMode || s.savingMode === 'none';
   const resumen = sinForma ? '<div class="card"><strong>Todavía no elegiste cómo ahorrar</strong><span class="small">Si elegís una forma (por ejemplo, apartar el 10% apenas cobrás), te digo cuánto pasar cada mes. <a href="#/formaahorro">Elegir</a></span></div>'
@@ -138,7 +150,8 @@ function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '') {
   const op = (v, t, d) => `<label class="check"><input type="radio" name="tipo" value="${v}" ${v === tipo ? 'checked' : ''}> <span>${t}<br><span class="small muted">${d}</span></span></label>`;
   return `<form class="form" data-submit="guardarAhorrar">
     ${resumen}
-    <div class="field-row"><div class="field"><label for="ah-a">¿Cuánto pasás?</label><input id="ah-a" name="amount" inputmode="decimal" required value="${sugerido ? Math.round(sugerido).toLocaleString('es-AR') : ''}" placeholder="Ej: 50.000"></div>
+    ${otro ? `<input type="hidden" name="ajustar" value="1"><span class="small muted">${tipo === 'regla' ? `Lo que pongas es lo que ahorrás este mes${monto ? ` (te tocaban ${money(monto)})` : ''}: si es menos, el resto queda para gastar; si es más, baja lo que podés gastar.` : 'Poné cuánto querés pasar: lo que pases sale de lo que tenés para gastar.'}</span>` : ''}
+    <div class="field-row"><div class="field"><label for="ah-a">¿Cuánto pasás?</label><input id="ah-a" name="amount" inputmode="decimal" required value="${sugerido ? Math.round(sugerido).toLocaleString('es-AR') : ''}" placeholder="${otro && monto ? `Sugerido: ${Math.round(monto).toLocaleString('es-AR')}` : 'Ej: 50.000'}"></div>
     <div class="field"><label for="ah-f">¿De qué cuenta sale?</label><select id="ah-f" name="from">${opcionesCuenta(s, cuentaPrincipal(s))}</select></div></div>
     <div class="field"><label for="ah-h">¿A dónde va?</label><select id="ah-h" name="holding" data-change="ahorrarLugar">
       ${lugares.map((h) => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join('')}
@@ -173,11 +186,36 @@ export function compararCard(s) {
 }
 
 export const actions = {
-  pasarAhorros(ctx, el) { const ds = (el && el.dataset) || {}; openModal('Pasar a ahorros', formAhorrar(ctx.state, num(ds.monto), ds.tipo || '', ds.goal || '')); },
+  pasarAhorros(ctx, el) { const ds = (el && el.dataset) || {}; openModal('Pasar a ahorros', formAhorrar(ctx.state, num(ds.monto), ds.tipo || '', ds.goal || '', ds.otro === '1')); },
+  // "Ahora no" en lo de este mes: no ahorrás (más) este ciclo y eso queda para gastar
+  ahorroAhoraNo(ctx) {
+    const antes = budget(ctx.state).dailyBase;
+    const a = ahorroDelCiclo(ctx.state);
+    ctx.commit((s) => { const k = a.b.cycle.startISO; s.ahorroCiclo = { ...(s.ahorroCiclo || {}) }; s.ahorroCiclo[k] = { ...(s.ahorroCiclo[k] || {}), ...(a.sobra ? { sobraNo: true } : { ahorro: a.pasado }) }; s.setAside = { ...(s.setAside || {}), [todayISO().slice(0, 7)]: true }; });
+    avisarDiario(ctx, antes, a.sobra ? 'Listo: este mes no te lo propongo más' : `Listo: este mes no ahorrás ${money(a.falta)}`);
+  },
+  ahorroDeshacer(ctx) {
+    const antes = budget(ctx.state).dailyBase;
+    ctx.commit((s) => { const k = budget(s).cycle.startISO; if (s.ahorroCiclo && s.ahorroCiclo[k]) { s.ahorroCiclo = { ...s.ahorroCiclo }; const { ahorro, sobraNo, ...resto } = s.ahorroCiclo[k]; s.ahorroCiclo[k] = resto; } });
+    avisarDiario(ctx, antes, 'Volviste a lo de tus reglas');
+  },
+  // "Ahora no" en lo que no gastaste: se suma a tus próximos días
+  diarioAhoraNo(ctx) {
+    const b = budget(ctx.state); const antes = b.dailyBase; const monto = Math.round(b.paraAhorrar);
+    ctx.commit((s) => { const k = b.cycle.startISO; s.ahorroCiclo = { ...(s.ahorroCiclo || {}) }; const d = s.ahorroCiclo[k] || {}; s.ahorroCiclo[k] = { ...d, liberado: (Number(d.liberado) || 0) + monto }; });
+    avisarDiario(ctx, antes, `Listo: ${money(monto)} quedan para gastar`);
+  },
+  diarioDeshacer(ctx) {
+    const antes = budget(ctx.state).dailyBase;
+    ctx.commit((s) => { const k = budget(s).cycle.startISO; if (s.ahorroCiclo && s.ahorroCiclo[k]) { s.ahorroCiclo = { ...s.ahorroCiclo }; const { liberado, ...resto } = s.ahorroCiclo[k]; s.ahorroCiclo[k] = resto; } });
+    avisarDiario(ctx, antes, 'Listo: vuelve a estar para ahorrar');
+  },
   ahorrarLugar(ctx, el) { const f = el.closest('form'); f.querySelector('[data-ah-nuevo]').hidden = el.value !== '__nuevo'; },
   guardarAhorrar(ctx, d) {
     const amount = Math.round(num(d.amount) * 100) / 100;
     if (!(amount > 0)) { toast('Poné un monto'); return; }
+    const antesDia = budget(ctx.state).dailyBase;
+    const antesAh = ahorroDelCiclo(ctx.state);
     const saldo = saldoCuenta(ctx.state, d.from);
     let lugar = ''; let meta = ''; let delMes = false;
     ctx.commit((s) => {
@@ -198,11 +236,18 @@ export const actions = {
       const baja = tipo === 'extra' || (tipo === 'regla' && s.savingMode === 'leftover');
       s.transfers.push({ id: uid(), date: todayISO(), amount, accountId: d.from, holdingId: h.id, tipo, ...(g ? { goalId: g.id } : {}), ...(baja ? { deDiario: true } : {}), note: `A ahorros: ${h.name}` });
       delMes = baja;
+      // "Otro monto" en lo de este mes: lo que pasás es lo que ahorrás este ciclo (si es menos, el resto
+      // queda para gastar). Si pasás más de lo que tocaba, también se ajusta.
+      if (tipo === 'regla' && !antesAh.sobra) {
+        const total = antesAh.pasado + amount;
+        if (d.ajustar === '1' || total > antesAh.toca) { const k = antesAh.b.cycle.startISO; s.ahorroCiclo = { ...(s.ahorroCiclo || {}) }; s.ahorroCiclo[k] = { ...(s.ahorroCiclo[k] || {}), ahorro: total }; }
+      }
     });
+    const despuesDia = budget(ctx.state).dailyBase;
     // si ya pasaste todo lo que te tocaba, no te lo recuerdo más este mes
     if (d.tipo === 'regla') { const a = ahorroDelCiclo(ctx.state); if (a.falta <= 0) ctx.update((s) => { s.setAside = { ...(s.setAside || {}), [todayISO().slice(0, 7)]: true }; }); }
     closeModal();
-    toast(`Listo: ${money(amount)} a ${lugar}${meta ? ` (meta "${meta}")` : ''}${delMes ? '. Bajó tu "Hoy podés gastar"' : d.tipo === 'regla' ? '. Es lo de tus reglas: lo que podés gastar no cambia' : ''}${saldo != null && amount > saldo ? '. Ojo: es más de lo que tenías en la cuenta' : ''}`);
+    toast(`Listo: ${money(amount)} a ${lugar}${meta ? ` (meta "${meta}")` : ''}${Math.abs(despuesDia - antesDia) >= 1 ? `. Hoy podés gastar: ${money(antesDia)} → ${money(despuesDia)}` : d.tipo === 'regla' ? '. Es lo de tus reglas: lo que podés gastar no cambia' : ''}${saldo != null && amount > saldo ? '. Ojo: es más de lo que tenías en la cuenta' : ''}`);
   },
   openComparar(ctx) {
     const s = ctx.state;
