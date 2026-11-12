@@ -13,22 +13,21 @@ import { desafiosHtml } from './asesor.js';
 
 const GRUPOS = [
   ['Antes de comprar', [
-    { action: 'openBuy', icon: 'cart', title: '¿Me lo compro?', text: 'Cómo impacta una compra en tu día, tu mes y tus metas.' },
-    { action: 'openInstallments', icon: 'card', title: 'Cuotas o contado', text: 'Con o sin interés, con reintegro y con la inflación: cuánto ganás o perdés de verdad.' },
-    { action: 'openConQuePagar', icon: 'coins', title: '¿Con qué conviene pagar?', text: 'Escribí qué vas a pagar (combustible, súper, Coto…) y te digo con qué billetera o banco conviene hoy.' },
-    { action: 'openTope', icon: 'ticket', title: 'Descuento con tope', text: 'Cuánto gastar para aprovechar todo el reintegro, y el descuento real.' },
+    { action: 'openBuy', icon: 'cart', title: '¿Me lo compro?', text: 'Cómo pega una compra en tu mes y tus metas' },
+    { action: 'openInstallments', icon: 'card', title: 'Cuotas o contado', text: 'Qué conviene, con inflación y reintegros' },
+    { action: 'openConQuePagar', icon: 'coins', title: '¿Con qué conviene pagar?', text: 'El medio con mejor promo hoy' },
+    { action: 'openTope', icon: 'ticket', title: 'Descuento con tope', text: 'Cuánto gastar para aprovechar el tope' },
   ]],
   ['Hacer rendir tu plata', [
-    { action: 'openRinde', icon: 'percent', title: '¿Dónde rinde más?', text: 'Billeteras y plazos fijos ordenados por lo que pagan, y cuánto ganás con tu tasa.' },
-    { action: 'openPfDolar', icon: 'trend', title: 'Plazo fijo o dólar', text: 'A cuánto tiene que estar el dólar para que convenga más que el plazo fijo.' },
-    { action: 'openGoalCalc', icon: 'sprout', title: '¿Cuánto ahorrar por mes?', text: 'Para una fecha, con lo que podés por mes, con rendimiento o en dólares.' },
-  ]],
-  ['Invertir', [
-    { action: 'openInversiones', icon: 'chart', title: 'Letras, bonos, cauciones y acciones', text: 'Qué es cada inversión (plazo fijo, cauciones, letras, bonos, ON, acciones, CEDEARs), su riesgo y dónde se compra. Con las tasas de las letras de hoy.' },
+    { action: 'openRinde', icon: 'percent', title: '¿Dónde rinde más?', text: 'Billeteras y plazos fijos por tasa' },
+    { action: 'showOptions', icon: 'wallet', title: '¿Dónde pongo mis ahorros?', text: 'Opciones según para qué y para cuándo' },
+    { action: 'openPfDolar', icon: 'trend', title: 'Plazo fijo o dólar', text: 'A qué dólar empatan' },
+    { action: 'openGoalCalc', icon: 'sprout', title: '¿Cuánto ahorrar por mes?', text: 'Para llegar a una meta a tiempo' },
+    { action: 'openInversiones', icon: 'chart', title: 'Inversiones', text: 'Letras, bonos, cauciones y acciones' },
   ]],
   ['Monedas', [
-    { action: 'openCotizaciones', icon: 'trend', title: 'Cotizaciones', text: 'Dólar oficial, blue, MEP, tarjeta, euro, real, cripto y oro. Elegís cuáles ver.' },
-    { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Todos los dólares (oficial, blue, MEP, CCL, tarjeta, cripto), euro, real, pesos uruguayos y chilenos, bitcoin y oro.' },
+    { action: 'openCotizaciones', icon: 'trend', title: 'Cotizaciones', text: 'Dólares, euro, real, cripto y oro' },
+    { action: 'openConverter', icon: 'swap', title: 'Conversor de monedas', text: 'Entre pesos, dólares y otras' },
   ]],
 ];
 
@@ -36,11 +35,11 @@ export function render(s) {
   return `<section class="screen">
     ${screenHead('Herramientas', '', 'Para decidir mejor antes de gastar')}
     ${GRUPOS.map(([titulo, tools]) => `<div class="section-title"><span>${titulo}</span></div>
-    ${tools.map((t) => `<button class="card tool" data-action="${t.action}" style="border:none;text-align:left;flex-direction:row;align-items:center">
-      <span class="cat-icon green" style="width:44px;height:44px;border-radius:12px">${icon(t.icon, 22)}</span>
-      <span style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-weight:800;font-size:15px">${t.title}</span><span class="small muted">${t.text}</span></span>
-      ${icon('chevron', 18)}
-    </button>`).join('')}`).join('')}
+    <div class="card tight">${tools.map((t) => `<button class="row" data-action="${t.action}">
+      <span class="cat-icon green">${icon(t.icon, 18)}</span>
+      <span class="grow"><span class="name">${t.title}</span><span class="meta">${t.text}</span></span>
+      ${icon('chevron', 16)}
+    </button>`).join('')}</div>`).join('')}
     ${desafiosHtml(s)}
   </section>`;
 }

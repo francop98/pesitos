@@ -14,8 +14,8 @@ import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget,
 import { statementDates, statementOf, resumenDeCompra } from './agenda.js';
 import { demoState } from './ejemplo.js';
 import { detectarReintegro, promosCandidatas } from './reintegros.js';
-import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions, montoProtegido, montosOcultos, revelarMontos } from './interfaz.js';
-import { bloqueoActivo, mostrarBloqueo } from './bloqueo.js';
+import { openModal, closeModal, modalBack, toast, setModalBody, icon, catIcon, borrarConDeshacer, alternarMontos, selectorActions, montoProtegido, montosOcultos } from './interfaz.js';
+import { bloqueoActivo, pedirPin } from './bloqueo.js';
 import { OPTIONS_TEXT, DISCLAIMER, promosStatus, promosForDay } from './economista.js';
 import { ratesAge, arsPer, aBase, monedaBase } from './cotizaciones.js';
 import { valorHoy } from './rendimientos.js';
@@ -491,14 +491,9 @@ export const commonActions = {
   },
   async alternarMontos(ctx, el) {
     const c = el.dataset.clave;
-    if (montoProtegido(c)) {
-      if (montosOcultos(c)) {
-        const conPin = bloqueoActivo();
-        if (conPin) await mostrarBloqueo();
-        revelarMontos(c, true); ctx.render();
-        toast(conPin ? 'Montos visibles hasta que salgas de Mi plata' : 'Montos visibles. Para que te pida PIN o huella, activalo en Menú → PIN de seguridad');
-      } else { revelarMontos(c, false); ctx.render(); toast('Montos ocultos'); }
-      return;
+    // mostrar montos protegidos pide el PIN (ocultarlos no)
+    if (montoProtegido(c) && montosOcultos(c) && bloqueoActivo()) {
+      if (!(await pedirPin('Ingresá tu PIN para ver los montos'))) return;
     }
     const o = alternarMontos(c); ctx.render(); toast(o ? 'Montos ocultos' : 'Montos visibles');
   },

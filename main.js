@@ -31,7 +31,7 @@ import { setMoneda } from './js/formato.js';
 import { refreshLive } from './js/datosvivos.js';
 import { refreshRendimientos } from './js/rendimientos.js';
 import { refreshFeriados, usarFeriados } from './js/feriados.js';
-import { openModal, closeModal, toast, hydrateNavIcons, revelarMontos } from './js/interfaz.js';
+import { openModal, closeModal, toast, hydrateNavIcons } from './js/interfaz.js';
 import * as onboarding from './js/bienvenida.js';
 import * as inicio from './js/inicio.js';
 import * as movimientos from './js/movimientos.js';
@@ -193,8 +193,6 @@ document.addEventListener('pointerdown', abrirCarga);
 
 window.addEventListener('hashchange', () => {
   const r = currentRoute();
-  // salir de Mi plata vuelve a ocultar los montos
-  if (!['ahorro', 'cuentas', 'sueldo'].includes(r)) revelarMontos('ahorro', false);
   if (trail[trail.length - 1] !== r) trail.push(r);
   closeModal(); render(); window.scrollTo(0, 0);
 });
@@ -257,7 +255,7 @@ async function traerDeOtroDispositivo() {
   const nuevo = await nube.traerCambios();
   if (nuevo && !isTyping() && document.getElementById('modal').hidden) { state = nuevo; save(state); render(); }
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) { revelarMontos('ahorro', false); if (['ahorro', 'cuentas', 'sueldo'].includes(currentRoute())) render(); } refreshAll(); traerDeOtroDispositivo(); });
+document.addEventListener('visibilitychange', () => { refreshAll(); traerDeOtroDispositivo(); });
 window.addEventListener('focus', () => refreshAll());
 window.addEventListener('online', () => refreshAll(true));
 setInterval(() => refreshAll(), 5 * 60 * 1000);

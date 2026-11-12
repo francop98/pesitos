@@ -149,6 +149,60 @@ export function mostrarBloqueo() {
   });
 }
 
+/**
+ * Pide el PIN (o la huella) solo para confirmar algo, por ejemplo mostrar los montos.
+ * No bloquea la app ni ofrece cerrar sesión: se puede cancelar. Resuelve true si se confirmó.
+ */
+export function pedirPin(titulo = 'Ingresá tu PIN') {
+  if (!bloqueoActivo()) return Promise.resolve(true);
+  const c = leer();
+  let capa = document.getElementById('pin-rapido');
+  if (!capa) { capa = document.createElement('div'); capa.id = 'pin-rapido'; document.body.appendChild(capa); }
+  let pin = ''; let ocupado = false;
+  return new Promise((resolver) => {
+    const cerrar = (ok) => {
+      // en el celular, el "click" que sigue al toque caería sobre lo que está abajo: lo descarto
+      const tragar = (e) => { e.stopPropagation(); e.preventDefault(); };
+      document.addEventListener('click', tragar, true); setTimeout(() => document.removeEventListener('click', tragar, true), 450);
+      capa.hidden = true; capa.innerHTML = ''; document.removeEventListener('keydown', teclas); resolver(ok);
+    };
+    const dibujar = (nota = '') => {
+      capa.innerHTML = `<div class="bloqueo-caja" role="dialog" aria-modal="true" aria-label="${esc(titulo)}">
+        <div class="bloqueo-top"><span>${icon('lock', 18)} ${esc(titulo)}</span></div>
+        ${c.pin ? `<div class="pin-puntos" aria-live="polite">${[0, 1, 2, 3, 4, 5].slice(0, c.pin.largo).map((i) => `<i data-i="${i}"></i>`).join('')}</div>
+        <p class="bloqueo-nota" role="alert">${esc(nota)}</p>
+        <div class="pin-teclado">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button type="button" data-pin="${n}">${n}</button>`).join('')}
+          ${c.bio ? `<button type="button" data-r="bio" aria-label="Usar huella o cara">${icon('eye', 24)}</button>` : '<span></span>'}<button type="button" data-pin="0">0</button><button type="button" data-r="borrar" aria-label="Borrar">⌫</button></div>`
+        : `<p class="bloqueo-nota" role="alert">${esc(nota)}</p><button class="btn lime block" type="button" data-r="bio">${icon('eye', 20)} Usar huella o cara</button>`}
+        <button class="btn ghost small bloqueo-olvide" type="button" data-r="cancelar">Cancelar</button>
+      </div>`;
+      capa.hidden = false; marcar();
+    };
+    const marcar = () => capa.querySelectorAll('.pin-puntos i').forEach((el, i) => el.classList.toggle('on', i < pin.length));
+    const probar = async () => {
+      ocupado = true;
+      const ok = await pinCorrecto(pin);
+      ocupado = false;
+      if (ok) { cerrar(true); return; }
+      pin = ''; dibujar('PIN incorrecto. Probá de nuevo.');
+    };
+    const tocar = (n) => { if (ocupado || !c.pin || pin.length >= c.pin.largo) return; pin += n; marcar(); if (pin.length === c.pin.largo) probar(); };
+    const teclas = (e) => { if (/^\d$/.test(e.key)) tocar(e.key); if (e.key === 'Backspace') { pin = pin.slice(0, -1); marcar(); } if (e.key === 'Escape') cerrar(false); };
+    document.addEventListener('keydown', teclas);
+    // pointerup responde al primer toque en el celular (sin esperar el "click")
+    capa.onpointerup = async (e) => {
+      const p = e.target.closest('[data-pin]');
+      if (p) { e.preventDefault(); tocar(p.dataset.pin); return; }
+      const b = e.target.closest('[data-r]'); if (!b) return;
+      e.preventDefault();
+      if (b.dataset.r === 'borrar') { pin = pin.slice(0, -1); marcar(); }
+      if (b.dataset.r === 'cancelar') cerrar(false);
+      if (b.dataset.r === 'bio') { if (await verificarBio()) cerrar(true); else dibujar('No se pudo verificar. Probá con el PIN.'); }
+    };
+    dibujar();
+  });
+}
+
 /** Activa el control: bloquea al volver a la app después de un rato. */
 export function iniciarBloqueo(uid, { onOlvido, pin, guardarPin } = {}) {
   uidActual = uid; alOlvidar = onOlvido || null; pinCuenta = pin || null; guardarPinCuenta = guardarPin || null;

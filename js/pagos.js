@@ -85,12 +85,12 @@ function chart(pr) {
   const zero = y(0);
   return `<svg role="img" aria-label="Plata disponible estimada hasta el cobro" viewBox="0 0 ${W} ${H + 18}" width="100%">
     ${min < 0 ? `<rect x="0" y="${zero}" width="${W}" height="${H - zero}" fill="rgba(242,179,61,.18)"/>` : ''}
-    <line x1="0" y1="${zero}" x2="${W}" y2="${zero}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="4 4"/>
-    <polyline points="${line}" fill="none" stroke="var(--green-mid)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-    ${pts.map((p, i) => (p.out.length ? `<circle cx="${x(i)}" cy="${y(p.balance)}" r="3.5" fill="var(--card)" stroke="var(--green-mid)" stroke-width="1.5"/>` : '')).join('')}
-    ${mi >= 0 ? `<circle cx="${x(mi)}" cy="${y(pts[mi].balance)}" r="6" fill="${pts[mi].balance < 0 ? '#F2B33D' : 'var(--green)'}" stroke="var(--card)" stroke-width="2"/>` : ''}
-    <text x="${pad}" y="${H + 14}" font-size="11" fill="var(--muted)">Hoy</text>
-    <text x="${W - pad}" y="${H + 14}" font-size="11" fill="var(--muted)" text-anchor="end">Cobro ${shortDate(pr.until)}</text>
+    <line x1="0" y1="${zero}" x2="${W}" y2="${zero}" stroke="rgba(255,255,255,.35)" stroke-dasharray="4 4"/>
+    <polyline points="${line}" fill="none" stroke="#C6F36B" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p, i) => (p.out.length ? `<circle cx="${x(i)}" cy="${y(p.balance)}" r="3.5" fill="#FFFFFF"/>` : '')).join('')}
+    ${mi >= 0 ? `<circle cx="${x(mi)}" cy="${y(pts[mi].balance)}" r="6" fill="${pts[mi].balance < 0 ? '#F2B33D' : '#C6F36B'}" stroke="#1F6F4A" stroke-width="2"/>` : ''}
+    <text x="${pad}" y="${H + 14}" font-size="11" fill="#D6EBDF">Hoy</text>
+    <text x="${W - pad}" y="${H + 14}" font-size="11" fill="#D6EBDF" text-anchor="end">Cobro ${shortDate(pr.until)}</text>
   </svg>`;
 }
 
@@ -171,7 +171,7 @@ export function render(s) {
       <span style="font-size:34px;font-weight:800;letter-spacing:-1px">${money(untilPay)}</span>
       ${chart(pr)}
       <span class="small on-green-muted">${esc(cov.text)}${pr.estimated ? ' Estimado con lo que anotaste.' : ''}</span>
-      ${pr.estimated ? '<button class="btn small" data-action="openClose" style="background:var(--card);color:var(--green-text);border-color:var(--line)">Hacerlo exacto con mi saldo real</button>' : ''}
+      ${pr.estimated ? '<button class="btn small" data-action="openClose" style="background:rgba(255,255,255,.14);color:#fff;border-color:transparent">Hacerlo exacto con mi saldo real</button>' : ''}
     </div>
 
     ${!cov.ok ? `<div class="card amber">

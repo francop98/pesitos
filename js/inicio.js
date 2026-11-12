@@ -78,15 +78,15 @@ function savingCard(s, b) {
     if (b.cycle.daysLeft > 3 || b.free <= 0) return '';
     return `<div class="card lime">
       <strong>Se termina tu mes y te sobran ${money(b.free)}</strong>
-      <p class="text">Elegiste ahorrar lo que sobra a fin de mes. Pasalo desde Ahorros.</p>
-      <div class="btn-row"><button class="btn green small" data-action="irAhorros">Ir a ahorros</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
+      <p class="text">Elegiste ahorrar lo que sobra a fin de mes. Pasalo desde Mi plata → Ahorros.</p>
+      <div class="btn-row"><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Entendido</button></div>
     </div>`;
   }
   if (b.saving <= 0 || b.estimated) return '';
   return `<div class="card lime">
     <strong>Cobraste: apartá ${money(b.saving)}</strong>
-    <p class="text">${esc(MODE_TEXT[s.savingMode] ? MODE_TEXT[s.savingMode](s) : 'Según tus reglas de ahorro')}${b.savingParts.length > 1 ? ` (incluye ${b.savingParts.map((p) => p.name).join(', ')})` : ''}. Pasalo antes de gastar: en Ahorros te digo de qué cuenta y a dónde.</p>
-    <div class="btn-row"><button class="btn green small" data-action="irAhorros">Ir a ahorros</button><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Todavía no</button></div>
+    <p class="text">${esc(MODE_TEXT[s.savingMode] ? MODE_TEXT[s.savingMode](s) : 'Según tus reglas de ahorro')}${b.savingParts.length > 1 ? ` (incluye ${b.savingParts.map((p) => p.name).join(', ')})` : ''}. Pasalo antes de gastar: en Mi plata → Ahorros te digo de qué cuenta y a dónde.</p>
+    <div class="btn-row"><button class="btn small" data-action="snoozeCard" data-key="setAside" data-days="1">Entendido</button></div>
   </div>`;
 }
 
@@ -227,8 +227,7 @@ function heroMensaje(s, b, payText) {
   if (b.todayLeft < 0 && b.dailyBase > 0) {
     const dias = b.spentToday / b.dailyBase;
     const nuevo = b.free / restantes;
-    const sinGastar = Math.ceil(-b.todayLeft / b.dailyBase);
-    return linea(`Hoy gastaste lo sugerido para <b>${diasTxt(dias)}</b>. Para cumplir tu plan: <b>${money(nuevo)} por día</b> hasta el cobro (en vez de ${money(b.dailyBase)}), o ${sinGastar === 1 ? '<b>1 día sin gastos</b>' : `<b>${sinGastar} días sin gastos</b>`}.`, 'alerta');
+    return linea(`Gastaste lo de <b>${diasTxt(dias)}</b>. Para compensar, hasta el cobro: <b>${money(nuevo)} por día</b>.`, 'alerta');
   }
   // venís gastando más rápido que tu ritmo normal
   if (b.adelanto > b.normalDaily * 0.5 && b.normalDaily > 0) {
@@ -242,7 +241,7 @@ function heroMensaje(s, b, payText) {
     if (b.paraAhorrar >= 1) partes.push(`<b>${money(b.paraAhorrar)}</b> para ${meta ? `"${esc(meta.name)}"` : 'ahorrar'}${adelantoMeta(meta, b.paraAhorrar)}`);
     if (b.aparte >= 1) partes.push(`ya apartaste ${money(b.aparte)}`);
     return `${linea(`No gastaste ${money(b.colchon)} de días anteriores: ${partes.join(' y ')}.`)}
-      <span class="hero-acciones">${b.paraAhorrar >= 1 ? '<button class="btn small lime" data-action="irAhorros">Ir a ahorros</button>' : ''}<button class="link-btn on-green-muted" data-action="openDiario">Cómo se reparte</button></span>`;
+      <span class="hero-acciones"><button class="link-btn on-green-muted" data-action="openDiario">Cómo se reparte</button></span>`;
   }
   return linea(`Por día, para llegar bien: ${payText}.`);
 }
@@ -273,7 +272,7 @@ function ritmoSlide(s, b) {
       <span class="hero-number">${money(gastoSem)}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(pct * 100)}% de tu ritmo de la semana"><span style="width:${Math.round(pct * 100)}%"></span></div>
       <span class="small on-green-muted">${dif >= 0 ? `Vas <b>${money(dif)} abajo</b> de tu ritmo de la semana (${money(ritmoSem)}).` : `Vas <b>${money(-dif)} arriba</b> de tu ritmo de la semana (${money(ritmoSem)}).`}${racha >= 2 ? ` 🔥 ${racha} días seguidos dentro de lo previsto.` : ''}</span>
-      ${sobroAyer >= 500 && b.paraAhorrar >= 1 ? `<span class="hero-acciones"><button class="btn small lime" data-action="irAhorros">Ayer te sobraron ${money(sobroAyer)}: pasalo a ahorros</button></span>` : ''}
+      ${sobroAyer >= 500 && b.paraAhorrar >= 1 ? `<span class="small on-green-muted">Ayer te sobraron ${money(sobroAyer)}: lo podés pasar desde Mi plata → Ahorros.</span>` : ''}
     </div>`;
 }
 
@@ -500,7 +499,7 @@ function diarioBody(s) {
     <div class="medio-hoja">${['ahorrador', 'equilibrado', 'flexible', 'personalizado'].map(op).join('')}</div>
     ${aMedida}${destino}${sinMeta}
     ${b.colchon ? `<div class="card lime"><span class="text">Hasta hoy no gastaste <b>${money(b.colchon)}</b> de tu ritmo: ${b.extraDia >= 1 ? `<b>+${money(b.extraDia)} por día</b> hasta el cobro` : 'nada se suma a tus días'}${b.paraAhorrar >= 1 ? ` y <b>${money(b.paraAhorrar)}</b> para ahorrar${adelantoMeta(meta, b.paraAhorrar)}` : ''}.</span>
-      ${b.paraAhorrar >= 1 ? '<button class="btn small" data-action="irAhorros">Pasarlo desde Ahorros</button>' : ''}</div>` : ''}`;
+      ${b.paraAhorrar >= 1 ? '<span class="small muted">Lo pasás desde Mi plata → Ahorros.</span>' : ''}</div>` : ''}`;
 }
 
 export const actions = {

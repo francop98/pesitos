@@ -24,6 +24,8 @@ const delTrabajo = (s) => (s.incomes || []).filter((i) => i.type === 'sueldo' ||
 const conceptoDe = (i) => (i.type === 'sueldo' ? 'sueldo' : i.concepto || 'otro');
 
 let anioInforme = '';
+let informeAbierto = false;
+document.addEventListener('toggle', (e) => { if (e.target && e.target.id === 'sueldo-informe') informeAbierto = e.target.open; }, true);
 function informe(s) {
   const sue = {}; const ext = {};
   for (const i of delTrabajo(s)) { const p = periodoDe(i); if (conceptoDe(i) === 'sueldo') sue[p] = (sue[p] || 0) + i.amount; else ext[p] = (ext[p] || 0) + i.amount; }
@@ -150,7 +152,6 @@ export function cuerpo(s, clave = 'sueldo') {
       return (l ? ` · último dato: ${monthName(l.mk, true)} ${l.mk.slice(0, 4)}.` : '.') + (pend ? ` ${pend === 1 ? 'El último mes se estima' : `Los últimos ${pend} meses se estiman`} hasta que el INDEC publique el dato.` : '');
     })()}</span>
     ${reading ? `<div class="card"><div class="tip-head"><span class="badge">${sprout(17)}</span><strong>Lo que dicen tus números</strong></div><p class="text">${esc(reading)}</p></div>` : ''}
-    ${informe(s)}
     ` : '<div class="card"><p class="text">Cargá tus sueldos de los últimos meses y te muestro si le estás ganando a la inflación, tu mejor mes y cuánto creciste de verdad.</p></div>'}
 
     <div class="btn-row">
@@ -159,8 +160,11 @@ export function cuerpo(s, clave = 'sueldo') {
     </div>
     <button class="btn small block" data-action="pastSalaries">${icon('calendar', 18)} Cargar sueldos de meses anteriores</button>
 
+    ${st || history.length ? `<details class="card plegable" id="sueldo-informe"${informeAbierto ? ' open' : ''}><summary><strong>Informe del año y tus cobros</strong> <span class="small muted">mes a mes, aumentos y total</span></summary>
+    ${informe(s).replace('<div class="card" style="gap:10px">', '<div style="display:flex;flex-direction:column;gap:10px">')}
     ${history.length ? `<div class="section-title"><span>Últimos cobros</span></div>
-    <div class="card tight">${history.map((i) => `<button class="row" data-action="editSalary" data-id="${i.id}"><span class="grow"><span class="name">${conceptoDe(i) === 'sueldo' ? 'Sueldo' : conceptoDe(i) === 'aguinaldo' ? 'Aguinaldo' : esc(i.note || 'Extra')} de ${mesCap(periodoDe(i)).replace(/^./, (c) => c.toLowerCase())}</span><span class="meta">Cobrado el ${Number(i.date.slice(8))}/${Number(i.date.slice(5, 7))}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
+    <div class="tight" style="display:flex;flex-direction:column">${history.map((i) => `<button class="row" data-action="editSalary" data-id="${i.id}"><span class="grow"><span class="name">${conceptoDe(i) === 'sueldo' ? 'Sueldo' : conceptoDe(i) === 'aguinaldo' ? 'Aguinaldo' : esc(i.note || 'Extra')} de ${mesCap(periodoDe(i)).replace(/^./, (c) => c.toLowerCase())}</span><span class="meta">Cobrado el ${Number(i.date.slice(8))}/${Number(i.date.slice(5, 7))}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
+    </details>` : ''}
   `, clave);
 }
 

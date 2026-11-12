@@ -84,6 +84,13 @@ function modoHtml(ctx) {
     <button class="btn ghost small" data-action="openEspacios" style="align-self:flex-start;min-height:32px;padding:0 2px">${lista.length ? 'Invitar, sumarme o crear otro' : 'Tengo un código para sumarme'}</button></span></div>`;
 }
 
+// grupos del menú: se recuerda cuáles dejaste abiertos
+const K_GRUPOS = 'pesitos_menu_grupos';
+function grupoAbierto(g, def = false) { try { const o = JSON.parse(localStorage.getItem(K_GRUPOS) || '{}'); return g in o ? o[g] : def; } catch { return def; } }
+document.addEventListener('toggle', (e) => {
+  const g = e.target && e.target.dataset && e.target.dataset.grupo; if (!g) return;
+  try { const o = JSON.parse(localStorage.getItem(K_GRUPOS) || '{}'); o[g] = e.target.open; localStorage.setItem(K_GRUPOS, JSON.stringify(o)); } catch { /* nada */ }
+}, true);
 function menuHtml(ctx) {
   const s = ctx.state;
   const u = usuarioActual();
@@ -95,29 +102,29 @@ function menuHtml(ctx) {
       <span class="grow"><span class="name">${esc(nombre)}</span><span class="meta">${esc((u && u.email) || '')}</span>
       <span class="meta sync">${icon(ic, 14)} ${s.demo ? 'Datos de ejemplo: no se guardan en tu cuenta' : esc(estado)}</span></span><span class="menu-cuenta-cta">Mi cuenta ${icon('chevron', 16)}</span></button>
 
-    <div class="menu-grupo verde"><span class="menu-label">Tu plata</span>
+    <details class="menu-grupo verde" data-grupo="plata"${grupoAbierto('plata', true) ? ' open' : ''}><summary class="menu-label">Tu plata</summary>
       ${item('irEstadisticas', 'pie', 'Estadísticas', 'En qué se fue tu plata, mes a mes, y topes por categoría')}
       ${item('irProyectos', 'folder', 'Proyectos', 'Lo que gastás en una obra, un viaje o un evento, aparte')}
       ${s.espacio ? '' : `${item('irDeudas', 'people', 'Deudas y préstamos', 'Lo que te deben y lo que debés')}
       ${item('irReintegros', 'coins', 'Reintegros y cashback', 'Lo que te devuelven y con qué conviene pagar')}
       ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}`}
-    </div>
+    </details>
 
-    <div class="menu-grupo lima"><span class="menu-label">La app</span>
+    <details class="menu-grupo lima" data-grupo="app"${grupoAbierto('app') ? ' open' : ''}><summary class="menu-label">La app <span>tema, letra, avisos, estado</span></summary>
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
       <div class="menu-item static"><span class="menu-ic">${icon('text', 20)}</span><span class="grow"><span class="name">Tamaño de letra</span>${seg('setLetra', letraActual(), [['normal', 'Normal'], ['grande', 'Grande'], ['enorme', 'Más grande']])}</span></div>
       ${s.demo ? '' : modoHtml(ctx)}
       ${item('openAvisos', 'bell', 'Avisos en el celular', avisosActivos(ctx.uid) ? 'Activados' : 'Vencimientos, cierres y cobros, aunque no abras la app')}
       ${instalada() ? '' : item('instalarApp', 'phone', 'Instalar Pesitos como app', 'En la pantalla de inicio del celular')}
       ${item('openEstado', 'check', 'Estado de la app', 'Si los datos externos (dólar, promos, tasas) están al día')}
-    </div>
+    </details>
 
-    <div class="menu-grupo ambar"><span class="menu-label">Seguridad</span>
+    <details class="menu-grupo ambar" data-grupo="seg"${grupoAbierto('seg') ? ' open' : ''}><summary class="menu-label">Seguridad <span>PIN, copia, privacidad</span></summary>
       ${item('openBloqueo', 'lock', 'PIN de seguridad y huella', 'Lo que te pido al iniciar sesión')}
       ${item('openCopia', 'download', 'Copia de seguridad', 'Descargar o restaurar tus datos')}
       ${item('openSeguridad', 'shield', 'Privacidad', 'Cómo se cuidan tus datos')}
-      <button class="menu-item salir" data-action="cerrarSesion"><span class="menu-ic">${icon('logout', 20)}</span><span class="grow"><span class="name">Cerrar sesión</span></span></button>
-    </div>`;
+    </details>
+    <button class="menu-item salir" data-action="cerrarSesion"><span class="menu-ic">${icon('logout', 20)}</span><span class="grow"><span class="name">Cerrar sesión</span></span></button>`;
 }
 
 // ---------- menú lateral: se abre de izquierda a derecha ----------
@@ -166,7 +173,7 @@ export function cerrarMenu(rapido = false) {
 
 // deslizar con el dedo
 // zonas donde deslizar de costado ya hace otra cosa (filas que se desplazan, campos, gráficos)
-const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, select, .cat-row, .medio-row, .chips, #modal, .drawer, .banco-lista, .ciudad-lista, .hero-carrusel'));
+const arrastrable = (el) => !!(el && el.closest && el.closest('input, textarea, select, .cat-row, .medio-row, .chips, #modal, .drawer, .banco-lista, .ciudad-lista, .hero-carrusel, #bloqueo, #pin-rapido'));
 (() => {
   let x0 = 0; let y0 = 0; let modo = null; let dx = 0; let decidido = false; let borde = false; let atrasDelSistema = 0;
   const ancho = () => panel().offsetWidth || 320;

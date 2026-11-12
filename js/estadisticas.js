@@ -215,6 +215,9 @@ export function render(s) {
 }
 
 /** Estadísticas y tu sueldo (también en Movimientos → Estadísticas). */
+// "Ver más análisis" desplegado (se mantiene al cambiar de período)
+let masAbierto = false;
+document.addEventListener('toggle', (e) => { if (e.target && e.target.id === 'mas-analisis') masAbierto = e.target.open; }, true);
 export function cuerpo(s) {
   const ms = meses();
   const r = resumen(s, ms);
@@ -244,6 +247,8 @@ export function cuerpo(s) {
     ${cats.length ? `<div class="section-title"><span>Por categoría</span><span class="small muted">Tocá una para ponerle un tope</span></div>
     <div class="card tight">${cats.map((x) => { const a = prev.byCat[x.c] || 0; const c = catById(x.c); const tope = periodo === 'mes' ? avancePresupuesto(s, x.c) : null; return `<button class="row" data-action="editPresupuesto" data-cat="${esc(x.c)}"><span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${tope ? `${barraTope(tope)}<span class="meta">Tope ${money(tope.limite)} · ${tope.pct >= 1 ? `te pasaste ${money(-tope.queda)}` : `quedan ${money(tope.queda)}`}</span>` : `<span class="meta">Antes: ${money(a)}</span>`}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(x.v)}</span>${cambio(comp(x.v, a))}</span></button>`; }).join('')}</div>
     ${topesSinGasto(s, cats, periodo)}` : ''}
+    <details class="mas-analisis" id="mas-analisis"${masAbierto ? ' open' : ''}><summary class="btn block">Ver más análisis <span class="small muted">mes a mes, fijos, ritmo, hábitos, dónde y con qué pagaste</span></summary>
+    <div class="mas-cuerpo">
     ${tablaMeses(s, ms)}
     ${fijosUnoPorUno(s, ms)}
     ${masDatos(s, r, ms, periodo)}
@@ -251,6 +256,7 @@ export function cuerpo(s) {
     ${r.comercios.length ? `<div class="card"><strong>Dónde más gastaste</strong>${r.comercios.slice(0, 6).map((c) => `<div class="split small"><span>${esc(c.nombre)} <span class="muted">· ${c.veces} vez${c.veces === 1 ? '' : 'es'}</span></span><b>${money(c.total)}</b></div>`).join('')}</div>` : ''}
     ${Object.keys(r.medios).length > 1 ? `<div class="card"><strong>Con qué pagaste</strong>${Object.entries(r.medios).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}
     ${Object.keys(r.tags).length ? `<div class="card"><strong>Por etiqueta</strong>${Object.entries(r.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="split small"><span class="tag">#${esc(k)}</span><b>${money(v)}</b></div>`).join('')}</div>` : ''}
+    </div></details>
     `}
   `;
 }
