@@ -224,8 +224,6 @@ button.row { cursor: pointer; }
 /* ---------- carga rápida con Gasto / Ingreso ---------- */
 .quick-card { display: flex; flex-direction: column; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 10px; box-shadow: 0 4px 14px rgba(22, 24, 29, .06); }
 .quick-card.income { border-color: var(--lime); }
-/* Inicio: hasta que tocás la carga rápida, solo se ve el campo */
-.quick-card.compacta:not(.abierta) .cat-row, .quick-card.compacta:not(.abierta) .medio-fila, .quick-card.compacta:not(.abierta) .cat-buscar { display: none; }
 .quick-card .quick { border: 2px solid var(--green-mid); padding: 4px 4px 4px 12px; background: var(--green-soft); border-radius: 14px; transition: border-color .15s, box-shadow .15s; }
 .quick-card .quick:focus-within { border-color: var(--green); background: var(--card); box-shadow: 0 0 0 4px rgba(198, 243, 107, .55); }
 .quick-card.income .quick { border-color: #9BC93A; background: var(--lime-soft); }
@@ -1105,3 +1103,20 @@ details.menu-grupo[open] > summary.menu-label::after { transform: rotate(90deg);
 .card.logro .grow { display: flex; flex-direction: column; gap: 2px; }
 .card.logro .logro-ic { font-size: 24px; }
 .card.logro .logro-v { font-size: 18px; color: var(--lime-ink); white-space: nowrap; }
+
+/* teclado del PIN: teclas más grandes */
+.pin-teclado { grid-template-columns: repeat(3, 80px); gap: 16px 22px; }
+.pin-teclado button { width: 80px; height: 80px; border-radius: 40px; font-size: 32px; }
+.pin-teclado span { width: 80px; }
+
+/* Mi plata → Metas: subtítulos de las dos familias y opciones de "+ Nueva" */
+.sub-titulo { display: block; font-size: 13px; font-weight: 800; color: var(--ink); margin: 6px 2px -4px; }
+.sub-titulo span { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.card.elegir-meta { text-align: left; font: inherit; color: var(--ink); cursor: pointer; gap: 4px; width: 100%; border: 1.5px solid var(--line); }
+.card.elegir-meta:active { border-color: var(--green-mid); }
+.card.elegir-meta strong { font-size: 15px; }
+
+/* Destinar: opciones */
+.destinos { display: flex; flex-direction: column; gap: 6px; }
+.destino-op { border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px; align-items: flex-start; }
+.destino-op:has(input:checked) { border-color: var(--green-mid); background: var(--green-soft); }

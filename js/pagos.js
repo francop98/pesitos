@@ -230,7 +230,7 @@ export function render(s) {
 
     <div class="section-title"><span>Tus recordatorios</span><button data-action="newRecordatorio">+ Recordatorio</button></div>
     ${(s.recordatorios || []).length ? `<div class="card tight">${s.recordatorios.map((r) => `<button class="row" data-action="editRecordatorio" data-id="${esc(r.id)}"><span class="cat-icon">${icon('bell', 18)}</span><span class="grow"><span class="name">${esc(r.name)}</span><span class="meta">${r.repeat && r.repeat !== 'once' ? `${repeatLabel(r.repeat, r)} · desde el ` : ''}${shortDate(r.date)}${r.nota ? ` · ${esc(r.nota)}` : ''}</span></span>${icon('chevron', 16)}</button>`).join('')}</div>`
-      : '<p class="small muted" style="margin:0">Para lo que no es un pago: sacar la plata antes de un débito, llamar para pedir un descuento, renovar algo. Te aviso ese día.</p>'}
+      : '<p class="small muted" style="margin:0">Para lo que no es un pago: mover la plata antes de un débito, llamar para pedir un descuento, renovar algo. Te aviso ese día.</p>'}
     ${(s.expectedIncomes || []).length ? `<div class="section-title"><span>Tus cobros programados</span></div>
     <div class="card tight">${s.expectedIncomes.map((c) => `<button class="row" data-action="editIncome" data-id="${c.id}"><span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${repeatLabel(c.repeat, c)} · desde el ${shortDate(c.date)}</span></span><span class="amount pos">+${money(c.amount)}</span></button>`).join('')}</div>` : ''}
     </details>
@@ -270,8 +270,8 @@ export function descuentoDe(d) {
 function recordatorioForm(r = {}) {
   return `<form class="form" data-submit="guardarRecordatorio">
     <input type="hidden" name="id" value="${esc(r.id || '')}">
-    <p class="text muted" style="margin:0">Para lo que no es un pago pero no te podés olvidar: sacar la plata de una cuenta antes de un débito, llamar para pedir un descuento, renovar algo.</p>
-    <div class="field"><label for="rc-n">¿Qué tenés que hacer?</label><input id="rc-n" name="name" value="${esc(r.name || '')}" placeholder="Ej: Sacar la plata de la cuenta del préstamo" required maxlength="80"></div>
+    <p class="text muted" style="margin:0">Para lo que no es un pago pero no te podés olvidar: mover la plata de una cuenta antes de un débito, llamar para pedir un descuento, renovar algo.</p>
+    <div class="field"><label for="rc-n">¿Qué tenés que hacer?</label><input id="rc-n" name="name" value="${esc(r.name || '')}" placeholder="Ej: Pasar plata a la cuenta del préstamo" required maxlength="80"></div>
     <div class="field-row">
       <div class="field"><label for="rc-d">¿Cuándo?</label><input id="rc-d" name="date" type="date" value="${esc(r.date || todayISO())}" required></div>
       <div class="field"><label for="rc-r">Se repite</label><select id="rc-r" name="repeat" data-change="repeatChanged">${REPEATS.map((x) => `<option value="${x.id}" ${x.id === (r.repeat || 'once') ? 'selected' : ''}>${x.label}</option>`).join('')}</select></div>

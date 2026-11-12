@@ -25,7 +25,7 @@ export const LESSONS = [
       'Redondear cada gasto ahorra de a poquito sin que lo notes. Es un buen complemento de las otras.'] },
   { id: 'emergencia', where: ['ahorro', 'inicio'], title: 'El fondo de emergencia',
     body: ['Es una reserva para imprevistos: quedarte sin trabajo, un arreglo del auto, un problema de salud.',
-      'Lo recomendable es juntar entre 3 y 6 meses de tus gastos fijos, en algo que puedas sacar rápido (una cuenta remunerada, por ejemplo).',
+      'Lo recomendable es juntar entre 3 y 6 meses de tus gastos fijos, en algo de lo que puedas disponer rápido (una cuenta remunerada, por ejemplo).',
       'Tenerlo evita endeudarte con la tarjeta cuando aparece algo inesperado.'] },
   { id: '503020', where: ['asesor'], title: 'La regla 50/30/20',
     body: ['Es una guía simple para repartir el sueldo: 50% para necesidades (vivienda, comida, servicios), 30% para gustos y 20% para ahorro.',

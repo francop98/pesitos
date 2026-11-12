@@ -479,7 +479,7 @@ export const commonActions = {
     }
     const fondo = kind === 'expense' && (ctx.state.goals || []).find((g) => g.tipo === 'fondo' && g.categoria && g.categoria === category);
     if (fondo) {
-      toast(msg, { label: `Sacarlo del fondo ${fondo.name}`, fn: () => { ctx.commit((s) => { const ex = s.expenses.find((x) => x.id === nuevoId); const gf = s.goals.find((g) => g.id === fondo.id); if (ex && gf && !ex.fondoId) { ex.fondoId = gf.id; ex.fromSavings = true; gf.saved = Math.round((gf.saved - ex.amount) * 100) / 100; } }); toast(`Listo: salió del fondo ${fondo.name}`); } });
+      toast(msg, { label: `Pagarlo con el fondo ${fondo.name}`, fn: () => { ctx.commit((s) => { const ex = s.expenses.find((x) => x.id === nuevoId); const gf = s.goals.find((g) => g.id === fondo.id); if (ex && gf && !ex.fondoId) { ex.fondoId = gf.id; ex.fromSavings = true; gf.saved = Math.round((gf.saved - ex.amount) * 100) / 100; } }); toast(`Listo: salió del fondo ${fondo.name}`); } });
       return;
     }
     if (reint) {

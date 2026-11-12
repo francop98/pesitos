@@ -136,7 +136,7 @@ const GLOSARIO = [
   [/\buva\b/, 'El UVA es una unidad que sube con la inflación. Un plazo fijo UVA (mínimo 90 días) te protege de la inflación: te devuelven tu plata actualizada más un interés chico.'],
   [/cedear/, 'Los CEDEARs son certificados que representan acciones de empresas de afuera (Apple, Coca-Cola…) y se compran en pesos en la bolsa argentina. Siguen al precio de la acción y al dólar. Suben y bajan: son para plazos largos.'],
   [/\bbono|obligacion negociable|\bon\b/, 'Un bono es un préstamo que le hacés al Estado o a una empresa a cambio de intereses. Hay en pesos y en dólares; el riesgo depende de quién lo emite.'],
-  [/\bfci\b|money market|fondo comun/, 'Un FCI (fondo común de inversión) junta la plata de muchas personas y la invierte. Los "money market" son los más tranquilos: rinden todos los días y la sacás cuando querés. Es lo que usan Mercado Pago o Ualá.'],
+  [/\bfci\b|money market|fondo comun/, 'Un FCI (fondo común de inversión) junta la plata de muchas personas y la invierte. Los "money market" son los más tranquilos: rinden todos los días y la tenés disponible cuando querés. Es lo que usan Mercado Pago o Ualá.'],
   [/\bmep\b|dolar bolsa/, 'El dólar MEP (o "bolsa") se compra legalmente a través de un banco o broker, comprando y vendiendo un bono. Es la forma legal de comprar dólares a precio de mercado.'],
   [/\bccl\b|contado con liqui/, 'El contado con liqui (CCL) es parecido al MEP, pero los dólares quedan en una cuenta del exterior. Lo usan más las empresas.'],
   [/blue|paralelo/, 'El dólar blue es el que se compra en el mercado informal (cuevas, arbolitos). No es legal, pero se usa como referencia. Para comprar legalmente al precio de mercado está el MEP.'],
@@ -181,7 +181,7 @@ const DONDE = [
   [/letras del tesoro|lecap|invert|inversion|\bbonos?\b|acciones|cedear|caucion|obligaciones? negociables|dolar mep/, 'En Herramientas → "Letras, bonos y acciones" tenés cada inversión explicada (riesgo, plazo, dónde se compra) y las tasas de las letras del Tesoro de hoy. Para comparar billeteras y plazos fijos: Herramientas → ¿Dónde rinde más?'],
   [/tope/, 'Para saber cuánto gastar y llegar justo al tope de un reintegro, usá Herramientas → "Descuento con tope". En "Cuotas o contado" también podés sumar el reintegro.'],
   [/cashback|reintegro|me devuelv|devoluci/, 'Los reintegros se calculan solos cuando anotás una compra con un medio que tiene promo. Los ves en Menú ☰ → Reintegros y cashback: lo que te van a devolver, cuándo, y cuando confirmás que llegó se suma a tu saldo. Ahí también cargás el cashback de tu billetera y elegís cuándo te devuelve cada una.'],
-  [/recordatorio|recordar|acordarme|descuento por|pedir descuento/, 'En Por pagar tocá la campanita (arriba) para crear un recordatorio: sacar plata antes de un débito, llamar para pedir un descuento, etc. Para un descuento por unos meses (por ejemplo, el celular), editá el gasto fijo o el pago y abrí "Descuento por un tiempo": te aviso antes de que termine.'],
+  [/recordatorio|recordar|acordarme|descuento por|pedir descuento/, 'En Por pagar tocá la campanita (arriba) para crear un recordatorio: mover plata antes de un débito, llamar para pedir un descuento, etc. Para un descuento por unos meses (por ejemplo, el celular), editá el gasto fijo o el pago y abrí "Descuento por un tiempo": te aviso antes de que termine.'],
   [/con que (pago|conviene)|donde conviene pagar|que tarjeta uso|que billetera uso/, 'En Herramientas → "¿Con qué conviene pagar?" te muestro, para tus servicios y compras de siempre, qué banco o billetera te devuelve más (las tuyas y las que no tenés).'],
   [/proyecto|obra|remodelacion/, 'Los proyectos están en Mi plata → Metas, junto a tus metas: son ahorro para algo puntual (o solo los gastos de algo). Creás uno con su tipo (obra, viaje, evento, emprendimiento…), presupuesto y fecha objetivo, y al cargar cada gasto elegís el proyecto.'],
   [/tema|oscuro|modo noche|letra/, 'El tema (Auto, Claro u Oscuro) y el tamaño de letra están en Menú ☰ → La app.'],
@@ -377,7 +377,7 @@ export function answer(question, s) {
 
 export const OPTIONS_TEXT = `Depende de cuándo vas a necesitar la plata:
 
-• Menos de 3 meses o fondo de emergencia: cuenta remunerada o fondo money market. Rinden algo y la sacás cuando quieras.
+• Menos de 3 meses o fondo de emergencia: cuenta remunerada o fondo money market. Rinden algo y la tenés disponible cuando quieras.
 
 • De 3 a 12 meses: plazo fijo tradicional o fondos de renta fija de corto plazo. Si podés dejarla 90 días o más, mirá también el plazo fijo UVA, que sigue a la inflación.
 

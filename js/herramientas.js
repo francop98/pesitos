@@ -244,7 +244,7 @@ export const actions = {
       const rr = tna / 100 * 30 / 365;
       let saldo = cash; for (let k = 1; k <= n; k++) saldo = saldo * (1 + rr) - cuota + (k === 1 ? reinQ - reinC : 0);
       veredicto = saldo >= 0 ? `Convienen las cuotas: te quedan ${money(saldo)}` : `Conviene pagar de contado: con cuotas te faltan ${money(-saldo)}`;
-      detalle = `Si en vez de pagar ${money(cash)} de contado dejás esa plata ${tna ? `rindiendo al ${tasaTxt(tna)}% anual` : 'guardada'} y vas sacando ${money(cuota)} por mes, al terminar ${saldo >= 0 ? `te sobran <b>${money(saldo)}</b> (≈ ${money(saldo / Math.pow(1 + i, n))} en plata de hoy)` : `te faltan <b>${money(-saldo)}</b>`}.`;
+      detalle = `Si en vez de pagar ${money(cash)} de contado dejás esa plata ${tna ? `rindiendo al ${tasaTxt(tna)}% anual` : 'guardada'} y vas usando ${money(cuota)} por mes, al terminar ${saldo >= 0 ? `te sobran <b>${money(saldo)}</b> (≈ ${money(saldo / Math.pow(1 + i, n))} en plata de hoy)` : `te faltan <b>${money(-saldo)}</b>`}.`;
     }
     // escenarios: ¿y si la inflación cambia?
     const esc3 = [['Si la inflación baja a la mitad', i / 2], ['Con la inflación esperada', i], ['Si la inflación sube 50%', i * 1.5]].map(([l, inf]) => { const v = resultado(inf); return `<div class="split small"><span>${l} (${tasaTxt((inf * 100).toFixed(1))}%/mes)</span><b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? `Cuotas +${money(v)}` : `Contado +${money(-v)}`}</b></div>`; }).join('');

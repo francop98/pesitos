@@ -130,12 +130,17 @@ export function mostrarBloqueo() {
     };
     const teclas = (e) => { if (/^\d$/.test(e.key)) tocar(e.key); if (e.key === 'Backspace') { pin = pin.slice(0, -1); marcar(); } };
     document.addEventListener('keydown', teclas);
-    capa.onclick = async (e) => {
+    // los números y borrar responden apenas el dedo toca la tecla (no esperan el "click",
+    // que el celular a veces descarta si el dedo se mueve un poquito)
+    capa.onpointerdown = (e) => {
       const p = e.target.closest('[data-pin]');
-      if (p) { tocar(p.dataset.pin); return; }
+      if (p) { e.preventDefault(); tocar(p.dataset.pin); return; }
+      const b = e.target.closest('[data-bloqueo="borrar"]');
+      if (b) { e.preventDefault(); pin = pin.slice(0, -1); marcar(); }
+    };
+    capa.onclick = async (e) => {
       const b = e.target.closest('[data-bloqueo]');
-      if (!b) return;
-      if (b.dataset.bloqueo === 'borrar') { pin = pin.slice(0, -1); marcar(); }
+      if (!b || b.dataset.bloqueo === 'borrar') return;
       if (b.dataset.bloqueo === 'bio') { if (await verificarBio()) listo(); else dibujar('No se pudo verificar. Probá de nuevo o usá el PIN.'); }
       if (b.dataset.bloqueo === 'olvide') {
         dibujar('Para crear un PIN nuevo, cerrás sesión y volvés a entrar con tu mail y contraseña (o con Google). Tus datos no se pierden. ¿Seguimos?');
@@ -190,12 +195,14 @@ export function pedirPin(titulo = 'Ingresá tu PIN') {
     const teclas = (e) => { if (/^\d$/.test(e.key)) tocar(e.key); if (e.key === 'Backspace') { pin = pin.slice(0, -1); marcar(); } if (e.key === 'Escape') cerrar(false); };
     document.addEventListener('keydown', teclas);
     // pointerup responde al primer toque en el celular (sin esperar el "click")
-    capa.onpointerup = async (e) => {
+    capa.onpointerdown = (e) => {
       const p = e.target.closest('[data-pin]');
       if (p) { e.preventDefault(); tocar(p.dataset.pin); return; }
-      const b = e.target.closest('[data-r]'); if (!b) return;
+      if (e.target.closest('[data-r="borrar"]')) { e.preventDefault(); pin = pin.slice(0, -1); marcar(); }
+    };
+    capa.onclick = async (e) => {
+      const b = e.target.closest('[data-r]'); if (!b || b.dataset.r === 'borrar') return;
       e.preventDefault();
-      if (b.dataset.r === 'borrar') { pin = pin.slice(0, -1); marcar(); }
       if (b.dataset.r === 'cancelar') cerrar(false);
       if (b.dataset.r === 'bio') { if (await verificarBio()) cerrar(true); else dibujar('No se pudo verificar. Probá con el PIN.'); }
     };

@@ -18,7 +18,7 @@ function planBlock(s, c, it) {
   if (!it || it.paid) return '';
   const plan = cardPlan(s, c, it);
   return `<div class="card">
-    ${plan.fromSavings > 1 ? `<div class="result warn"><strong>Tu plata disponible cubre ${money(plan.fromSalary)}</strong><span class="text">Te faltarían ${money(plan.fromSavings)}: conviene sacarlos de tus ahorros antes que financiar la tarjeta.</span></div>`
+    ${plan.fromSavings > 1 ? `<div class="result warn"><strong>Tu plata disponible cubre ${money(plan.fromSalary)}</strong><span class="text">Te faltarían ${money(plan.fromSavings)}: conviene cubrirlos con tus ahorros antes que financiar la tarjeta.</span></div>`
       : '<div class="result ok"><strong>Lo cubrís con tu plata disponible</strong><span class="text">Pagalo completo: así no pagás intereses.</span></div>'}
     ${plan.tna ? `<span class="small">Si pagás solo una parte, lo que quede pasa al próximo resumen con interés: unos <b>${money(plan.monthlyCost)}</b> por mes si financiaras todo (TNA ${String(plan.tna).replace('.', ',')}% + IVA).</span>`
       : `<span class="small muted">Si alguna vez pagás solo una parte, cargá la tasa (TNA) en <button class="link-btn" data-action="editCard" data-id="${esc(c.id)}">Editar</button> y te calculo el interés.</span>`}

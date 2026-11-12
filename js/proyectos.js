@@ -153,7 +153,7 @@ function detalle(s, p) {
   const movs = [...r.gastos.map((e) => ({ ...e, _k: 'e' })), ...r.ingresos.map((i) => ({ ...i, _k: 'i' }))].sort((a, b) => b.date.localeCompare(a.date));
   const objetivo = p.presupuesto || (r.meta && r.meta.target) || 0;
   const ahorroHtml = r.meta ? `<div class="card" style="gap:8px">
-      <div class="split"><strong>Ahorro del proyecto</strong><button class="btn small green" data-action="pasarAhorros" data-tipo="extra" data-goal="${esc(r.meta.id)}" data-otro="1">+ Sumar ahorro</button></div>
+      <div class="split"><strong>Ahorro del proyecto</strong><span class="btn-row"><button class="btn small" data-action="destinarMeta" data-id="${esc(r.meta.id)}" data-proy="${esc(p.id)}">Destinar</button><button class="btn small green" data-action="pasarAhorros" data-tipo="extra" data-goal="${esc(r.meta.id)}" data-otro="1">+ Sumar</button></span></div>
       <div class="split"><span>Ahorrado</span><b>${money(r.ahorrado)}${objetivo ? ` <span class="small muted">de ${money(objetivo)}</span>` : ''}</b></div>
       ${objetivo ? barra(r.ahorrado / objetivo).replace('pres-barra mal', 'pres-barra bien').replace('pres-barra ojo', 'pres-barra bien') : ''}
       <div class="split"><span>Gastado</span><b>${money(r.gastado)}</b></div>
@@ -186,7 +186,7 @@ function form(p = {}) {
   return `<form class="form" data-submit="guardarProyecto">
     <input type="hidden" name="id" value="${esc(p.id || '')}">
     <input type="hidden" name="tipo" value="${esc(tipo)}">
-    <div class="field"><label for="pr-n">Nombre</label><input id="pr-n" name="nombre" value="${esc(p.nombre || '')}" placeholder="Ej: Vacaciones en Bariloche, Arreglo del baño" required maxlength="40"></div>
+    <div class="field"><label for="pr-n">Nombre</label><input id="pr-n" name="nombre" value="${esc(p.nombre || '')}" placeholder="${p._ahorrar === false ? 'Ej: Ampliar la cocina' : 'Ej: Recital en Córdoba'}" required maxlength="40"></div>
     <div class="field-row">
       <div class="field"><label for="pr-p">Presupuesto (opcional)</label><input id="pr-p" name="presupuesto" inputmode="decimal" value="${p.presupuesto || ''}" placeholder="$ 0"></div>
       <div class="field"><label for="pr-f">Fecha objetivo (opcional)</label><input id="pr-f" name="fin" type="date" value="${esc(p.fin || '')}"></div>
@@ -194,7 +194,7 @@ function form(p = {}) {
     <span class="hint">Con presupuesto y fecha te digo si vas en ritmo y cuánto podés gastar por mes.</span>
     <div class="field"><label for="pr-c">¿Lo compartís? Con quién (opcional)</label><input id="pr-c" name="con" value="${esc((p.con || []).join(', '))}" placeholder="Ej: Sofi, Juan" maxlength="200" data-input="proyContar">
       <span class="hint" data-proy-n>${(p.con || []).length ? `Entre ${p.con.length + 1} personas (vos y ${p.con.length})` : 'Separá los nombres con coma. Se divide en partes iguales y te digo cuánto puso cada uno.'}</span></div>
-    <label class="check"><input type="checkbox" name="ahorrar" ${p.metaId || !p.id ? 'checked' : ''}> <span>Voy a ahorrar para esto<br><span class="small muted">Juntás plata para el proyecto (el presupuesto es el objetivo) y después ves cuánto gastaste de lo ahorrado. Destildalo si solo querés agrupar gastos.</span></span></label>
+    <label class="check"><input type="checkbox" name="ahorrar" ${p.metaId || (!p.id && p._ahorrar !== false) ? 'checked' : ''}> <span>Voy a ahorrar para esto<br><span class="small muted">Juntás plata para el proyecto (el presupuesto es el objetivo) y después ves cuánto gastaste de lo ahorrado. Destildalo si solo querés agrupar gastos.</span></span></label>
     <label class="check"><input type="checkbox" name="conAhorros" ${p.conAhorros ? 'checked' : ''}> <span>Lo pago con ahorros<br><span class="small muted">Sus gastos no se descuentan de "Hoy podés gastar". Dejalo sin marcar si lo pagás con la plata del mes.</span></span></label>
     ${p.id ? `<label class="check"><input type="checkbox" name="cerrado" ${p.cerrado ? 'checked' : ''}> <span>Proyecto terminado<br><span class="small muted">Deja de aparecer al cargar gastos. Lo seguís viendo acá.</span></span></label>` : ''}
     <button class="btn primary block" type="submit">Guardar</button>
@@ -215,7 +215,10 @@ function listaParaSumar(s, id) {
 
 export const actions = {
   verProyecto(ctx, el) { abierto = el.dataset.id || null; if (location.hash === '#/proyectos') { ctx.render(); window.scrollTo(0, 0); } else ctx.go('proyectos'); },
-  nuevoProyecto() { openModal('Nuevo proyecto', form()); },
+  nuevoProyecto(ctx, el) {
+    const ahorrar = !(el && el.dataset && el.dataset.ahorrar === '0');
+    openModal(ahorrar ? 'Juntar y gastarlo en algo' : 'Llevar la cuenta de lo que gasto', form({ _ahorrar: ahorrar }), { push: !document.getElementById('modal').hidden });
+  },
   editarProyecto(ctx, el) { const p = proyectoDe(ctx.state, el.dataset.id); if (p) openModal('Editar proyecto', form(p)); },
   guardarProyecto(ctx, d) {
     const nombre = String(d.nombre || '').trim();

@@ -334,7 +334,7 @@ function llegoHtml(s) {
     <strong>¿Te llegó un reintegro?</strong>
     <div class="field-row"><div class="field"><label for="ll-m">De</label><select id="ll-m" name="medio">${medios.map((m) => `<option value="${esc(m.id)}" ${m.id === def ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}</select></div>
       <div class="field"><label for="ll-a">Monto</label><input id="ll-a" name="monto" inputmode="decimal" required placeholder="Ej: 8.000"></div></div>
-    <input type="hidden" name="fecha" value="${todayISO()}">
+    <div class="field"><label for="ll-f">¿Cuándo llegó?</label><input id="ll-f" name="fecha" type="date" value="${todayISO()}" max="${todayISO()}"></div>
     <button class="btn primary block" type="submit">${icon('check', 18)} Lo cargo</button>
     ${lista ? `<details><summary class="small"><b>Lo que te deberían devolver</b> (compras de los últimos 35 días)</summary>${lista}<span class="small muted">Lo calculo con las promos de cada medio. Es una guía: lo que vale es lo que llega.</span></details>` : ''}
   </form>`;

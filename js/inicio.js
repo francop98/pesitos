@@ -425,7 +425,7 @@ export function render(s) {
 
     ${s.espacio ? espacioHero(s) : widget(s, b, payText)}
 
-    ${quickForm('q-home', s, mediosRapidos(s)).replace('class="quick-card"', 'class="quick-card compacta"')}
+    ${quickForm('q-home', s, mediosRapidos(s))}
 
     ${s.espacio ? espacioDia(s) : `${lista[0] || ''}
 

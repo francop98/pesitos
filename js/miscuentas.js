@@ -164,6 +164,7 @@ function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '', otro = false) 
       ${op('extra', 'Algo extra, de lo que tenía para gastar', 'Baja tu "Hoy podés gastar".')}
       ${op('mover', 'Plata que ya tenía ahorrada en la cuenta', 'Solo la cambio de lugar: no toca lo que podés gastar.')}</div>
     <span class="small muted">Baja el saldo de la cuenta de la que sale y suma a tus ahorros (y a la meta, si elegiste una).</span>
+<div class="field"><label for="ah-fe">¿Cuándo?</label><input id="ah-fe" name="date" type="date" value="${todayISO()}" max="${todayISO()}"></div>
     <button class="btn primary block" type="submit">Pasar a ahorros</button>
   </form>`;
 }
@@ -234,7 +235,7 @@ export const actions = {
       s.transfers = s.transfers || [];
       const tipo = d.tipo || 'extra';
       const baja = tipo === 'extra' || (tipo === 'regla' && s.savingMode === 'leftover');
-      s.transfers.push({ id: uid(), date: todayISO(), amount, accountId: d.from, holdingId: h.id, tipo, ...(g ? { goalId: g.id } : {}), ...(baja ? { deDiario: true } : {}), note: `A ahorros: ${h.name}` });
+      s.transfers.push({ id: uid(), date: d.date && d.date <= todayISO() ? d.date : todayISO(), amount, accountId: d.from, holdingId: h.id, tipo, ...(g ? { goalId: g.id } : {}), ...(baja ? { deDiario: true } : {}), note: `A ahorros: ${h.name}` });
       delMes = baja;
       // "Otro monto" en lo de este mes: lo que pasás es lo que ahorrás este ciclo (si es menos, el resto
       // queda para gastar). Si pasás más de lo que tocaba, también se ajusta.

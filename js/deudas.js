@@ -90,6 +90,7 @@ export const actions = {
         <div class="field-row"><div class="field"><label for="dp-m">${d.tipo === 'meDeben' ? 'Te devolvió' : 'Pagaste'}</label><input id="dp-m" name="monto" inputmode="decimal" placeholder="Todo: ${enSu(s, d, saldo)}"><input type="hidden" name="saldo" value="${saldo}"></div>
         ${deudaEnOtraMoneda(s, d) ? `<div class="field"><label for="dp-en">En</label><select id="dp-en" name="en"><option value="${d.moneda}">${(ASSETS.find((a) => a.id === d.moneda) || {}).label || d.moneda}</option><option value="base">${monedaBase(s) === 'USD' ? 'Dólares' : 'Pesos'}${aBase(s, d.moneda) ? ` (a ${money(aBase(s, d.moneda))} cada uno)` : ''}</option></select></div>` : ''}
         <div class="field"><label for="dp-c">${d.tipo === 'meDeben' ? 'Entró en' : 'Salió de'}</label><select id="dp-c" name="cuenta">${opcionesCuenta(s, cuentaPrincipal(s), 'Ninguna (efectivo sin seguir)')}</select></div></div>
+<div class="field"><label for="dp-f">¿Cuándo?</label><input id="dp-f" name="date" type="date" value="${todayISO()}" max="${todayISO()}"></div>
         <button class="btn green block" type="submit">${d.tipo === 'meDeben' ? 'Registrar cobro' : 'Registrar pago'}</button></form>
         <button class="btn block" data-action="avisarDeuda" data-id="${esc(d.id)}">${icon('send', 18)} ${d.tipo === 'meDeben' ? 'Recordarle por WhatsApp' : 'Avisarle por WhatsApp'}</button>` : '<p class="text pos"><b>Saldada.</b></p>'}
       ${(d.pagos || []).length ? `<div class="card tight">${d.pagos.map((p) => `<div class="row"><span class="grow"><span class="name">${d.tipo === 'meDeben' ? 'Cobraste' : 'Pagaste'}</span><span class="meta">${relDay(p.date)}</span></span><span class="amount">${enSu(s, d, p.monto)}</span></div>`).join('')}</div>` : ''}
@@ -119,7 +120,7 @@ export const actions = {
     if (num(d.monto) && d.en === 'base') { if (!tc) { toast('No tengo la cotización ahora'); return; } monto = monto / tc; }
     ctx.commit((s) => {
       const x = (s.deudas || []).find((y) => y.id === d.id);
-      if (x) x.pagos = [...(x.pagos || []), { id: uid(), date: todayISO(), monto: Math.round(Math.min(monto, saldoDeuda(x)) * 100) / 100, cuenta: d.cuenta || '', ...(tc ? { tc } : {}) }];
+      if (x) x.pagos = [...(x.pagos || []), { id: uid(), date: d.date && d.date <= todayISO() ? d.date : todayISO(), monto: Math.round(Math.min(monto, saldoDeuda(x)) * 100) / 100, cuenta: d.cuenta || '', ...(tc ? { tc } : {}) }];
     });
     closeModal(); toast('Anotado');
   },

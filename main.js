@@ -186,10 +186,7 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
-// En Inicio, la carga rápida muestra categorías y medio de pago recién cuando la usás
-const abrirCarga = (e) => { const f = e.target.closest && e.target.closest('.quick-card.compacta'); if (f) f.classList.add('abierta'); };
-document.addEventListener('focusin', abrirCarga);
-document.addEventListener('pointerdown', abrirCarga);
+
 
 window.addEventListener('hashchange', () => {
   const r = currentRoute();
