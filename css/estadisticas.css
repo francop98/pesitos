@@ -1,0 +1,61 @@
+/* Estadísticas y presupuestos (topes por categoría) */
+
+/* presupuestos */
+.pres-barra { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; margin: 4px 0 2px; }
+.pres-barra span { display: block; height: 100%; border-radius: 4px; background: var(--green-mid); }
+.pres-barra.ojo span { background: #F2B33D; }
+.pres-barra.mal span { background: var(--danger); }
+.pres-row { align-items: center; }
+.pres-row .grow { display: flex; flex-direction: column; }
+
+/* estadísticas */
+.dona-wrap { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.dona-wrap svg { flex-shrink: 0; margin: 0 auto; }
+.dona-ley { display: flex; flex-direction: column; gap: 2px; flex: 1 1 160px; min-width: 0; }
+.ley-item { display: flex; align-items: center; gap: 8px; border: none; background: none; padding: 5px 2px; font-size: 13px; color: var(--ink); text-align: left; min-height: 32px; }
+.ley-item i { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+.barras { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-items: end; height: 150px; margin-top: 6px; }
+.barra-mes { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+.barra-par { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 3px; }
+.barra-par span { width: 40%; max-width: 18px; border-radius: 5px 5px 2px 2px; min-height: 2px; }
+.b-ing { background: var(--green-mid); }
+.b-gas { background: #F2B33D; }
+.b-lbl { font-size: 11px; color: var(--muted); font-weight: 600; }
+.chips.periodo { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+.chips.periodo .chip { flex-shrink: 0; }
+.meses-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.anio-nav { background: var(--bg); }
+.anios-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.anio-nav .mes-btn { background: var(--card); }
+.anios-grid { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
+.rank { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font-weight: 800; font-size: 13px; flex-shrink: 0; }
+.rank.top { background: var(--lime, #C8F169); color: #17331F; }
+
+/* estadísticas extra */
+.barras.dias7 { grid-template-columns: repeat(7, minmax(0, 1fr)); height: 110px; }
+.barras.dias7 .b-gas { width: 70%; margin: 0 auto; }
+.barras.dias7 .b-gas.top { background: var(--green); }
+.regla-fila { display: grid; grid-template-columns: 92px minmax(0, 1fr) 40px; align-items: center; gap: 8px; font-size: 13px; }
+.regla-fila b { text-align: right; }
+.regla-barra { position: relative; height: 10px; background: var(--line-soft); border-radius: 99px; }
+.regla-barra span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--green); }
+.regla-barra span.mal { background: #F2B33D; }
+.regla-barra i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .55; }
+.hormiga { gap: 6px; }
+
+/* informe del sueldo (como una planilla) */
+.barras.inf-barras { height: 100px; }
+.barras.inf-barras .barra-par span { width: 70%; margin: 0 auto; }
+.barras.inf-barras .top { background: var(--green); }
+
+/* Estadísticas: lo secundario, plegado */
+.mas-analisis > summary { list-style: none; display: flex; flex-direction: column; align-items: center; gap: 2px; height: auto; padding: 12px 16px; text-align: center; }
+.mas-analisis > summary::-webkit-details-marker { display: none; }
+.mas-analisis > summary .small { font-weight: 500; }
+.mas-analisis[open] > summary { margin-bottom: 12px; }
+.mas-cuerpo { display: flex; flex-direction: column; gap: 16px; }
+.tit-destacada { display: inline-flex; align-items: center; gap: 6px; color: var(--green-mid); }
+
+/* Mi plata → Metas: subtítulos de las dos familias y opciones de "+ Nueva" */
+.sub-titulo { display: block; font-size: 13px; font-weight: 800; color: var(--ink); margin: 6px 2px -4px; }
+.sub-titulo span { font-weight: 500; color: var(--muted); margin-left: 4px; }

@@ -1,0 +1,47 @@
+/* Por pagar: vencimientos, calendario y tarjetas de crédito */
+.credit-head { display: flex; justify-content: space-between; align-items: center; }
+.credit-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 16px; }
+.months-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-items: end; height: 140px; }
+.mbar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+.mcol { width: 100%; max-width: 34px; border-radius: 6px 6px 3px 3px; background: #A9D8BE; }
+.mval { font-size: 10px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.mlabel { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* por pagar */
+.pay-row { align-items: flex-start; }
+.pay-row .grow { display: flex; flex-direction: column; gap: 1px; }
+.pay-row.is-paid .name, .pay-row.is-paid .amount { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.pay-row .meta { white-space: normal; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; font-weight: 600; min-height: 44px; }
+.check input { width: 20px; height: 20px; margin-top: 2px; flex-shrink: 0; }
+.check .small { font-weight: 500; }
+
+/* calendario de pagos */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-head { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.cal-cell { aspect-ratio: 1 / 1.1; border: none; border-radius: 10px; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 6px 2px 4px; gap: 4px; min-height: 44px; }
+.cal-cell.empty { background: transparent; }
+.cal-cell .n { font-size: 13px; font-weight: 700; }
+.cal-cell.today { outline: 2px solid var(--green); }
+.cal-cell.heavy { background: var(--amber-bg); }
+.cal-cell .dots { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+.dot { width: 6px; height: 6px; border-radius: 3px; display: inline-block; }
+.dot.out { background: var(--amber); }
+.dot.late { background: #B4441B; }
+.dot.paid { background: #B9BCC2; }
+.dot.in { background: var(--green); }
+.dot.close { background: var(--ink); }
+.cuota-vivo { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--green-soft); color: var(--green-text); font-size: 14px; }
+
+/* tarjetas */
+.credit-name { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.credit-sub { font-size: 12px; font-weight: 600; opacity: .7; width: 100%; padding-left: 26px; margin-top: -2px; }
+.sug-pago { display: block; margin-top: 6px; color: var(--green-text); font-weight: 600; }
+.tope-fila .meta { white-space: normal; }
+.tope-barra { display: block; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 6px 0 2px; }
+.tope-barra > span { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+.tope-donde { font-weight: 500; color: var(--muted); font-size: 13px; }
+.pf-zona { margin: 2px 0 8px; }
+
+/* barra del mes actual en el gráfico de la tarjeta */
+.mcol.actual { background: var(--green); }

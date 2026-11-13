@@ -179,8 +179,8 @@ export function usoPromoSegun(s, e) {
 export function preguntaPromoHtml(s, e) {
   const r = e.reintegro;
   return `<div class="form" data-promo-q="${esc(e.id)}">
-    <p class="text" style="margin:0"><b>${esc(e.note)} · ${money(e.amount)}</b></p>
-    <p class="small muted" style="margin:0">Con <b>${esc(r.nombre)}</b> hay ${r.pct}% de reintegro${r.aprox ? ' (tope sin confirmar)' : ''}: te devolverían ${r.aprox ? 'hasta ' : ''}${money(r.monto)} el ${fecha(r.fecha)}. Pero solo si pagaste con la promo (casi siempre, con QR, NFC o la tarjeta de la billetera).</p>
+    <p class="text u-m-0"><b>${esc(e.note)} · ${money(e.amount)}</b></p>
+    <p class="small muted u-m-0">Con <b>${esc(r.nombre)}</b> hay ${r.pct}% de reintegro${r.aprox ? ' (tope sin confirmar)' : ''}: te devolverían ${r.aprox ? 'hasta ' : ''}${money(r.monto)} el ${fecha(r.fecha)}. Pero solo si pagaste con la promo (casi siempre, con QR, NFC o la tarjeta de la billetera).</p>
     ${r.aprox ? `<div class="field"><label for="pq-tope">Tope de la promo (si lo sabés)</label><input id="pq-tope" data-promo-tope inputmode="decimal" placeholder="Ej: 10.000"><span class="hint">El banco no lo publica: fijate en la app, en las condiciones de la promo.</span></div>` : ''}
     <button class="btn primary block" data-action="promoUsada" data-id="${esc(e.id)}" data-v="si">Sí, pagué con la promo</button>
     <button class="btn block" data-action="promoUsada" data-id="${esc(e.id)}" data-v="no">No, pagué normal</button>
@@ -274,7 +274,7 @@ function topesHtml(s) {
   const primeras = l.slice(0, 6); const resto = l.slice(6);
   return `<div class="section-title"><span>Tus descuentos y topes</span></div>
     <div class="card tight">${primeras.map(fila).join('')}</div>
-    ${resto.length ? `<details class="card"><summary><strong>Ver ${resto.length} más</strong></summary><div class="card tight" style="margin-top:8px">${resto.map(fila).join('')}</div></details>` : ''}`;
+    ${resto.length ? `<details class="card"><summary><strong>Ver ${resto.length} más</strong></summary><div class="card tight u-mt-8">${resto.map(fila).join('')}</div></details>` : ''}`;
 }
 
 function filaConfirmar(e) {
@@ -357,7 +357,7 @@ export function render(s) {
       <div class="stat"><span class="k">Te deberían devolver</span><span class="v">≈ ${money(Object.values(esperados(s)).reduce((a, x) => a + x.total, 0))}</span><span class="small muted">según tus compras</span></div>
     </div>
     ${conf.length ? `<div class="section-title"><span>¿Te llegaron? (${conf.length})</span></div>
-    <p class="small muted" style="margin:0">Se suman a tu saldo recién cuando me confirmás que llegaron y por cuánto. Así tu saldo no se aleja del real.</p>
+    <p class="small muted u-m-0">Se suman a tu saldo recién cuando me confirmás que llegaron y por cuánto. Así tu saldo no se aleja del real.</p>
     <div class="card tight">${conf.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(filaConfirmar).join('')}</div>` : ''}
     ${pend.length ? `<div class="section-title"><span>Por cobrar</span></div><div class="card tight">${pend.sort((a, b) => a.reintegro.fecha.localeCompare(b.reintegro.fecha)).map(fila).join('')}</div>` : ''}
     ${topesHtml(s)}
@@ -365,13 +365,13 @@ export function render(s) {
     ${(s.misBeneficios || []).length ? `<div class="card tight">${s.misBeneficios.map((b) => `<button class="row" data-action="editarBeneficio" data-id="${esc(b.id)}">
         <span class="grow"><span class="name">${esc(b.nombre || nombreMedio(b.wallet))} · ${b.pct}%</span><span class="meta">${b.comercio ? esc(b.comercio) : b.categoria ? esc(catLabel(b.categoria)) : 'En todas tus compras'} · ${diasTxt(b.dias)} · ${capTxt(b)}</span></span>
         ${icon('chevron', 16)}</button>`).join('')}</div>`
-      : '<p class="small muted" style="margin:0">Las promos de bancos y billeteras las traigo solas. Acá cargás las que no aparecen: por ejemplo, el cashback de una billetera (Claro Pay, Personal Pay…) o un reintegro de tu banco.</p>'}
+      : '<p class="small muted u-m-0">Las promos de bancos y billeteras las traigo solas. Acá cargás las que no aparecen: por ejemplo, el cashback de una billetera (Claro Pay, Personal Pay…) o un reintegro de tu banco.</p>'}
     <div class="section-title"><span>Cuándo te devuelve cada uno</span></div>
-    <p class="small muted" style="margin:0">Personalizá cuándo te devuelve cada uno: tocá el banco o la billetera y cambiá el día.</p>
+    <p class="small muted u-m-0">Personalizá cuándo te devuelve cada uno: tocá el banco o la billetera y cambiá el día.</p>
     <div class="card tight">${misMedios(s).map((m) => { const r = reglaAcredita(s, m.id, m.tarjeta); return `<button class="row" data-action="editarAcredita" data-id="${esc(m.id)}">
         <span class="grow"><span class="name">${esc(m.nombre)}</span><span class="meta">${textoAcredita(r)}</span></span>${icon('chevron', 16)}</button>`; }).join('') || '<p class="empty">Cargá tus bancos y billeteras en Menú → Mis medios de pago.</p>'}</div>
-    ${cob.length ? `<details class="card"><summary><strong>Cobrados (últimos 45 días)</strong> · ${money(totalReintegros(cob))}</summary><div class="card tight" style="margin-top:8px">${cob.map(fila).join('')}</div></details>` : ''}
-    <p class="small muted" style="margin:0">Al cargar un gasto no te pregunto nada. Cuando el reintegro te llega, lo cargás acá: se suma a tu saldo, a "Hoy podés gastar" y a "Te ahorraste", y lo reparto entre las compras que tenían promo.</p>
+    ${cob.length ? `<details class="card"><summary><strong>Cobrados (últimos 45 días)</strong> · ${money(totalReintegros(cob))}</summary><div class="card tight u-mt-8">${cob.map(fila).join('')}</div></details>` : ''}
+    <p class="small muted u-m-0">Al cargar un gasto no te pregunto nada. Cuando el reintegro te llega, lo cargás acá: se suma a tu saldo, a "Hoy podés gastar" y a "Te ahorraste", y lo reparto entre las compras que tenían promo.</p>
   </section>`;
 }
 
@@ -405,7 +405,7 @@ function acreditaForm(s, id) {
   const nombre = (misMedios(s).find((m) => m.id === id) || {}).nombre || id;
   return `<form class="form" data-submit="guardarAcredita">
     <input type="hidden" name="id" value="${esc(id)}">
-    <p class="text muted" style="margin:0">¿Cuándo te devuelve ${esc(nombre)} los reintegros y el cashback? Así sé qué día sumarlos a tu saldo.</p>
+    <p class="text muted u-m-0">¿Cuándo te devuelve ${esc(nombre)} los reintegros y el cashback? Así sé qué día sumarlos a tu saldo.</p>
     <div class="field"><label for="ac-t">Se acreditan</label><select id="ac-t" name="tipo" data-change="acreditaTipo">${TIPOS_ACREDITA.filter(([v]) => tarjeta || v !== 'resumen').map(([v, l]) => `<option value="${v}" ${r.tipo === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     <div class="field" data-ac="dias" ${r.tipo === 'dias' ? '' : 'hidden'}><label for="ac-n">¿A los cuántos días?</label><input id="ac-n" name="n" type="number" min="1" max="90" value="${r.tipo === 'dias' && r.n ? r.n : ''}" placeholder="7"></div>
     <div class="field" data-ac="semanal" ${r.tipo === 'semanal' ? '' : 'hidden'}><label for="ac-d">¿Qué día?</label><select id="ac-d" name="dia">${DIAS_SEMANA.map((d, i) => `<option value="${i}" ${Number(r.dia ?? 1) === i ? 'selected' : ''}>${d}</option>`).join('')}</select><span class="hint">Lo de una semana (de lunes a domingo) llega ese día de la semana siguiente.</span></div>
@@ -436,13 +436,13 @@ function opcionHtml(o, monto) {
 }
 function cqpResultados(s, item, todo = false) {
   const ops = conQuePagar(s, item);
-  if (!ops.length) return '<p class="small muted" style="margin:0">No encontré reintegros, cashback ni beneficios para esto en ningún banco o billetera. Si tenés uno que no aparece, cargalo en Reintegros → + Cashback.</p>';
+  if (!ops.length) return '<p class="small muted u-m-0">No encontré reintegros, cashback ni beneficios para esto en ningún banco o billetera. Si tenés uno que no aparece, cargalo en Reintegros → + Cashback.</p>';
   const tuyas = ops.filter((o) => o.tuyo); const otras = ops.filter((o) => !o.tuyo);
   if (!todo) return `${tuyas.slice(0, 2).map((o) => opcionHtml(o, item.monto)).join('')}${otras.length && (!tuyas.length || otras[0].ahorro > tuyas[0].ahorro) ? otras.slice(0, 1).map((o) => opcionHtml(o, item.monto)).join('') : ''}`;
   const mejorTuya = tuyas[0];
   const conviene = otras.filter((o) => !mejorTuya || (item.monto ? o.ahorro > mejorTuya.ahorro : o.pct > mejorTuya.pct));
   return `<span class="cqp-sub">Con lo que tenés</span>
-    ${tuyas.length ? tuyas.slice(0, 5).map((o) => opcionHtml(o, item.monto)).join('') : '<p class="small muted" style="margin:0">Con tus bancos y billeteras no hay nada para esto.</p>'}
+    ${tuyas.length ? tuyas.slice(0, 5).map((o) => opcionHtml(o, item.monto)).join('') : '<p class="small muted u-m-0">Con tus bancos y billeteras no hay nada para esto.</p>'}
     ${conviene.length ? `<span class="cqp-sub">Con otra billetera o banco que no tenés</span>${conviene.slice(0, 4).map((o) => opcionHtml(o, item.monto)).join('')}
     <span class="small muted">Muchas billeteras (MODO, Mercado Pago, Ualá…) se abren gratis en minutos. Fijate si te conviene por lo que gastás.</span>` : ''}`;
 }
@@ -486,10 +486,10 @@ function cqpRespuesta(s, item) {
   }
   const planB = tuyasHoy[1] ? `<div class="cqp-op tuyo"><span class="grow"><span><b>Plan B: ${esc(tuyasHoy[1].nombre)}</b> · ${tuyasHoy[1].pct}%${dondeTxt(tuyasHoy[1], item)}</span><span class="small muted">${capTxt(tuyasHoy[1])}</span></span>${item.monto ? `<b class="pos">−${money(tuyasHoy[1].ahorro)}</b>` : ''}</div>` : '';
   const otra = otrasHoy[0] && (!mejor || val(otrasHoy[0]) > val(mejor)) ? `<div class="cqp-op"><span class="grow"><span><b>${esc(otrasHoy[0].nombre)}</b> · ${otrasHoy[0].pct}%${dondeTxt(otrasHoy[0], item)} <span class="pill">No la tenés</span></span><span class="small muted">Hoy da más que lo tuyo · ${capTxt(otrasHoy[0])}. Muchas billeteras se abren gratis en minutos.</span></span>${item.monto ? `<b class="pos">−${money(otrasHoy[0].ahorro)}</b>` : ''}</div>` : '';
-  const diaMejorTxt = mejor && mejorDia && mejorDia.d !== hoyN && val(mejorDia.tuya) > val(mejor) ? `<p class="small" style="margin:0">📅 Si podés esperar: el <b>${DIAS_LARGOS[mejorDia.d]}</b> ${quePasa(mejorDia.tuya, item.monto)}${dondeTxt(mejorDia.tuya, item)}.</p>` : '';
+  const diaMejorTxt = mejor && mejorDia && mejorDia.d !== hoyN && val(mejorDia.tuya) > val(mejor) ? `<p class="small u-m-0">📅 Si podés esperar: el <b>${DIAS_LARGOS[mejorDia.d]}</b> ${quePasa(mejorDia.tuya, item.monto)}${dondeTxt(mejorDia.tuya, item)}.</p>` : '';
   const hay = semana.some((x) => x.tuya || x.otra);
   const sem = hay ? `<details class="cqp-semana"><summary><span class="small"><b>Toda la semana</b></span></summary>${semana.map((x) => `<div class="split small ${x.d === hoyN ? 'hoy' : ''}"><span>${DIAS_LARGOS[x.d].charAt(0).toUpperCase() + DIAS_LARGOS[x.d].slice(1)}${x.d === hoyN ? ' (hoy)' : ''}</span><span>${x.tuya ? `<b>${esc(x.tuya.nombre)} ${x.tuya.pct}%</b>` : x.otra ? `<span class="muted">${esc(x.otra.nombre)} ${x.otra.pct}% (no la tenés)</span>` : '<span class="muted">—</span>'}</span></div>`).join('')}</details>` : '';
-  if (!hay) return '<p class="small muted" style="margin:0">No encontré reintegros, cashback ni beneficios para esto en ningún banco o billetera. Probá con el rubro (por ejemplo "súper" o "combustible"). Si tenés uno que no aparece, cargalo en Reintegros → + Cashback.</p>';
+  if (!hay) return '<p class="small muted u-m-0">No encontré reintegros, cashback ni beneficios para esto en ningún banco o billetera. Probá con el rubro (por ejemplo "súper" o "combustible"). Si tenés uno que no aparece, cargalo en Reintegros → + Cashback.</p>';
   return `${principal}${diaMejorTxt}${planB}${otra}${sem}`;
 }
 // lo mejor de hoy en cada rubro (con tus medios)
@@ -577,8 +577,8 @@ function cqpBody(s, q = '', m = 0) {
       <div class="field"><label for="cqp-m">¿Cuánto? <span class="muted">(opcional)</span></label><input id="cqp-m" inputmode="decimal" value="${m || ''}" placeholder="Para decirte cuánto te ahorrás" data-input="cqpBuscar"></div>
       <div data-cqp-res>${q ? cqpRespuesta(s, cqpItem(s, q, m)) : '<span class="small muted">Escribí algo puntual y te digo con qué pagarlo hoy.</span>'}</div></div>
     ${lista.length ? `<details class="card"><summary><strong>Tus pagos y compras de siempre</strong></summary>
-    ${lista.map((it) => `<div class="cqp" style="margin-top:10px"><div class="split"><strong>${esc(it.texto)}</strong><span class="small muted">${esc(it.tipo)} · ${money(it.monto)}</span></div>${cqpResultados(s, it)}</div>`).join('')}</details>` : ''}
-    <p class="small muted" style="margin:0">Uso las promos vigentes de bancos y billeteras (se actualizan solas todos los días) y los cashback que cargaste vos. Revisá las condiciones antes de pagar.</p>`;
+    ${lista.map((it) => `<div class="cqp u-mt-10"><div class="split"><strong>${esc(it.texto)}</strong><span class="small muted">${esc(it.tipo)} · ${money(it.monto)}</span></div>${cqpResultados(s, it)}</div>`).join('')}</details>` : ''}
+    <p class="small muted u-m-0">Uso las promos vigentes de bancos y billeteras (se actualizan solas todos los días) y los cashback que cargaste vos. Revisá las condiciones antes de pagar.</p>`;
 }
 
 // ---------- confirmar que llegó ----------
@@ -625,8 +625,8 @@ function topeForm(s, key) {
   const t = (s.topesAprendidos || {})[key] || {};
   const donde = r.comercio || (r.categoria ? catLabel(r.categoria) : 'todas tus compras');
   return `<form class="form" data-submit="guardarTope"><input type="hidden" name="key" value="${esc(key)}">
-    <p class="text" style="margin:0"><b>${esc(r.nombre)} · ${r.pct}%</b> en ${esc(donde)}</p>
-    <p class="small muted" style="margin:0">Fijate el tope en la app del banco o la billetera (en las condiciones de la promo) y cargalo acá: lo uso para calcular cuánto te devuelven.</p>
+    <p class="text u-m-0"><b>${esc(r.nombre)} · ${r.pct}%</b> en ${esc(donde)}</p>
+    <p class="small muted u-m-0">Fijate el tope en la app del banco o la billetera (en las condiciones de la promo) y cargalo acá: lo uso para calcular cuánto te devuelven.</p>
     <div class="field-row"><div class="field"><label for="tp-cap">Tope de reintegro</label><input id="tp-cap" name="cap" inputmode="decimal" value="${t.manual && !t.sinTope ? t.cap : r.cap || ''}" placeholder="Ej: 10.000"></div>
       <div class="field"><label for="tp-per">Por</label><select id="tp-per" name="periodo">${[['semana', 'Semana'], ['mes', 'Mes'], ['compra', 'Compra']].map(([v, l]) => `<option value="${v}" ${(t.periodo || r.capPeriodo) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
     <label class="check"><input type="checkbox" name="sinTope" ${t.sinTope ? 'checked' : ''}> No tiene tope</label>

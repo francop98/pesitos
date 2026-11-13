@@ -38,7 +38,7 @@ function topesSinGasto(s, cats, p) {
   if (p !== 'mes') return '';
   const con = new Set(cats.map((x) => x.c));
   const otros = Object.keys(s.presupuestos || {}).filter((c) => !con.has(c));
-  return otros.length ? `<span class="small muted" style="margin-top:-6px">También tenés tope en ${otros.map((c) => esc(catById(c).label)).join(', ')}: todavía sin gastos este mes.</span>` : '';
+  return otros.length ? `<span class="small muted u-mt-n6">También tenés tope en ${otros.map((c) => esc(catById(c).label)).join(', ')}: todavía sin gastos este mes.</span>` : '';
 }
 
 // Gastos fijos de un mes: lo que pagaste de verdad si lo registraste; si no, lo cargado.
@@ -83,7 +83,7 @@ function dona(items, total) {
   if (!total) return '';
   const R = 52; const C = 2 * Math.PI * R; let acc = 0;
   const arcos = items.map((it, i) => { const frac = it.v / total; const seg = `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${PALETA[i % PALETA.length]}" stroke-width="22" stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-acc * C).toFixed(2)}" transform="rotate(-90 70 70)"><title>${esc(it.label)}: ${Math.round(frac * 100)}%</title></circle>`; acc += frac; return seg; }).join('');
-  return `<svg viewBox="0 0 140 140" width="150" height="150" role="img" aria-label="Gastos por categoría">${arcos}<text x="70" y="66" text-anchor="middle" style="fill:var(--muted)" font-size="10" font-weight="600">Variables</text><text x="70" y="82" text-anchor="middle" style="fill:var(--ink)" font-size="13" font-weight="800">${esc(money(total))}</text></svg>`;
+  return `<svg viewBox="0 0 140 140" width="150" height="150" role="img" aria-label="Gastos por categoría">${arcos}<text x="70" y="66" text-anchor="middle" class="u-fill-muted" font-size="10" font-weight="600">Variables</text><text x="70" y="82" text-anchor="middle" class="u-fill-ink" font-size="13" font-weight="800">${esc(money(total))}</text></svg>`;
 }
 
 // Cada gasto fijo en el período (crédito, teléfono, servicios...), con lo pagado de verdad
@@ -92,7 +92,7 @@ function fijosUnoPorUno(s, ms) {
   for (const m of ms) for (const x of fijosDelMes(s, m)) { const a = acc[x.f.id] || (acc[x.f.id] = { f: x.f, v: 0, reales: 0, meses: 0 }); a.v += x.v; a.meses++; if (x.real) a.reales++; }
   const l = Object.values(acc).filter((a) => a.v > 0).sort((a, b) => b.v - a.v);
   if (!l.length) return '';
-  return `<div class="card tight"><div class="split" style="padding:4px 0 6px"><strong>Gastos fijos, uno por uno</strong><b>${money(l.reduce((a, x) => a + x.v, 0))}</b></div>
+  return `<div class="card tight"><div class="split u-p-4-0-6"><strong>Gastos fijos, uno por uno</strong><b>${money(l.reduce((a, x) => a + x.v, 0))}</b></div>
     ${l.map((a) => `<button class="row" data-action="verHistorialFijo" data-id="${esc(a.f.id)}"><span class="grow"><span class="name">${esc(a.f.name)}</span><span class="meta">${a.reales === a.meses ? `${a.meses} pago${a.meses === 1 ? '' : 's'} registrado${a.meses === 1 ? '' : 's'}` : a.reales ? `${a.reales} de ${a.meses} meses con lo pagado; el resto, lo cargado` : 'Según el monto cargado'}${ms.length > 1 ? ` · ${money(a.v / a.meses)} por mes` : ''}</span></span><span class="amount">${money(a.v)}</span></button>`).join('')}
   </div>`;
 }
@@ -122,7 +122,7 @@ function barrasMensuales(s) {
   return `<div class="barras" role="img" aria-label="Ingresos y gastos de los últimos 6 meses">${datos.map((d) => `<div class="barra-mes">
       <div class="barra-par"><span class="b-ing" style="height:${Math.round((d.ing / max) * 100)}%" title="Ingresos ${money(d.ing)}"></span><span class="b-gas" style="height:${Math.round((d.gas / max) * 100)}%" title="Gastos ${money(d.gas)}"></span></div>
       <span class="b-lbl">${monthName(d.m)}</span></div>`).join('')}</div>
-    <div class="legend"><span><i class="swatch" style="background:var(--green-mid)"></i>Ingresos</span><span><i class="swatch" style="background:#F2B33D"></i>Gastos</span></div>`;
+    <div class="legend"><span><i class="swatch u-bg-green-mid"></i>Ingresos</span><span><i class="swatch u-bg-F2B33D"></i>Gastos</span></div>`;
 }
 
 
@@ -245,7 +245,7 @@ export function cuerpo(s) {
       <div class="split small"><span>Gasto variable por día (promedio)</span><b>${money(r.porDia)}</b></div>
     </div>
     ${cats.length ? `<div class="section-title"><span>Por categoría</span><span class="small muted">Tocá una para ponerle un tope</span></div>
-    <div class="card tight">${cats.map((x) => { const a = prev.byCat[x.c] || 0; const c = catById(x.c); const tope = periodo === 'mes' ? avancePresupuesto(s, x.c) : null; return `<button class="row" data-action="editPresupuesto" data-cat="${esc(x.c)}"><span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${tope ? `${barraTope(tope)}<span class="meta">Tope ${money(tope.limite)} · ${tope.pct >= 1 ? `te pasaste ${money(-tope.queda)}` : `quedan ${money(tope.queda)}`}</span>` : `<span class="meta">Antes: ${money(a)}</span>`}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(x.v)}</span>${cambio(comp(x.v, a))}</span></button>`; }).join('')}</div>
+    <div class="card tight">${cats.map((x) => { const a = prev.byCat[x.c] || 0; const c = catById(x.c); const tope = periodo === 'mes' ? avancePresupuesto(s, x.c) : null; return `<button class="row" data-action="editPresupuesto" data-cat="${esc(x.c)}"><span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${tope ? `${barraTope(tope)}<span class="meta">Tope ${money(tope.limite)} · ${tope.pct >= 1 ? `te pasaste ${money(-tope.queda)}` : `quedan ${money(tope.queda)}`}</span>` : `<span class="meta">Antes: ${money(a)}</span>`}</span><span class="u-d-flex-dir-column-items-end"><span class="amount">${money(x.v)}</span>${cambio(comp(x.v, a))}</span></button>`; }).join('')}</div>
     ${topesSinGasto(s, cats, periodo)}` : ''}
     <details class="mas-analisis" id="mas-analisis"${masAbierto ? ' open' : ''}><summary class="btn block">Ver más análisis <span class="small muted">mes a mes, fijos, ritmo, hábitos, dónde y con qué pagaste</span></summary>
     <div class="mas-cuerpo">

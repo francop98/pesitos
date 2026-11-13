@@ -1,9 +1,10 @@
 // Service worker: deja la app disponible sin conexión.
 // Cuando cambies archivos, subí el número de versión para refrescar la caché.
 
-const CACHE = 'pesitos-v59';
+const CACHE = 'pesitos-v61';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './styles.css', './main.js',
+  './css/base.css', './css/componentes.css', './css/carga-rapida.css', './css/menu.css', './css/inicio.css', './css/movimientos.css', './css/estadisticas.css', './css/pagos.css', './css/mi-plata.css', './css/herramientas.css', './css/asesor.css', './css/beneficios.css', './css/bienvenida.css', './css/bloqueo.css', './css/tema-oscuro.css', './css/responsive.css', './css/impresion.css', './css/utilidades.css',
   './js/acciones.js', './js/agenda.js', './js/ahorro.js', './js/almacenamiento.js', './js/aprender.js',
   './js/asesor.js', './js/autenticacion.js', './js/avisos.js', './js/ayuda.js', './js/beneficios.js',
   './js/bienvenida.js', './js/bloqueo.js', './js/buscar.js', './js/calculos.js', './js/categorias.js',
@@ -13,7 +14,7 @@ const SHELL = [
   './js/guia.js', './js/herramientas.js', './js/importar.js', './js/inicio.js', './js/interfaz.js',
   './js/interprete.js', './js/menu.js', './js/miscuentas.js', './js/movimientos.js', './js/pagos.js',
   './js/presupuestos.js', './js/proyectos.js', './js/inversiones.js', './js/reintegros.js', './js/habitos.js', './js/moneda.js', './js/espacios.js', './js/promosrespaldo.js', './js/rendimientos.js', './js/sincronizacion.js', './js/sueldo.js',
-  './js/tarjetas.js', './js/tema.js', './js/ticket.js',
+  './js/tarjetas.js', './js/tema.js', './js/tema-inicial.js', './js/ticket.js',
   './pages/terminos.html', './pages/privacidad.html', './assets/favicon.svg', './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',
 ];
 

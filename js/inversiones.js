@@ -108,12 +108,12 @@ function porPlazo(letras) {
 }
 const f2 = (v) => (Number.isFinite(v) ? v.toFixed(1).replace('.', ',') : '—');
 function letrasHtml(x, monto = 1000000) {
-  if (!x || !x.letras.length) return '<p class="small muted" style="margin:0">No pude traer las tasas de las letras ahora. Se cargan solas cuando haya conexión.</p>';
+  if (!x || !x.letras.length) return '<p class="small muted u-m-0">No pude traer las tasas de las letras ahora. Se cargan solas cuando haya conexión.</p>';
   const filas = porPlazo(x.letras);
   return `<div class="card tight">${filas.map((l) => {
     const gan = monto * (l.tna / 100) * (l.dias / 365);
     return `<div class="row"><span class="grow"><span class="name">${esc(l.ticker)} <span class="pill">${l.etiqueta}</span></span><span class="meta">Vence el ${l.vto.split('-').reverse().join('/')} (${l.dias} días) · ${f2(l.tem)}% por mes</span></span>
-      <span style="display:flex;flex-direction:column;align-items:flex-end"><b>${f2(l.tna)}% TNA</b><span class="small muted">+${money(gan)}</span></span></div>`;
+      <span class="u-d-flex-dir-column-items-end"><b>${f2(l.tna)}% TNA</b><span class="small muted">+${money(gan)}</span></span></div>`;
   }).join('')}</div>
   <span class="small muted">Lo que ganarías con ${money(monto)} hasta el vencimiento, antes de comisiones del broker. Fuente: ArgentinaDatos (precios de mercado del último día hábil${x.fecha ? `, ${new Date(x.fecha).toLocaleDateString('es-AR')}` : ''}).</span>`;
 }
@@ -132,7 +132,7 @@ function cuerpo() {
       <div class="split small"><span>Dónde se compra</span><b>${esc(i.donde)}</b></div>
       <span class="small">⚠️ ${esc(i.ojo)}</span>
       ${i.id === 'lecap' ? '' : simulacion(i, montoUsuario)}
-      ${i.id === 'lecap' ? '<div data-letras><p class="small muted" style="margin:0">Buscando las tasas de hoy…</p></div>' : ''}
+      ${i.id === 'lecap' ? '<div data-letras><p class="small muted u-m-0">Buscando las tasas de hoy…</p></div>' : ''}
     </details>`).join('')}`;
 }
 
@@ -151,7 +151,7 @@ export function abrir(s) {
       <span class="small muted">Antes de invertir: tené un fondo de emergencia (3 a 6 meses de gastos) en algo líquido.</span>
     </div>
     <div class="card"><strong>Letras del Tesoro hoy</strong>
-      <div data-letras-top><p class="small muted" style="margin:0">Buscando las tasas de hoy…</p></div></div>
+      <div data-letras-top><p class="small muted u-m-0">Buscando las tasas de hoy…</p></div></div>
     <div class="section-title"><span>Instrumentos</span><span class="small muted">Tocá para ver</span></div>
     ${RIESGO_EXPLICA}
     <div id="inv-cuerpo">${cuerpo()}</div>
@@ -161,7 +161,7 @@ export function abrir(s) {
       <span class="small">3. Buscá el instrumento por su código (ticker) y comprá. Mirá las comisiones antes.</span>
       <a class="small" href="https://www.argentina.gob.ar/cnv/proteccion-al-inversor/agentes" target="_blank" rel="noopener">Cómo verificar que un broker esté registrado en la CNV ›</a>
     </div>
-    <p class="small muted" style="margin:0">Es información general para entender las opciones, no una recomendación personal. Cada inversión tiene riesgos: informate bien o consultá a un asesor matriculado.</p>`);
+    <p class="small muted u-m-0">Es información general para entender las opciones, no una recomendación personal. Cada inversión tiene riesgos: informate bien o consultá a un asesor matriculado.</p>`);
   pintarLetras();
 }
 

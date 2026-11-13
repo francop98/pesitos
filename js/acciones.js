@@ -142,7 +142,7 @@ export function entryForm(s, e, kind) {
          <div class="field"><label for="f-medio">Con qué pagaste</label><select id="f-medio" name="medio">${medioOptions(s, medio)}</select></div>
          <input type="hidden" name="installments" value="${e.installments > 1 ? e.installments : 1}">
          ${e.installments > 1 ? `<span class="hint">En ${e.installments} cuotas: las cuotas se manejan en Por pagar → Tarjetas.</span>` : ''}
-         ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime" style="padding:12px 14px"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
+         ${(() => { const r = e.id ? cuotasReales(s, e) : null; return r ? `<div class="card lime u-p-12-14"><span class="small"><b>Con la inflación, esta compra te sale ${money(r.pv)}</b> en plata del día que compraste (en vez de ${money(r.total)}): ${money(r.licuado)} menos. Llevás ${r.pagadas} de ${r.n} cuotas.${r.estimadas ? ` ${r.estimadas === r.n ? 'Todas las cuotas usan' : `${r.estimadas} cuota${r.estimadas > 1 ? 's usan' : ' usa'}`} la inflación esperada hasta que el INDEC publique el dato.` : ''}</span></div>` : ''; })()}`}
     ${(() => {
       if (isIncome) return '';
       const fondos = (s.goals || []).filter((g) => g.tipo === 'fondo');
@@ -171,7 +171,7 @@ export function entryForm(s, e, kind) {
       <div class="field-row"><div class="field"><label for="f-with">Con quién</label><input id="f-with" name="with" value="${esc((sh && sh.with) || '')}" placeholder="Ej: Juan"></div>
       <div class="field"><label for="f-payer">¿Quién pagó?</label><select id="f-payer" name="payer"><option value="yo" ${!sh || sh.paidByMe ? 'selected' : ''}>Yo</option><option value="otro" ${sh && !sh.paidByMe ? 'selected' : ''}>La otra persona</option></select></div></div>
       <div class="field"><label for="f-mine">Mi parte</label><input id="f-mine" name="mine" inputmode="decimal" value="${montoTxt(sh ? (cur === B ? e.amount : e.amount / (e.rate || 1)) : '')}" placeholder="Ej: la mitad">
-        <div class="chips" style="margin-top:6px">${[2, 3, 4].map((n) => `<button type="button" class="chip" data-action="entryParte" data-n="${n}">Entre ${n}</button>`).join('')}</div></div>
+        <div class="chips u-mt-6">${[2, 3, 4].map((n) => `<button type="button" class="chip" data-action="entryParte" data-n="${n}">Entre ${n}</button>`).join('')}</div></div>
     </div>`}
     <button class="btn primary block" type="submit">${e.pending ? 'Confirmar' : 'Guardar'}</button>
     ${e.id ? `<button class="btn ghost block" type="button" data-action="deleteEntry" data-id="${esc(e.id)}" data-kind="${kind}">Borrar</button>` : ''}
@@ -211,7 +211,7 @@ function walletsBody(s) {
     <p class="text muted">Tocá los que usás. Con eso cruzo los descuentos de cada día y te aviso el día antes.</p>
     ${groups.map((g) => `<div class="field"><label>${g}</label><div class="chips">${all.filter((w) => w.kind === g).map((w) => `<button class="chip toggle" data-action="toggleWallet" data-id="${esc(w.id)}" aria-pressed="${mine.has(w.id)}">${esc(w.name)}</button>`).join('')}</div></div>`).join('')}
     <form class="form card" data-submit="addWallet" autocomplete="off">
-      <strong style="font-size:14px">¿No está el tuyo?</strong>
+      <strong class="u-fs-14">¿No está el tuyo?</strong>
       <div class="field-row">
         <div class="field"><label for="w-n">Nombre</label><input id="w-n" name="name" placeholder="Ej: Banco Patagonia" list="w-n-list" required></div>
         <div class="field"><label for="w-k">Tipo</label><select id="w-k" name="kind">${groups.map((g) => `<option>${g}</option>`).join('')}</select></div>
@@ -232,7 +232,7 @@ function categoriesBody(s) {
   const ocultas = new Set(prefs.ocultas || []);
   const lista = categoriasOrdenadas(s, { conOcultas: true });
   const marcadas = lista.filter((c) => !ocultas.has(c.id)).length;
-  return `<p class="small muted" style="margin:0">Marcá las que usás: son las que aparecen al cargar un gasto. Las que no marcás quedan guardadas acá. <b>${marcadas} de ${lista.length}</b> marcadas.</p>
+  return `<p class="small muted u-m-0">Marcá las que usás: son las que aparecen al cargar un gasto. Las que no marcás quedan guardadas acá. <b>${marcadas} de ${lista.length}</b> marcadas.</p>
     <details class="card plegable"${(s.customCategories || []).length ? '' : ' open'}><summary><strong>+ Crear una categoría</strong></summary>
       <form class="form" data-submit="saveCategory" autocomplete="off">
         <div class="field-row cat-new">
@@ -250,7 +250,7 @@ function categoriesBody(s) {
         <button class="icon-btn mini" data-action="catEditar" data-id="${esc(c.id)}" aria-label="Editar ${esc(c.label)}">${icon('edit', 16)}</button>
         ${c.id !== 'otros' ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Eliminar ${esc(c.label)}">${icon('trash', 16)}</button>` : ''}
       </div>`; }).join('')}</div>
-    <div class="field"><span class="small" style="font-weight:700">Ordenar por</span>
+    <div class="field"><span class="small u-fw-700">Ordenar por</span>
       <div class="tabs">${[['frecuentes', 'Más usadas'], ['personalizado', 'A mi gusto'], ['alfabetico', 'A-Z']].map(([v, l]) => `<button type="button" data-action="catOrden" data-v="${v}" aria-pressed="${orden === v}">${l}</button>`).join('')}</div>
       <span class="hint">${orden === 'frecuentes' ? 'Primero las que más usaste en los últimos 3 meses.' : orden === 'personalizado' ? 'En el orden que elegiste.' : 'Por orden alfabético.'} Para acomodarlas a tu gusto, arrastrá cada una desde ${icon('grip', 13)}.</span></div>
     ${(prefs.eliminadas || []).length ? `<button class="btn ghost block" data-action="catRestaurar">Restaurar categorías eliminadas (${prefs.eliminadas.length})</button>` : ''}`;
@@ -270,7 +270,7 @@ function catEditForm(c) {
 function weekDetail(w) {
   const d = (iso) => { const x = parseISO(iso); return `${x.getDate()} ${MONTHS[x.getMonth()].toLowerCase()}`; };
   return `<div class="card"><span class="small muted">Del ${d(w.from)} al ${d(w.to)}</span>
-      <span style="font-size:28px;font-weight:800">${money(w.spent)}</span>
+      <span class="u-fs-28-fw-800">${money(w.spent)}</span>
       <span class="text">${esc(w.verdict)}</span></div>
     ${w.top.length ? `<div class="card tight">${w.top.map((c) => `<div class="row"><span class="grow"><span class="name">${esc(catLabel(c.cat))}</span></span><span class="amount">${money(c.amount)}</span></div>`).join('')}</div>` : ''}
     ${w.income ? `<span class="small muted">Ingresos de la semana: ${money(w.income)}</span>` : ''}
@@ -351,7 +351,7 @@ function pintarGuiaCompra(s) {
       <strong class="guia-q">${pend.q}</strong>
       <div class="guia-ops">${pend.ops.map(([v, l]) => `<button type="button" class="btn" data-action="buyResp" data-k="${pend.k}" data-v="${v}">${l}</button>`).join('')}</div>
       ${pend.ayuda ? `<span class="small muted">${pend.ayuda}</span>` : ''}
-      ${hechas ? '<button type="button" class="link-btn" data-action="buyAtras" style="align-self:flex-start">‹ Volver a la anterior</button>' : ''}
+      ${hechas ? '<button type="button" class="link-btn u-self-start" data-action="buyAtras">‹ Volver a la anterior</button>' : ''}
     </div>`);
     return;
   }
@@ -415,10 +415,10 @@ function pintarGuiaCompra(s) {
   if (resp.pago === 'cuotas' && nivel !== 'bad') hacer.push('Fijate si te conviene en cuotas o de contado con la herramienta de abajo.');
   if (!hacer.length && nivel === 'ok') hacer.push('Anotalo cuando lo compres así tu "Hoy podés gastar" queda al día.');
   setModalBody('#buy-result', `<div class="result ${nivel} guia-fin">${progreso}
-      <span class="small" style="font-weight:700;opacity:.8">Conclusión para ${money(amount)}</span>
-      <strong style="font-size:20px">${titulo}</strong>
+      <span class="small u-fw-700-op-_8">Conclusión para ${money(amount)}</span>
+      <strong class="u-fs-20">${titulo}</strong>
       ${razones.map((x) => `<span class="text">• ${x}</span>`).join('')}
-      ${hacer.length ? `<span class="small" style="font-weight:800;margin-top:4px">Qué hacer</span>${hacer.map((x) => `<span class="text">→ ${x}</span>`).join('')}` : ''}
+      ${hacer.length ? `<span class="small u-fw-800-mt-4">Qué hacer</span>${hacer.map((x) => `<span class="text">→ ${x}</span>`).join('')}` : ''}
     </div>
     <details class="card guia-num"><summary><strong>Ver los números</strong></summary>
       ${n.lineas.map(([ic, k, v]) => `<div class="buy-linea">${icon(ic, 16)}<span><b class="k">${k}</b><br>${v}</span></div>`).join('')}</details>
@@ -527,7 +527,7 @@ export const commonActions = {
     const lista = mediosRapidos(ctx.state).filter((m) => kind !== 'income' || !m.tarjeta);
     const grupos = [...new Set(lista.map((m) => m.grupo))];
     openModal(kind === 'income' ? '¿Dónde entra la plata?' : '¿Con qué pagás?', `${lista.length >= 5 ? `<div class="field lista-buscar"><input type="search" placeholder="Buscar banco, billetera o tarjeta" aria-label="Buscar medio de pago" data-input="medioBuscar" autocomplete="off"></div>` : ''}
-      ${grupos.map((g) => `<div class="medio-grupo"><span class="small" style="font-weight:700">${g}</span>
+      ${grupos.map((g) => `<div class="medio-grupo"><span class="small u-fw-700">${g}</span>
       <div class="medio-hoja">${lista.filter((m) => m.grupo === g).map((m) => `<button type="button" class="medio-op${m.v === actual ? ' on' : ''}" data-action="medioElegido" data-v="${esc(m.v)}">
         <span class="cat-icon">${icon(m.tarjeta ? 'card' : 'wallet', 18)}</span><span class="grow"><span class="name">${m.falta ? '+ ' : ''}${esc(m.label)}</span>${m.principal ? '<span class="meta">Tu cuenta principal · <span class="link-chico" role="link" data-action="openWallets" data-push="1">cambiar</span></span>' : m.falta ? '<span class="meta">Cargala para anotar con ella</span>' : m.usos ? `<span class="meta">${m.usos} ${m.usos === 1 ? 'vez' : 'veces'} en los últimos 2 meses</span>` : ''}</span>
         ${m.v === actual ? icon('check', 18, 2.6) : ''}</button>`).join('')}</div></div>`).join('')}
@@ -555,10 +555,19 @@ export const commonActions = {
     const form = el.closest('form'); if (!form) return;
     setTimeout(() => promoEnVivo(ctx, form), 0);
     const texto = extraerEtiquetas(el.value).texto;
-    const auto = form.querySelector('[data-action=pickCat][data-id=auto] span:last-child');
-    if (auto) {
+    // el chip "Pesitos elige" muestra la categoría que detecté (con su ícono), así se ve antes de anotar
+    const chipAuto = form.querySelector('[data-action=pickCat][data-id=auto]');
+    if (chipAuto) {
       const p = texto.trim() ? parseEntry(texto, ctx.state.learned) : null;
-      auto.textContent = p && p.category !== 'otros' && form.querySelector('[name=kind]').value !== 'income' ? `Auto: ${(allCategories().find((c) => c.id === p.category) || {}).short || catLabel(p.category)}` : 'Automática';
+      const c = p && p.category !== 'otros' && form.querySelector('[name=kind]').value !== 'income' ? allCategories().find((x) => x.id === p.category) : null;
+      const clave = c ? c.id : '';
+      if (chipAuto.dataset.det !== clave) {
+        chipAuto.dataset.det = clave;
+        chipAuto.classList.toggle('detectada', !!c);
+        chipAuto.querySelector('.cat-chip-ic').innerHTML = c ? catIcon(c, 18) : icon('sprout', 18);
+        chipAuto.querySelector('span:last-child').textContent = c ? (c.short || c.label) : 'Pesitos elige';
+        chipAuto.setAttribute('aria-label', c ? `Categoría detectada: ${c.label}. Tocá otra si no es esa.` : 'Pesitos elige la categoría según lo que escribas');
+      }
     }
     if (form.dataset.medioManual) return;
     const key = merchantKey(parseEntry(texto, ctx.state.learned).note || '');
@@ -568,7 +577,7 @@ export const commonActions = {
   pickMedio(ctx, el) {
     const form = el.closest('form');
     if (el.dataset.v.startsWith('falta:')) {
-      openModal(`Tarjeta ${el.textContent.replace(/^\+ /, "")}`, `<p class="text" style="margin:0">Para anotar gastos con esta tarjeta, cargala una vez en <b>Tarjetas</b> con su día de cierre y vencimiento. Así te digo cuánto vas a pagar en cada resumen y las cuotas que te quedan.</p>
+      openModal(`Tarjeta ${el.textContent.replace(/^\+ /, "")}`, `<p class="text u-m-0">Para anotar gastos con esta tarjeta, cargala una vez en <b>Tarjetas</b> con su día de cierre y vencimiento. Así te digo cuánto vas a pagar en cada resumen y las cuotas que te quedan.</p>
         <button class="btn primary block" data-action="newCard">Cargar la tarjeta</button>`);
       return;
     }
@@ -673,8 +682,8 @@ export const commonActions = {
     openModal(`Eliminar "${catLabel(id)}"`, `<form class="form" data-submit="catEliminar">
       <input type="hidden" name="id" value="${esc(id)}">
       ${n ? `<div class="field"><label for="ce-d">Sus ${n} gasto${n === 1 ? '' : 's'} pasan a</label><select id="ce-d" name="destino">${destinos.map((c) => `<option value="${esc(c.id)}" ${c.id === 'otros' ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div>`
-        : '<p class="text muted" style="margin:0">No tiene gastos anotados.</p>'}
-      <p class="small muted" style="margin:0">${allCategories().find((c) => c.id === id && c.custom) ? 'Se borra para siempre.' : 'Deja de aparecer y de detectarse sola. La podés restaurar desde esta misma pantalla.'}</p>
+        : '<p class="text muted u-m-0">No tiene gastos anotados.</p>'}
+      <p class="small muted u-m-0">${allCategories().find((c) => c.id === id && c.custom) ? 'Se borra para siempre.' : 'Deja de aparecer y de detectarse sola. La podés restaurar desde esta misma pantalla.'}</p>
       <button class="btn primary block" type="submit">Eliminar</button>
       <button class="btn ghost block" type="button" data-action="modalBack">Cancelar</button>
     </form>`, { push: true });
@@ -713,9 +722,9 @@ export const commonActions = {
     if (!e) return;
     if (e.deEspacio) {
       const x = e.deEspacio;
-      openModal(esc(e.note), `<div class="form"><div class="card lime"><span class="small">Tu parte (${String(x.pct).replace('.', ',')}%) de un gasto de "${esc(x.nombre)}"</span><strong style="font-size:24px">${money(e.amount)}</strong>
+      openModal(esc(e.note), `<div class="form"><div class="card lime"><span class="small">Tu parte (${String(x.pct).replace('.', ',')}%) de un gasto de "${esc(x.nombre)}"</span><strong class="u-fs-24">${money(e.amount)}</strong>
         <span class="small">Gasto total: ${money(x.total)}${x.por ? ` · lo cargó ${esc(x.por)}` : ''} · ${relDay(e.date)}</span></div>
-        <p class="small muted" style="margin:0">Llega solo desde el espacio compartido, así no lo cargás dos veces. Cuenta en tus gastos y en "Hoy podés gastar", pero no toca el saldo de tus cuentas. Para cambiarlo o borrarlo, hacelo en "${esc(x.nombre)}".</p>
+        <p class="small muted u-m-0">Llega solo desde el espacio compartido, así no lo cargás dos veces. Cuenta en tus gastos y en "Hoy podés gastar", pero no toca el saldo de tus cuentas. Para cambiarlo o borrarlo, hacelo en "${esc(x.nombre)}".</p>
         <button class="btn block" data-action="cambiarModo" data-id="${esc(x.id)}">Ir a "${esc(x.nombre)}"</button></div>`);
       return;
     }
@@ -869,7 +878,7 @@ export const commonActions = {
 
   // ---------- comprobantes ----------
   openPaste() {
-    openModal('Cargar comprobante', `<div class="chips" style="margin-bottom:12px"><button class="chip" data-action="openTicket" data-push="1">${icon('camera', 16)} Foto del ticket</button></div>
+    openModal('Cargar comprobante', `<div class="chips u-mb-12"><button class="chip" data-action="openTicket" data-push="1">${icon('camera', 16)} Foto del ticket</button></div>
       <p class="text muted">Desde Mercado Pago o la app de tu banco tocá <b>Compartir</b> y elegí Pesitos (con la app instalada). También podés copiar el texto del comprobante y pegarlo acá.</p>
       <form class="form" data-submit="pasteSubmit">
         <div class="field"><label for="p-text">Texto del comprobante</label><textarea id="p-text" name="text" placeholder="Pagaste $ 12.500,00 a FARMACITY" required></textarea></div>
@@ -1016,7 +1025,7 @@ export const commonActions = {
 
   // ---------- opciones de ahorro ----------
   showOptions() {
-    openModal('¿Dónde pongo mis ahorros?', `<p class="text" style="white-space:pre-line">${esc(OPTIONS_TEXT)}</p><p class="small muted">${DISCLAIMER}</p>`);
+    openModal('¿Dónde pongo mis ahorros?', `<p class="text u-ws-pre-line">${esc(OPTIONS_TEXT)}</p><p class="small muted">${DISCLAIMER}</p>`);
   },
 
   // ---------- copia de seguridad (el menú está en js/menu.js) ----------

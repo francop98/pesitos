@@ -81,7 +81,7 @@ function modoHtml(ctx) {
   return `<div class="menu-item static"><span class="menu-ic">${icon(s.espacio ? 'people' : 'user', 20)}</span><span class="grow"><span class="name">Modo</span>
     ${corto ? seg('setModo', act, ops.map(([v, l]) => [v, esc(l)])) : `<select class="modo-select" data-change="setModoSel" aria-label="Modo">${ops.map(([v, l]) => `<option value="${esc(v)}" ${v === act ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`}
     <span class="meta">${esc(sub)}</span>
-    <button class="btn ghost small" data-action="openEspacios" style="align-self:flex-start;min-height:32px;padding:0 2px">${lista.length ? 'Invitar, sumarme o crear otro' : 'Tengo un código para sumarme'}</button></span></div>`;
+    <button class="btn ghost small u-self-start-minh-32-p-0-2" data-action="openEspacios">${lista.length ? 'Invitar, sumarme o crear otro' : 'Tengo un código para sumarme'}</button></span></div>`;
 }
 
 // grupos del menú: se recuerda cuáles dejaste abiertos
@@ -102,12 +102,11 @@ function menuHtml(ctx) {
       <span class="grow"><span class="name">${esc(nombre)}</span><span class="meta">${esc((u && u.email) || '')}</span>
       <span class="meta sync">${icon(ic, 14)} ${s.demo ? 'Datos de ejemplo: no se guardan en tu cuenta' : esc(estado)}</span></span><span class="menu-cuenta-cta">Mi cuenta ${icon('chevron', 16)}</span></button>
 
-    <details class="menu-grupo verde" data-grupo="plata"${grupoAbierto('plata', true) ? ' open' : ''}><summary class="menu-label">Tu plata</summary>
-      ${item('irEstadisticas', 'pie', 'Estadísticas', 'En qué se fue tu plata, mes a mes, y topes por categoría')}
-      ${s.espacio ? '' : `${item('irDeudas', 'people', 'Deudas y préstamos', 'Lo que te deben y lo que debés')}
-      ${item('irReintegros', 'coins', 'Reintegros y cashback', 'Lo que te devuelven y con qué conviene pagar')}
-      ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}`}
-    </details>
+    ${s.espacio ? '' : `<details class="menu-grupo verde" data-grupo="plata"${grupoAbierto('plata', true) ? ' open' : ''}><summary class="menu-label">Tu plata</summary>
+      ${item('irDeudas', 'people', 'Deudas y préstamos', 'Lo que te deben y lo que debés')}
+      ${item('irBeneficios', 'ticket', 'Beneficios y reintegros', 'Promos de tus medios de pago y lo que te devuelven')}
+      ${item('openWallets', 'wallet', 'Mis medios de pago', 'Bancos, billeteras y tarjetas')}
+    </details>`}
 
     <details class="menu-grupo lima" data-grupo="app"${grupoAbierto('app') ? ' open' : ''}><summary class="menu-label">La app <span>tema, letra, avisos, estado</span></summary>
       <div class="menu-item static"><span class="menu-ic">${icon('sun', 20)}</span><span class="grow"><span class="name">Tema</span>${seg('setTema', temaActual(), [['auto', 'Auto'], ['claro', 'Claro'], ['oscuro', 'Oscuro']])}</span></div>
@@ -239,13 +238,14 @@ export const menuActions = {
   irProyectos(ctx) { ctx.go('proyectos'); },
   irDeudas(ctx) { ctx.go('deudas'); },
   irReintegros(ctx) { ctx.go('reintegros'); },
+  irBeneficios(ctx) { ctx.go('beneficios'); },
 
   openMiCuenta(ctx) { abrirMiCuenta({ ...ctx.session, moneda: (ctx.state.settings || {}).moneda === 'USD' ? 'Dólares' : 'Pesos' }); },
   openAvisos(ctx) {
     const on = avisosActivos(ctx.uid);
-    openModal('Avisos en el celular', `<p class="text" style="margin:0">Te aviso a la mañana cuando:</p>
+    openModal('Avisos en el celular', `<p class="text u-m-0">Te aviso a la mañana cuando:</p>
       <div class="card"><span class="small">📅 Mañana o hoy vence un pago (fijos, tarjetas, pagos programados)</span><span class="small">💳 Hoy cierra tu tarjeta</span><span class="small">💸 Hoy es día de cobro</span><span class="small">🤝 Vence una deuda o préstamo</span></div>
-      <p class="small muted" style="margin:0">🔒 Para poder avisarte con la app cerrada, el servidor guarda solo <b>qué días</b> hay algo y cuántas cosas (por ejemplo, "2 vencimientos el 5/11"). Nunca montos, nombres ni comercios: eso sigue cifrado.</p>
+      <p class="small muted u-m-0">🔒 Para poder avisarte con la app cerrada, el servidor guarda solo <b>qué días</b> hay algo y cuántas cosas (por ejemplo, "2 vencimientos el 5/11"). Nunca montos, nombres ni comercios: eso sigue cifrado.</p>
       ${avisosSoportados() ? `<button class="btn ${on ? '' : 'primary'} block" data-action="${on ? 'avisosOff' : 'avisosOn'}">${on ? 'Desactivar avisos' : 'Activar avisos'}</button>` : '<p class="text"><b>Este navegador no permite avisos.</b> En iPhone, primero instalá Pesitos en la pantalla de inicio (Compartir → Agregar a inicio) y abrila desde ahí.</p>'}`, { push: true });
   },
   async avisosOn(ctx) { try { if (await activarAvisos(ctx.state, ctx.uid)) { closeModal(); toast('Listo: te aviso a la mañana cuando haya algo'); } } catch (e) { console.warn(e); toast('No se pudieron activar los avisos. Probá de nuevo.'); } },
@@ -293,20 +293,20 @@ export const menuActions = {
       <span class="small"><b>Cotizaciones</b> (dólar blue de DolarHoy, monedas, cripto y oro): ${esc(ratesAge(s))}.</span>
       <span class="small"><b>Inflación del INDEC:</b> ${l ? `último dato ${l.mk.split('-').reverse().join('/')} (${String(l.value).replace('.', ',')}%)` : 'esperando el primer dato'}.</span>
       <span class="small"><b>Promos:</b> ${esc(promosStatus(s))}</span></div>
-      <p class="small muted" style="margin:0">No tenés que cargar nada de esto: Pesitos lo busca solo.</p>`, { push: true });
+      <p class="small muted u-m-0">No tenés que cargar nada de esto: Pesitos lo busca solo.</p>`, { push: true });
   },
 
   instalarApp() {
     if (instalar) { instalar.prompt(); instalar.userChoice.finally(() => { instalar = null; }); return; }
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    openModal('Instalar Pesitos', `<p class="text" style="margin:0">${ios
+    openModal('Instalar Pesitos', `<p class="text u-m-0">${ios
       ? 'En Safari tocá <b>Compartir</b> (el cuadrado con la flecha) y después <b>Agregar a inicio</b>.'
       : 'En Chrome tocá el menú <b>⋮</b> y después <b>Agregar a pantalla de inicio</b> o <b>Instalar app</b>.'}</p>
-      <p class="small muted" style="margin:0">Así la abrís como cualquier app y podés usar "Compartir → Pesitos" con tus comprobantes.</p>`, { push: true });
+      <p class="small muted u-m-0">Así la abrís como cualquier app y podés usar "Compartir → Pesitos" con tus comprobantes.</p>`, { push: true });
   },
 
   openCopia(ctx) {
-    openModal('Copia de seguridad', `<p class="text" style="margin:0">Tus datos ya se guardan solos en tu cuenta. Si además querés un archivo propio, descargalo acá.</p>
+    openModal('Copia de seguridad', `<p class="text u-m-0">Tus datos ya se guardan solos en tu cuenta. Si además querés un archivo propio, descargalo acá.</p>
       <div class="btn-row"><button class="btn small" data-action="exportData">${icon('download', 18)} Descargar copia</button><label class="btn small" for="import-file">Restaurar copia</label></div>
       <input id="import-file" type="file" accept="application/json" class="sr-only" data-change="importData">
       ${ctx.state.ready ? '' : '<button class="btn small" data-action="loadDemo">Ver la app con datos de ejemplo</button>'}
@@ -330,19 +330,19 @@ export const menuActions = {
     await refreshLive(ctx, true).catch(() => {});
     const sa = (ctx.state.live && ctx.state.live.salud) || null;
     const hace = (iso) => { if (!iso) return 'nunca'; const h = Math.round((Date.now() - Date.parse(iso)) / 3600000); return h < 1 ? 'hace un rato' : h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} días`; };
-    const fila = (ok, nombre, det = '') => `<div class="split small" style="align-items:flex-start;gap:10px"><span>${ok === true ? '✅' : ok === 'leve' ? '🕓' : '⚠️'} ${esc(nombre)}</span><span class="muted" style="text-align:right">${esc(det)}</span></div>`;
-    if (!sa) { openModal('Estado de la app', '<p class="text" style="margin:0">Todavía no hay un chequeo guardado. El servidor revisa todo dos veces por día (9 y 15 h).</p>', { push: true }); return; }
+    const fila = (ok, nombre, det = '') => `<div class="split small u-items-start-gap-10"><span>${ok === true ? '✅' : ok === 'leve' ? '🕓' : '⚠️'} ${esc(nombre)}</span><span class="muted u-ta-right">${esc(det)}</span></div>`;
+    if (!sa) { openModal('Estado de la app', '<p class="text u-m-0">Todavía no hay un chequeo guardado. El servidor revisa todo dos veces por día (9 y 15 h).</p>', { push: true }); return; }
     const ex = sa.externas;
     const todoOk = !(sa.problemas || []).length;
     openModal('Estado de la app', `<div class="result ${todoOk ? 'ok' : 'warn'}"><strong>${todoOk ? 'Todo funcionando' : `${sa.problemas.length} cosa${sa.problemas.length === 1 ? '' : 's'} para revisar`}</strong><span class="text">Último chequeo automático: ${hace((ex && ex.revisado) || sa.revisado)}. Se revisa solo a las 9 y a las 15 h.</span></div>
       ${todoOk ? '' : `<div class="card">${sa.problemas.map((x) => `<span class="small">⚠️ ${esc(x)}</span>`).join('')}</div>`}
-      <div class="card" style="gap:6px"><strong style="font-size:14px">Datos que llegan solos</strong>
+      <div class="card u-gap-6"><strong class="u-fs-14">Datos que llegan solos</strong>
         ${fila(sa.fuente && sa.fuente.ok && !(sa.fuente.atraso >= 2), 'Promos (descuentos-ar-datos)', sa.fuente ? (sa.fuente.fecha ? `del ${String(sa.fuente.fecha).slice(8, 10)}/${String(sa.fuente.fecha).slice(5, 7)} · ${sa.promos ? sa.promos.vigentes : '?'} vigentes` : 'sin fecha') : '')}
         ${fila(sa.ipc && sa.ipc.ok, 'Inflación (INDEC)', sa.ipc && sa.ipc.ultimo ? `último dato: ${sa.ipc.ultimo.slice(5)}/${sa.ipc.ultimo.slice(0, 4)}` : '')}
         ${ex ? ex.fuentes.map((f) => fila(f.ok ? true : f.leve ? 'leve' : false, f.nombre, f.ok ? '' : f.detalle)).join('') : '<span class="small muted">El chequeo del dólar, tasas y feriados empieza a correr con la próxima actualización.</span>'}
       </div>
-      ${ex && ex.pendientes && ex.pendientes.length ? `<div class="card" style="gap:6px"><strong style="font-size:14px">Para la próxima revisión (no es urgente)</strong>${ex.pendientes.map((x) => `<span class="small">🕓 ${esc(x)}</span>`).join('')}</div>` : ''}
-      <p class="small muted" style="margin:0">Si algo falla dos chequeos seguidos, te llega un aviso al celular (con los avisos activados).</p>`, { push: true });
+      ${ex && ex.pendientes && ex.pendientes.length ? `<div class="card u-gap-6"><strong class="u-fs-14">Para la próxima revisión (no es urgente)</strong>${ex.pendientes.map((x) => `<span class="small">🕓 ${esc(x)}</span>`).join('')}</div>` : ''}
+      <p class="small muted u-m-0">Si algo falla dos chequeos seguidos, te llega un aviso al celular (con los avisos activados).</p>`, { push: true });
   },
 };
 

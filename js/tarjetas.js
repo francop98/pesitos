@@ -50,14 +50,14 @@ function lista(s) {
     const estado = pago ? '<span class="pill ok">Pagado</span>' : close > h ? `<span class="small muted">${estimadas ? `Cierra cerca del ${dm(close)} (sin confirmar)` : `Cierra ${enDias(dias(h, close))} · vence el ${dm(due)}`}</span>` : `<span class="small ${dias(h, due) <= 3 ? 'warn-text' : 'muted'}">Vence ${enDias(dias(h, due))} (${dm(due)})</span>`;
     return `<button class="row" data-action="abrirTarjeta" data-id="${esc(c.id)}">
       <span class="ico">${icon('card', 18)}</span>
-      <span class="grow"><span class="name" style="white-space:normal">${esc(c.name)}</span>${estado}</span>
-      <span style="display:flex;flex-direction:column;align-items:flex-end">${det.pagaUsd && det.usd && det.pesos < 1 ? `<span class="amount">${usdTxt(det.usd)}</span>` : `<span class="amount">${money(det.pesos)}</span>${det.pagaUsd && det.usd ? `<span class="small muted">+ ${usdTxt(det.usd)}</span>` : ''}`}</span>
+      <span class="grow"><span class="name u-ws-normal">${esc(c.name)}</span>${estado}</span>
+      <span class="u-d-flex-dir-column-items-end">${det.pagaUsd && det.usd && det.pesos < 1 ? `<span class="amount">${usdTxt(det.usd)}</span>` : `<span class="amount">${money(det.pesos)}</span>${det.pagaUsd && det.usd ? `<span class="small muted">+ ${usdTxt(det.usd)}</span>` : ''}`}</span>
     </button>`;
   }).join('');
   const total = s.cards.reduce((a, c) => a + detalleResumen(s, c, statementOf(c, new Date().toISOString().slice(0, 10))).total, 0);
-  return `<div class="card green" style="gap:4px">
+  return `<div class="card green u-gap-4">
       <span class="hero-label">Próximos resúmenes, entre todas</span>
-      <span style="font-size:30px;font-weight:800;letter-spacing:-1px">${money(total)}</span>
+      <span class="u-fs-30-fw-800-ls-n1">${money(total)}</span>
       <span class="small on-green-muted">Tocá una tarjeta para ver el detalle, las cuotas y pagarla.</span>
     </div>
     <div class="card tight">${filas}</div>`;
@@ -76,7 +76,7 @@ function cabecera(s, c, det, mk) {
     : pago ? `Pagado el ${dm(new Date(pago.date + 'T12:00'))}`
     : abierto ? `Abierto: puede subir hasta el cierre (${enDias(dias(h, close))})`
     : due < h ? 'Ya venció' : `Cerrado: es lo que tenés que pagar · vence ${enDias(dias(h, due))}`;
-  return `<div class="card credit" style="gap:10px">
+  return `<div class="card credit u-gap-10">
     <div class="credit-head">
       <span class="credit-name">${icon('card', 20)} ${esc(c.name)}</span>
       <button class="chip" data-action="editCard" data-id="${esc(c.id)}">Editar</button>
@@ -86,8 +86,8 @@ function cabecera(s, c, det, mk) {
       <span><b>Resumen de ${monthName(mk, true)}</b>${mk === actual ? '' : `<span class="small on-green-muted"> · ${mk < actual ? 'anterior' : 'próximo'}</span>`}</span>
       <button class="icon-btn" data-action="tarjetaMes" data-d="1" aria-label="Resumen siguiente" ${desfase >= 6 ? 'disabled' : ''}>›</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:2px">
-      <span style="font-size:32px;font-weight:800;letter-spacing:-1px">${det.pagaUsd && det.usd && det.pesos < 1 ? usdTxt(det.usd) : `${money(det.pesos)}${det.pagaUsd && det.usd ? `<span style="font-size:18px"> + ${usdTxt(det.usd)}</span>` : ''}`}</span>
+    <div class="u-d-flex-dir-column-gap-2">
+      <span class="u-fs-32-fw-800-ls-n1">${det.pagaUsd && det.usd && det.pesos < 1 ? usdTxt(det.usd) : `${money(det.pesos)}${det.pagaUsd && det.usd ? `<span class="u-fs-18"> + ${usdTxt(det.usd)}</span>` : ''}`}</span>
       <span class="small on-green-muted">${estimadas ? `Cierra cerca del ${dm(close)} · vence cerca del ${dm(due)} (estimadas)${mk === actual ? '' : ` · <button class="link-btn on-green-link" data-action="editarFechasResumen" data-id="${esc(c.id)}" data-mk="${mk}">poner las reales</button>`}` : `Cierra el ${dm(close)} · vence el ${dm(due)} · <button class="link-btn on-green-link" data-action="editarFechasResumen" data-id="${esc(c.id)}" data-mk="${mk}">cambiar</button>`}</span>
       <span class="small">${esc(estado)}</span>
     </div>
@@ -105,10 +105,10 @@ function tabResumen(s, c, det, mk) {
     const meta = [l.n > 1 ? `Cuota ${l.cuota} de ${l.n}` : 'En 1 pago', l.n > 1 ? (l.e.interes ? `con interés (+${String(l.e.interes.recargo).replace('.', ',')}%)` : 'sin interés') : '', new Date(l.e.date + 'T12:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })].filter(Boolean).join(' · ');
     return `<button class="row" data-action="openEntry" data-id="${esc(l.e.id)}" data-kind="expense">
       <span class="grow"><span class="name">${esc(l.e.note || catLabel(l.e.category))}</span><span class="meta">${meta}</span></span>
-      <span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${l.usd ? usdTxt(l.usd) : money(l.monto)}</span>${l.usd ? `<span class="small muted">≈ ${money(l.monto)}</span>` : ''}</span>
+      <span class="u-d-flex-dir-column-items-end"><span class="amount">${l.usd ? usdTxt(l.usd) : money(l.monto)}</span>${l.usd ? `<span class="small muted">≈ ${money(l.monto)}</span>` : ''}</span>
     </button>`;
   }).join('');
-  const linea = (k, v, cls = '', hint = '') => `<div class="split small ${cls}"><span>${k}${hint ? `<br><span class="muted">${hint}</span>` : ''}</span><b style="white-space:nowrap">${v}</b></div>`;
+  const linea = (k, v, cls = '', hint = '') => `<div class="split small ${cls}"><span>${k}${hint ? `<br><span class="muted">${hint}</span>` : ''}</span><b class="u-ws-nowrap">${v}</b></div>`;
   return `<div class="card tight">
       ${filas || `<p class="empty">${mk >= actual ? 'Todavía no hay compras en este resumen.' : 'No hubo compras en este resumen.'}</p>`}
     </div>
@@ -129,9 +129,9 @@ function tabCuotas(s, c, sum) {
   const terminan = sum.pending.filter((p) => p.last === sum.current);
   const libera = terminan.reduce((a, p) => a + p.each, 0);
   return `<div class="card">
-      <strong style="font-size:14px">Lo que ya tenés comprometido</strong>
+      <strong class="u-fs-14">Lo que ya tenés comprometido</strong>
       <div class="months-bars" role="img" aria-label="Lo que ya tenés comprometido en los próximos 6 meses">
-        ${sum.months.map((m, i) => `<div class="mbar"><span class="mval">${m.amount ? money(m.amount).replace('$', '') : '—'}</span><span class="mcol" style="height:${Math.max(4, Math.round((m.amount / max) * 90))}px;${i === 0 ? 'background:var(--green)' : ''}"></span><span class="mlabel">${monthName(m.mk)}</span></div>`).join('')}
+        ${sum.months.map((m, i) => `<div class="mbar"><span class="mval">${m.amount ? money(m.amount).replace('$', '') : '—'}</span><span class="mcol${i === 0 ? ' actual' : ''}" style="height:${Math.max(4, Math.round((m.amount / max) * 90))}px"></span><span class="mlabel">${monthName(m.mk)}</span></div>`).join('')}
       </div>
       <span class="small muted">Cuotas de compras que ya hiciste. Total pendiente: <b>${money(sum.pending.reduce((a, p) => a + p.remaining, 0))}</b>.</span>
       ${libera ? `<span class="small">✅ En este resumen terminan ${terminan.length === 1 ? `las cuotas de <b>${esc(terminan[0].e.note)}</b>` : `<b>${terminan.length} compras en cuotas</b>`}: desde el próximo pagás ${money(libera)} menos.</span>` : ''}
@@ -139,8 +139,8 @@ function tabCuotas(s, c, sum) {
     <div class="card tight">
       ${sum.pending.length ? sum.pending.map((p) => `<button class="row" data-action="openEntry" data-id="${p.e.id}" data-kind="expense">
         <span class="grow"><span class="name">${esc(p.e.note)}</span><span class="meta">Cuota ${Math.min(p.next, p.n)} de ${p.n} · ${money(p.each)} por mes · termina en ${monthName(p.last, true)}${p.e.interes ? ` · con interés (+${String(p.e.interes.recargo).replace('.', ',')}%)` : ' · sin interés'}</span>
-          <span class="bar" style="height:5px;margin-top:6px"><span style="width:${Math.round(((p.n - p.left) / p.n) * 100)}%"></span></span></span>
-        <span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(p.remaining)}</span><span class="small muted">restan ${p.left}</span></span>
+          <span class="bar u-h-5-mt-6"><span style="width:${Math.round(((p.n - p.left) / p.n) * 100)}%"></span></span></span>
+        <span class="u-d-flex-dir-column-items-end"><span class="amount">${money(p.remaining)}</span><span class="small muted">restan ${p.left}</span></span>
       </button>`).join('') : '<p class="empty">No tenés compras en cuotas en esta tarjeta.</p>'}
     </div>`;
 }
@@ -178,7 +178,7 @@ function tabTarjeta(s, c, sum) {
 function pedirFechas(c, mk) {
   const d = statementDates(c, mk);
   if (!d.estimadas) return '';
-  return `<div class="card lime" style="gap:8px">
+  return `<div class="card lime u-gap-8">
     <strong>¿Cuándo cierra y vence el resumen de ${monthName(mk, true)}?</strong>
     <span class="text">Lo dice tu último resumen: <b>"próximo cierre"</b> y <b>"próximo vencimiento"</b>. Hasta que las cargues, uso fechas estimadas.</span>
     <button class="btn small green" data-action="editarFechasResumen" data-id="${esc(c.id)}" data-mk="${mk}">Cargar las fechas</button>
@@ -191,10 +191,10 @@ function detalle(s, c) {
   const det = detalleResumen(s, c, mk);
   const sum = cardSummary(s, c);
   const tab = (v, l) => `<button role="tab" data-action="tarjetaTab" data-v="${v}" aria-pressed="${pestania === v}">${l}</button>`;
-  return `${s.cards.length > 1 ? `<button class="link-btn" data-action="abrirTarjeta" data-id="" style="align-self:flex-start">‹ Todas las tarjetas</button>` : ''}
+  return `${s.cards.length > 1 ? `<button class="link-btn u-self-start" data-action="abrirTarjeta" data-id="">‹ Todas las tarjetas</button>` : ''}
     ${cabecera(s, c, det, mk)}
     ${pedirFechas(c, actual)}
-    <div class="tabs" role="tablist" aria-label="Tarjeta" style="grid-template-columns:repeat(3,minmax(0,1fr))">${tab('resumen', 'Resumen')}${tab('cuotas', `Cuotas${sum.pending.length ? ` (${sum.pending.length})` : ''}`)}${tab('tarjeta', 'Datos')}</div>
+    <div class="tabs u-cols-rep3-fr" role="tablist" aria-label="Tarjeta">${tab('resumen', 'Resumen')}${tab('cuotas', `Cuotas${sum.pending.length ? ` (${sum.pending.length})` : ''}`)}${tab('tarjeta', 'Datos')}</div>
     ${pestania === 'cuotas' ? tabCuotas(s, c, sum) : pestania === 'tarjeta' ? tabTarjeta(s, c, sum) : tabResumen(s, c, det, mk)}`;
 }
 
@@ -259,7 +259,7 @@ function cardForm(s, c0 = {}) {
       <div class="field"><label for="cd-c">Próximo cierre</label><input id="cd-c" name="cierre" type="date" required></div>
       <div class="field"><label for="cd-v">Próximo vencimiento</label><input id="cd-v" name="vence" type="date" required></div>
     </div>
-    <span class="hint" style="margin-top:-6px">Están en tu último resumen, cerca del total ("próximo cierre" y "próximo vencimiento"). Cada vez que te llegue un resumen nuevo, te pido las fechas del siguiente.</span>`}
+    <span class="hint u-mt-n6">Están en tu último resumen, cerca del total ("próximo cierre" y "próximo vencimiento"). Cada vez que te llegue un resumen nuevo, te pido las fechas del siguiente.</span>`}
     <div class="field-row">
       <div class="field"><label for="cd-l">Límite de compra</label><input id="cd-l" name="limit" inputmode="decimal" value="${c.limit || ''}" placeholder="Opcional"></div>
       <div class="field"><label for="cd-lc">Límite en cuotas</label><input id="cd-lc" name="limitCuotas" inputmode="decimal" value="${c.limitCuotas || ''}" placeholder="Si es distinto"></div>
@@ -292,7 +292,7 @@ function fechasForm(s, c, desde) {
       <div class="field-row"><div class="field"><label for="fc-${m}">Cierra el</label><input id="fc-${m}" name="cierre_${m}" type="date" required value="${d.estimadas ? '' : iso(d.close)}"></div>
       <div class="field"><label for="fv-${m}">Vence el</label><input id="fv-${m}" name="vence_${m}" type="date" required value="${d.estimadas ? '' : iso(d.due)}"></div></div></div>`; };
   return `<form class="form" data-submit="guardarFechasResumen"><input type="hidden" name="id" value="${esc(c.id)}">
-    <p class="small muted" style="margin:0">Las dice el resumen anterior, cerca del total: "próximo cierre" y "próximo vencimiento". Con eso ubico cada compra en el resumen que corresponde y te aviso a tiempo.</p>
+    <p class="small muted u-m-0">Las dice el resumen anterior, cerca del total: "próximo cierre" y "próximo vencimiento". Con eso ubico cada compra en el resumen que corresponde y te aviso a tiempo.</p>
     ${fila(mk)}
     <button class="btn primary block" type="submit">Guardar</button></form>`;
 }

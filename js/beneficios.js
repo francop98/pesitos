@@ -19,9 +19,9 @@ function renovarHtml(s) {
   const l = promosARenovar(s);
   if (!l.length) return '';
   return `<div class="section-title"><span>¿Las renovaron?</span></div>
-    <p class="small muted" style="margin:0">Vencieron hace poco y todavía no apareció la nueva. Mientras no me confirmes, no las uso para calcular reintegros.</p>
+    <p class="small muted u-m-0">Vencieron hace poco y todavía no apareció la nueva. Mientras no me confirmes, no las uso para calcular reintegros.</p>
     <div class="card tight">${l.map((p) => { const k = promoKey(p); vistas.set(k, p); return `<div class="row renovar-fila"><span class="promo-pct">${p.pct}%</span>
-      <span class="grow"><span class="name" style="white-space:normal">${esc(p.merchant || catLabel(p.category))}</span><span class="meta">${esc(p.walletName || walletName(p.wallet))} · venció el ${fechaCorta(p.validTo)}</span>
+      <span class="grow"><span class="name u-ws-normal">${esc(p.merchant || catLabel(p.category))}</span><span class="meta">${esc(p.walletName || walletName(p.wallet))} · venció el ${fechaCorta(p.validTo)}</span>
       <span class="btn-row"><button class="btn small green" data-action="promoSigue" data-k="${esc(k)}">Sigue vigente</button><button class="btn small ghost" data-action="promoYaNo" data-k="${esc(k)}">Ya no está</button></span></span></div>`; }).join('')}</div>
     <span class="small muted">Fijate en la app de tu banco o billetera. Si sigue, la uso hasta fin de mes o hasta que aparezca la nueva.</span>`;
 }
@@ -42,9 +42,9 @@ function dayBlock(s, offset) {
   const shown = open ? ps : ps.slice(0, PER_DAY);
   const zone = (p) => (p.zone && !/nacional/i.test(p.zone) ? ` · solo ${p.zone}` : '');
   return `<div class="section-title"><span>${label}</span><span class="small muted">${ps.length} promo${ps.length === 1 ? '' : 's'}</span></div>
-    <div class="card tight">${shown.map((p) => `<div class="row" style="align-items:flex-start">
+    <div class="card tight">${shown.map((p) => `<div class="row u-items-start">
       <span class="promo-pct">${p.pct}%</span>
-      <span class="grow"><span class="name" style="white-space:normal">${esc(p.merchant || catLabel(p.category))}</span>
+      <span class="grow"><span class="name u-ws-normal">${esc(p.merchant || catLabel(p.category))}</span>
         <span class="meta">${esc(p.name)} · ${esc(catLabel(p.category))}${p.cap ? ` · tope ${money(p.cap)}${p.capPeriod ? ` por ${esc(p.capPeriod)}` : ''}` : (p.capUnknown ? ' · tope sin publicar' : ' · sin tope')}${p.minPurchase ? ` · compra mínima ${money(p.minPurchase)}` : ''}${esc(zone(p))}</span>
         ${p.cond ? `<span class="meta">${esc(p.cond)}</span>` : ''}
         <span class="promo-acciones">${offset === 0 ? `<button class="chip promo-usada" data-action="promoUsed" data-id="${esc(String(p.cap || ''))}">Lo aproveché</button>` : ''}${p.source === 'catalog' ? (() => { const k = promoKey(p); vistas.set(k, p); return `<button class="link-btn small" data-action="avisarError" data-k="${esc(k)}">Avisar un error</button>`; })() : ''}</span></span>
@@ -58,14 +58,14 @@ export function render(s) {
   const week = has ? [0, 1, 2, 3, 4, 5, 6].map((o) => dayBlock(s, o)).join('') : '';
   return `<section class="screen">
     ${screenHead('Beneficios', '', 'Descuentos de tus medios de pago')}
-    <div class="btn-row"><a class="btn small" href="#/reintegros">${icon('coins', 16)} Mis reintegros</a><button class="btn small" data-action="openConQuePagar">¿Con qué conviene pagar?</button></div>
+    <div class="btn-row"><a class="btn small" href="#/reintegros">${icon('coins', 16)} Mis reintegros</a></div>
 
     ${has ? `<div class="card filtros-promos">
       <div class="field-row">
         <div class="field"><label for="pf-medio">Medio de pago</label><select id="pf-medio" data-change="promoMedio"><option value="all">Todos los míos</option>${s.wallets.map((w) => `<option value="${esc(w)}" ${medioFilter === w ? 'selected' : ''}>${esc(walletName(w))}</option>`).join('')}<option value="todos" ${medioFilter === 'todos' ? 'selected' : ''}>Con cualquier medio</option></select></div>
         <div class="field"><label for="pf-cat">Rubro</label><select id="pf-cat" data-change="promoCat">${FILTERS.map(([id, l]) => `<option value="${id}" ${catFilter === id ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       </div>
-      <button class="btn ghost small" data-action="openWallets" style="align-self:flex-start">${icon('wallet', 16)} Cambiar mis medios de pago</button>
+      <button class="btn ghost small u-self-start" data-action="openWallets">${icon('wallet', 16)} Cambiar mis medios de pago</button>
     </div>` : `<div class="card"><p class="text muted">Elegí tus bancos, billeteras y tarjetas y te muestro qué descuentos tenés cada día.</p><button class="btn primary" data-action="openWallets">Elegir mis medios de pago</button></div>`}
 
     ${week || (has ? '<div class="card"><p class="text muted">No encontré promos para tus medios de pago con este filtro.</p></div>' : '')}
@@ -92,7 +92,7 @@ export const actions = {
     const p = vistas.get(el.dataset.k); if (!p) return;
     openModal('Avisar un error', `<form class="form" data-submit="enviarError"><input type="hidden" name="k" value="${esc(el.dataset.k)}">
       <div class="card"><strong>${p.pct}% · ${esc(p.merchant || catLabel(p.category))}</strong><span class="small muted">${esc(p.walletName || walletName(p.wallet))}</span></div>
-      <div class="field"><span class="label-like">¿Qué está mal?</span><div class="ahorro-ops">${MOTIVOS.map(([v, l], i) => `<label class="ahorro-op"><input type="radio" name="motivo" value="${v}" ${i === 0 ? 'checked' : ''} style="position:absolute;opacity:0"><b>${l}</b></label>`).join('')}</div></div>
+      <div class="field"><span class="label-like">¿Qué está mal?</span><div class="ahorro-ops">${MOTIVOS.map(([v, l], i) => `<label class="ahorro-op"><input type="radio" name="motivo" value="${v}" ${i === 0 ? 'checked' : ''} class="u-pos-absolute-op-0"><b>${l}</b></label>`).join('')}</div></div>
       <div class="field"><label for="ae-t">Contame más (opcional)</label><input id="ae-t" name="texto" maxlength="300" placeholder="Ej: el tope es $8.000, no $10.000"></div>
       <span class="hint">Le llega al equipo de Pesitos para corregirlo. Si ya no existe, deja de aparecerte a vos enseguida.</span>
       <button class="btn primary block" type="submit">Enviar</button></form>`);

@@ -48,19 +48,19 @@ function quotes(s, enModal = false) {
   const rows = cotizElegidas(s).map((id) => filaCotiz(s, id)).filter(Boolean);
   const any = rows.some((x) => x.main);
   return `<div class="card">
-    <div class="topbar"><strong style="font-size:14px">${enModal ? 'Las que elegiste' : 'Cotizaciones'}</strong>
+    <div class="topbar"><strong class="u-fs-14">${enModal ? 'Las que elegiste' : 'Cotizaciones'}</strong>
       <span class="head-actions"><button class="chip" data-action="elegirCotiz">${icon('grid', 14, 2.2)} Elegir</button><button class="chip" data-action="refreshQuotes" aria-label="Actualizar cotizaciones">${icon('refresh', 14, 2.2)}</button></span></div>
     ${any ? `<div class="quotes">${rows.map((x) => `<div class="quote"><span class="k">${x.label}${x.ref ? ' <span class="chip-mini">Tu referencia</span>' : ''}</span><span class="v">${x.main || '—'}</span><span class="small muted">${x.sub || ''}</span></div>`).join('')}</div>`
       : '<p class="text muted">Todavía no pude traer las cotizaciones (sin conexión). Se cargan solas apenas haya internet.</p>'}
-    ${any && ratesStale(s) ? `<span class="pill warn" style="align-self:flex-start">Sin conexión: valores de ${ratesAge(s)}</span>` : ''}
+    ${any && ratesStale(s) ? `<span class="pill warn u-self-start">Sin conexión: valores de ${ratesAge(s)}</span>` : ''}
     <span class="small muted">Se actualizan solas cada 5 minutos · dólares y monedas vía DolarApi · cripto y oro vía CoinGecko · ${ratesAge(s)}</span>
   </div>`;
 }
 function elegirCotizBody(s) {
   const sel = new Set(cotizElegidas(s));
   const grupos = [...new Set(COTIZ_OPCIONES.map((o) => o.grupo))];
-  return `<p class="small muted" style="margin:0">Tocá las que querés ver (en Ahorros, con tu plata convertida, y en Herramientas → Cotizaciones).</p>
-    ${grupos.map((g) => `<span class="small" style="font-weight:800">${g}</span><div class="chips">${COTIZ_OPCIONES.filter((o) => o.grupo === g).map((o) => `<button class="chip toggle" data-action="toggleCotiz" data-id="${o.id}" aria-pressed="${sel.has(o.id)}">${esc(o.nombre)}</button>`).join('')}</div>`).join('')}
+  return `<p class="small muted u-m-0">Tocá las que querés ver (en Ahorros, con tu plata convertida, y en Herramientas → Cotizaciones).</p>
+    ${grupos.map((g) => `<span class="small u-fw-800">${g}</span><div class="chips">${COTIZ_OPCIONES.filter((o) => o.grupo === g).map((o) => `<button class="chip toggle" data-action="toggleCotiz" data-id="${o.id}" aria-pressed="${sel.has(o.id)}">${esc(o.nombre)}</button>`).join('')}</div>`).join('')}
     <div class="field"><label for="dol-ref">Dólar para pasar tus ahorros y gastos en dólares a pesos</label><select id="dol-ref" data-change="setDolarRef">${DOLARES.map(([id, n]) => `<option value="${id}" ${id === dolarRef(s) ? 'selected' : ''}>${n}</option>`).join('')}</select>
       <span class="hint">Si cobrás o ahorrás en dólares por el banco, el MEP o el oficial suelen ser los más reales.</span></div>`;
 }
@@ -94,19 +94,19 @@ function cotizDe(s, cur) {
 function slideMoneda(s, g, grupos, total) {
   const base = monedaBase(s);
   const enBase = g.cur === base;
-  return `<div class="card green slide" style="gap:12px;padding:20px">
+  return `<div class="card green slide u-gap-12-p-20">
       <span class="hero-label">Ahorrado en ${esc(nombreMon(g.cur).toLowerCase())}</span>
-      <span style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">${enBase ? money(g.ars) : fmtAsset(g.cant, g.cur)}</span>
-      ${enBase ? (grupos.length > 1 ? `<span class="small on-green-muted">Con todas tus monedas: <b style="color:#fff">${money(total)}</b></span>` : '') : g.ars > 0 || !g.cant ? `<span class="small on-green-muted">Equivale a <b style="color:#fff">${money(g.ars)}</b> · ${esc(cotizDe(s, g.cur))}</span>` : '<span class="small on-green-muted">Todavía no tengo la cotización: la traigo apenas haya conexión.</span>'}
+      <span class="u-fs-34-fw-800-ls-n1-lh-1_1">${enBase ? money(g.ars) : fmtAsset(g.cant, g.cur)}</span>
+      ${enBase ? (grupos.length > 1 ? `<span class="small on-green-muted">Con todas tus monedas: <b class="u-c-fff">${money(total)}</b></span>` : '') : g.ars > 0 || !g.cant ? `<span class="small on-green-muted">Equivale a <b class="u-c-fff">${money(g.ars)}</b> · ${esc(cotizDe(s, g.cur))}</span>` : '<span class="small on-green-muted">Todavía no tengo la cotización: la traigo apenas haya conexión.</span>'}
       ${g.ars > 0 && g.items.length > 1 ? `<div class="dist" role="img" aria-label="Distribución de tus ahorros en ${esc(nombreMon(g.cur).toLowerCase())}">${g.items.filter((h) => h.ars > 0).map((h) => `<span style="width:${(h.ars / g.ars) * 100}%;background:${holdingType(h.type).color}"></span>`).join('')}</div>` : ''}
-      <div style="display:flex;flex-direction:column;gap:2px">
-        ${g.items.map((h) => `<button class="row" data-action="editHolding" data-id="${h.id}" style="color:#fff;border-color:rgba(255,255,255,.12);padding:8px 0">
+      <div class="u-d-flex-dir-column-gap-2">
+        ${g.items.map((h) => `<button class="row u-c-fff-bdc-rgba255-255-255-_12-p-8-0" data-action="editHolding" data-id="${h.id}">
           <span style="width:10px;height:10px;border-radius:3px;background:${holdingType(h.type).color};flex-shrink:0"></span>
-          <span class="grow"><span class="name" style="font-weight:600">${esc(h.name || holdingType(h.type).label)}</span>${tnaDe(s, h) ? `<span class="meta on-green-muted">Rinde ${String(tnaDe(s, h)).replace('.', ',')}% anual</span>` : ''}</span>
+          <span class="grow"><span class="name u-fw-600">${esc(h.name || holdingType(h.type).label)}</span>${tnaDe(s, h) ? `<span class="meta on-green-muted">Rinde ${String(tnaDe(s, h)).replace('.', ',')}% anual</span>` : ''}</span>
           <span class="amount">${enBase ? money(h.ars) : fmtAsset(valorHoy(s, h), h.currency)}</span>
         </button>`).join('') || `<span class="small on-green-muted">${grupos.length > 1 ? `No tenés ahorros en ${esc(nombreMon(g.cur).toLowerCase())}.` : 'Todavía no cargaste dónde tenés tus ahorros.'}</span>`}
       </div>
-      <div class="btn-row"><button class="btn small" data-action="newHolding" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35)">+ Agregar dónde ahorrás</button></div>
+      <div class="btn-row"><button class="btn small u-bg-transparent-c-fff-bdc-rgba255-255-255-_35" data-action="newHolding">+ Agregar dónde ahorrás</button></div>
     </div>`;
 }
 function widgetAhorros(s) {
@@ -153,7 +153,7 @@ function conversionAhorros(s) {
     return { label: o.nombre, main: precio ? fmtAsset(totalArs / precio, cur) : null, sub: precio ? `a ${pesos(precio)}${['BTC', 'ETH', 'USDT', 'XAU'].includes(id) ? '' : ' (venta)'}` : 'sin cotización' };
   }).filter(Boolean);
   return `<div class="card">
-    <div class="topbar"><strong style="font-size:14px">En otras monedas</strong>
+    <div class="topbar"><strong class="u-fs-14">En otras monedas</strong>
       <span class="head-actions"><button class="chip" data-action="elegirCotiz">${icon('grid', 14, 2.2)} Elegir</button><button class="chip" data-action="refreshQuotes" aria-label="Actualizar cotizaciones">${icon('refresh', 14, 2.2)}</button></span></div>
     <span class="small muted">Todo lo que tenés ahorrado (${money(totalArs)}), convertido a cada cotización.</span>
     <div class="quotes">${tiles.map((x) => `<div class="quote"><span class="k">${esc(x.label)}</span><span class="v">${x.main || '—'}</span><span class="small muted">${x.sub}</span></div>`).join('')}</div>
@@ -179,7 +179,7 @@ function filaFondo(g) {
 function filaObjetivo(g) {
   return `<button class="row" data-action="openGoal" data-id="${g.id}">
     ${ring(goalPct(g), 40, 5, `${g.name}`)}
-    <span class="grow"><span class="name">${esc(g.name)}${g.main ? ' <span class="pill lime" style="margin-left:4px">Principal</span>' : ''}</span><span class="meta">Juntar plata · ${g.target ? `${money(g.saved)} de ${money(g.target)} · ` : ''}${esc(goalEta(g).text)}</span></span>
+    <span class="grow"><span class="name">${esc(g.name)}${g.main ? ' <span class="pill lime u-ml-4">Principal</span>' : ''}</span><span class="meta">Juntar plata · ${g.target ? `${money(g.saved)} de ${money(g.target)} · ` : ''}${esc(goalEta(g).text)}</span></span>
     <span class="amount">${Math.round(goalPct(g) * 100)}%</span>
   </button>`;
 }
@@ -222,19 +222,19 @@ function destinarForm(s, g, proy = '') {
   const optH = (sel = '') => holds.map((h) => `<option value="${esc(h.id)}" ${sel === h.id ? 'selected' : ''}>${esc(h.name || holdingType(h.type).label)}</option>`).join('');
   const esProy = g.tipo === 'proyecto';
   return `<form class="form" data-submit="guardarDestino"><input type="hidden" name="id" value="${esc(g.id)}"><input type="hidden" name="proy" value="${esc(proy)}">
-    <p class="small muted" style="margin:0">${esProy ? `Lo ahorrado para "${esc(g.name)}"` : `Hay ${money(g.saved)} en "${esc(g.name)}"`}. ¿A qué destinaste esta plata?</p>
+    <p class="small muted u-m-0">${esProy ? `Lo ahorrado para "${esc(g.name)}"` : `Hay ${money(g.saved)} en "${esc(g.name)}"`}. ¿A qué destinaste esta plata?</p>
     <div class="field-row"><div class="field"><label for="ds-mo">Monto</label><input id="ds-mo" name="monto" inputmode="decimal" required placeholder="Ej: 40.000"></div>
       <div class="field"><label for="ds-fe">¿Cuándo?</label><input id="ds-fe" name="date" type="date" value="${todayISO()}" max="${todayISO()}"></div></div>
     <div class="destinos" role="radiogroup" aria-label="Destino">${Object.entries(DESTINOS).map(([k, [t, sub]], i) => `<label class="check destino-op"><input type="radio" name="destino" value="${k}" ${i === 0 ? 'checked' : ''} data-change="destinoCambio"> <span><b>${t}</b><br><span class="small muted">${esProy && k === 'gasto' ? 'Lo anoto como gasto del proyecto: se descuenta de lo ahorrado.' : sub}</span></span></label>`).join('')}</div>
-    <div data-dest="gasto" style="display:flex;flex-direction:column;gap:10px">
+    <div data-dest="gasto" class="u-d-flex-dir-column-gap-10">
       <div class="field-row"><div class="field"><label for="ds-no">¿En qué?</label><input id="ds-no" name="nota" placeholder="${g.tipo === 'fondo' ? 'Ej: Cambio de cubiertas' : 'Ej: Seña del alquiler'}"></div>
-        <div class="field"><label for="ds-ca">Categoría</label><select id="ds-ca" name="categoria"><option value="">Automática</option>${allCategories().map((c) => `<option value="${c.id}" ${c.id === g.categoria ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div></div>
+        <div class="field"><label for="ds-ca">Categoría</label><select id="ds-ca" name="categoria"><option value="">Que la elija Pesitos</option>${allCategories().map((c) => `<option value="${c.id}" ${c.id === g.categoria ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div></div>
     </div>
     <div data-dest="disponible" hidden><div class="field"><label for="ds-cu">¿A qué cuenta?</label><select id="ds-cu" name="cuenta">${medioOptions(s, '', { conTarjetas: false, auto: true })}</select></div></div>
-    <div data-dest="ahorro" hidden style="display:flex;flex-direction:column;gap:10px">
+    <div data-dest="ahorro" hidden class="u-d-flex-dir-column-gap-10">
       <div class="field"><label for="ds-ha">¿A dónde?</label><select id="ds-ha" name="hacia" data-change="destinoCambio">${optH()}<option value="nuevo" ${holds.length ? '' : 'selected'}>Otro: lo escribo</option></select></div>
       <div class="field" data-dest-nuevo ${holds.length ? 'hidden' : ''}><label for="ds-hn">Nombre</label><input id="ds-hn" name="haciaNombre" placeholder="Ej: Plazo fijo a 60 días"></div>
-      <div class="field"><span class="small" style="font-weight:700">¿Sigue siendo para "${esc(g.name)}"?</span>
+      <div class="field"><span class="small u-fw-700">¿Sigue siendo para "${esc(g.name)}"?</span>
         <label class="check"><input type="radio" name="sigue" value="si" checked> <span>Sí: ${esProy ? 'lo ahorrado' : 'la meta'} no baja, solo cambia dónde está</span></label>
         <label class="check"><input type="radio" name="sigue" value="no"> <span>No: ${esProy ? 'baja lo ahorrado del proyecto' : 'baja la meta'}</span></label></div>
     </div>
@@ -246,7 +246,7 @@ function destinosHtml(s, g) {
   const l = (g.destinos || []).slice().sort((a, b) => b.date.localeCompare(a.date));
   if (!l.length) return '';
   const hn = (id, n) => n || ((s.holdings || []).find((h) => h.id === id) || {}).name || 'otro ahorro';
-  return `<div class="card tight"><strong style="padding:8px 0 0">A qué destinaste</strong>${l.map((x) => `<div class="row"><span class="grow"><span class="name">${x.destino === 'gasto' ? esc(x.nota || 'Un gasto') : x.destino === 'disponible' ? 'A tu plata disponible' : `A ${esc(hn(x.hacia, x.haciaNombre))}`}</span><span class="meta">${x.date.split('-').reverse().join('/')}${x.destino === 'ahorro' ? (x.sigue ? ' · sigue para la meta' : ' · ya no es para la meta') : ''}</span></span><span class="amount">${money(x.monto)}</span></div>`).join('')}</div>`;
+  return `<div class="card tight"><strong class="u-p-8-0-0">A qué destinaste</strong>${l.map((x) => `<div class="row"><span class="grow"><span class="name">${x.destino === 'gasto' ? esc(x.nota || 'Un gasto') : x.destino === 'disponible' ? 'A tu plata disponible' : `A ${esc(hn(x.hacia, x.haciaNombre))}`}</span><span class="meta">${x.date.split('-').reverse().join('/')}${x.destino === 'ahorro' ? (x.sigue ? ' · sigue para la meta' : ' · ya no es para la meta') : ''}</span></span><span class="amount">${money(x.monto)}</span></div>`).join('')}</div>`;
 }
 // suma o resta (en pesos) a un ahorro, en su moneda
 function moverEnAhorro(s, id, pesosMonto, fecha) {
@@ -259,13 +259,13 @@ function moverEnAhorro(s, id, pesosMonto, fecha) {
 // "+ Nueva": primero elegís qué es
 function elegirMeta(paso = '') {
   const op = (accion, titulo, texto, ej, extra = '') => `<button class="card elegir-meta" data-action="${accion}"${extra}><strong>${titulo}</strong><span class="small">${texto}</span><span class="small muted">${ej}</span></button>`;
-  if (paso === 'objetivo') return `<div style="display:flex;flex-direction:column;gap:10px">
-    <p class="small muted" style="margin:0">¿Qué querés hacer con este objetivo?</p>
+  if (paso === 'objetivo') return `<div class="u-d-flex-dir-column-gap-10">
+    <p class="small muted u-m-0">¿Qué querés hacer con este objetivo?</p>
     ${op('nuevaMetaComun', 'Juntar hasta llegar a un monto', 'Te muestro cuánto llevás y cuándo llegás a este ritmo.', 'Ej: bici nueva, la seña de un alquiler')}
     ${op('nuevoProyecto', 'Juntar y después gastarlo en algo', 'Ahorrás para algo puntual y después ves cuánto gastaste de lo que juntaste.', 'Ej: un viaje, pintar el depto, una fiesta', ' data-ahorrar="1"')}
     ${op('nuevoProyecto', 'Solo llevar la cuenta de lo que gasto', 'Para algo que vas pagando sin haber ahorrado antes. Juntás sus gastos y ves el total.', 'Ej: una obra en cuotas, el casamiento de un amigo', ' data-ahorrar="0"')}
   </div>`;
-  return `<div style="display:flex;flex-direction:column;gap:10px">
+  return `<div class="u-d-flex-dir-column-gap-10">
     ${op('nuevoFondo', 'Un fondo fijo', 'Plata que querés tener siempre, sin fecha de fin. Si la usás, la volvés a llenar.', 'Ej: respaldo para arreglos de la casa, colchón para un cambio de trabajo')}
     ${op('nuevaMetaObjetivo', 'Un objetivo', 'Algo que querés lograr: llegar a un monto, comprarte algo, un viaje.', 'Ej: un curso, un instrumento, un viaje')}
   </div>`;
@@ -280,7 +280,7 @@ export function render(s) {
 
     ${taparMontos(patrimonioHtml(s, patAbierto), 'ahorro')}
 
-    <div class="tabs tabs-4" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <div class="tabs tabs-4 u-cols-rep4-fr" role="tablist" aria-label="Sección">
       <button role="tab" data-action="ahorroVista" data-v="cuentas" aria-pressed="${vista === 'cuentas'}">Cuentas</button>
       <button role="tab" data-action="ahorroVista" data-v="mis" aria-pressed="${vista === 'mis'}">Ahorros</button>
       <button role="tab" data-action="ahorroVista" data-v="sueldo" aria-pressed="${vista === 'sueldo'}">Ingresos</button>
@@ -313,7 +313,7 @@ function goalForm(g = {}, s = {}) {
       <button type="button" role="radio" data-action="goalTipo" data-v="fondo" aria-checked="${fondo}">Fondo fijo</button>
       <button type="button" role="radio" data-action="goalTipo" data-v="meta" aria-checked="${!fondo}">Objetivo</button>
     </div>` : ''}
-    <p class="small muted" style="margin:0" data-g-txt>${fondo ? 'Plata que querés tener siempre, sin fecha de fin. Podés sumarle un poco todos los meses y, si la usás para algo, la volvés a llenar sin que te baje lo que podés gastar.' : 'Te muestro cuánto llevás y en qué mes llegás a este ritmo.'}</p>
+    <p class="small muted u-m-0" data-g-txt>${fondo ? 'Plata que querés tener siempre, sin fecha de fin. Podés sumarle un poco todos los meses y, si la usás para algo, la volvés a llenar sin que te baje lo que podés gastar.' : 'Te muestro cuánto llevás y en qué mes llegás a este ritmo.'}</p>
     <div class="field"><label for="g-n">Nombre</label><input id="g-n" name="name" value="${esc(g.name || '')}" placeholder="${fondo ? 'Ej: Respaldo para la casa' : 'Ej: Bici nueva'}" required></div>
     <div class="field-row">
       <div class="field"><label for="g-t" data-g-tl>${fondo ? 'Tope del fondo (opcional)' : 'Cuánto necesitás'}</label><input id="g-t" name="target" inputmode="decimal" value="${g.target || ''}" placeholder="${fondo ? 'Sin tope' : 'Ej: 1.500.000'}"></div>
@@ -393,7 +393,7 @@ function converterBody(s, d = { amount: '', from: `USD:${dolarRef(s)}`, to: 'ARS
     </div>
     <button class="btn primary block" type="submit">Convertir</button>
   </form>
-  <div class="result ok"><span class="small">${esc(String(d.amount).replace('.', ','))} ${esc(convLabel(d.from))} =</span><strong style="font-size:24px">${r == null ? 'Sin cotización' : fmtAsset(r, d.to)}</strong><span class="small">Con cotización de venta · ${ratesAge(s)}</span>${mundo ? `<span class="small">Esa moneda la cruzo con el ${esc(nombreDolar(dolarRef(s)).toLowerCase())}. <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a></span>` : ''}</div>`;
+  <div class="result ok"><span class="small">${esc(String(d.amount).replace('.', ','))} ${esc(convLabel(d.from))} =</span><strong class="u-fs-24">${r == null ? 'Sin cotización' : fmtAsset(r, d.to)}</strong><span class="small">Con cotización de venta · ${ratesAge(s)}</span>${mundo ? `<span class="small">Esa moneda la cruzo con el ${esc(nombreDolar(dolarRef(s)).toLowerCase())}. <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a></span>` : ''}</div>`;
 }
 
 export const actions = {
@@ -401,7 +401,7 @@ export const actions = {
   irMetas(ctx) { vista = 'plan'; ctx.go('ahorro'); },
   ahorroIr(ctx, el) { monedaTab = el.dataset.v; const c = document.querySelector('[data-ahcar]'); if (c) c.scrollTo({ left: pasoAh(c) * (Number(el.dataset.i) + 1), behavior: 'smooth' }); },
   // Herramientas → Cotizaciones
-  openCotizaciones(ctx) { openModal('Cotizaciones', `<div id="cotiz-modal" style="display:flex;flex-direction:column;gap:12px">${quotes(ctx.state, true)}</div>`); },
+  openCotizaciones(ctx) { openModal('Cotizaciones', `<div id="cotiz-modal" class="u-d-flex-dir-column-gap-12">${quotes(ctx.state, true)}</div>`); },
   // todo lo de pasar plata a ahorros está en Mi plata → Ahorros
   irAhorros(ctx) {
     vista = 'mis'; closeModal();
@@ -467,13 +467,13 @@ export const actions = {
     if (!g) return;
     if (g.tipo === 'fondo') {
       const usos = ctx.state.expenses.filter((e) => e.fondoId === g.id && !e.destinoId).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
-      openModal(g.name, `<div class="card green"><span class="hero-label">Hay en el fondo</span><span class="hero-number" style="font-size:32px">${money(g.saved)}</span><span class="small on-green-muted">${esc(goalEta(g).text)}</span></div>
+      openModal(g.name, `<div class="card green"><span class="hero-label">Hay en el fondo</span><span class="hero-number u-fs-32">${money(g.saved)}</span><span class="small on-green-muted">${esc(goalEta(g).text)}</span></div>
         <button class="btn block" data-action="destinarMeta" data-id="${g.id}">${icon('swap', 18)} Destinar</button>
         <form class="form" data-submit="contribute"><input type="hidden" name="id" value="${g.id}">
           <div class="field"><label for="c-a">Sumar al fondo</label><input id="c-a" name="amount" inputmode="decimal" placeholder="Ej: 30.000" required></div>
           <div class="field"><label for="c-f1">¿Cuándo?</label><input id="c-f1" name="date" type="date" value="${todayISO()}" max="${todayISO()}"></div>
           <button class="btn green block" type="submit">Aportar</button></form>
-        ${usos.length ? `<div class="card tight"><strong style="padding:8px 0 0">Lo que salió del fondo</strong>${usos.map((e) => `<div class="row"><span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${esc(catLabel(e.category))} · ${e.date.split('-').reverse().join('/')}</span></span><span class="amount">−${money(e.amount)}</span></div>`).join('')}</div>` : ''}
+        ${usos.length ? `<div class="card tight"><strong class="u-p-8-0-0">Lo que salió del fondo</strong>${usos.map((e) => `<div class="row"><span class="grow"><span class="name">${esc(e.note)}</span><span class="meta">${esc(catLabel(e.category))} · ${e.date.split('-').reverse().join('/')}</span></span><span class="amount">−${money(e.amount)}</span></div>`).join('')}</div>` : ''}
         ${destinosHtml(ctx.state, g)}
         <button class="btn small block" data-action="editGoal" data-id="${g.id}">Editar fondo</button>`);
       return;

@@ -61,7 +61,7 @@ export function render(s) {
     <div class="chips">${rangos.map(([v, l]) => `<button class="chip toggle" data-action="buscarRango" data-v="${v}" aria-pressed="${rangoActual === v}">${l}</button>`).join('')}</div>
     <details class="card filtros" ${hayFiltros && (f.cat || f.medio || f.min || f.max || rangoActual === 'otro') ? 'open' : ''}>
       <summary><strong>Más filtros</strong>${hayFiltros ? ' <span class="pill ok">activos</span>' : ''}</summary>
-      <form class="form" data-submit="buscarFiltros" style="margin-top:10px">
+      <form class="form u-mt-10" data-submit="buscarFiltros">
         <div class="field-row">
           <div class="field"><label for="bf-c">Categoría</label><select id="bf-c" name="cat"><option value="">Todas</option>${categoriasOrdenadas(s, { conOcultas: true }).map((c) => `<option value="${esc(c.id)}" ${f.cat === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div>
           <div class="field"><label for="bf-m">Cuenta o tarjeta</label><select id="bf-m" name="medio"><option value="">Todas</option>${listaCuentas(s).map((c) => `<option value="acc:${esc(c.id)}" ${f.medio === 'acc:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}${s.cards.map((c) => `<option value="card:${esc(c.id)}" ${f.medio === 'card:' + c.id ? 'selected' : ''}>Tarjeta ${esc(c.name)}</option>`).join('')}</select></div>
@@ -80,7 +80,7 @@ export function render(s) {
     ${tags.length ? `<div class="chips">${tags.map((t) => `<button class="chip toggle" data-action="buscarTag" data-v="${esc(t)}" aria-pressed="${f.tag === t}">#${esc(t)}</button>`).join('')}</div>` : ''}
     <div class="stat-grid">
       <div class="stat"><span class="k">${res.length} movimiento${res.length === 1 ? '' : 's'}</span><span class="v">${money(gastos)}</span><span class="small muted">en gastos</span></div>
-      <div class="stat"><span class="k">Ingresos</span><span class="v pos">${money(ingresos)}</span>${res.length ? `<button class="btn small" data-action="buscarExportar" style="margin-top:4px">${icon('download', 16)} Excel</button>` : ''}</div>
+      <div class="stat"><span class="k">Ingresos</span><span class="v pos">${money(ingresos)}</span>${res.length ? `<button class="btn small u-mt-4" data-action="buscarExportar">${icon('download', 16)} Excel</button>` : ''}</div>
     </div>
     <div class="card tight">${res.length ? res.slice(0, 200).map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('') + (res.length > 200 ? `<p class="empty">Y ${res.length - 200} más. Afiná la búsqueda para verlos.</p>` : '') : '<p class="empty">No encontré movimientos con esos filtros.</p>'}</div>
   </section>`;

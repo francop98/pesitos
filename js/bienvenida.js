@@ -118,7 +118,7 @@ function current() {
       return {
         bubbles: ['¿Qué pagás todos los meses? Son tus gastos fijos: los descuento solos de lo que podés gastar. Tocá los que tenés y poné cuánto, más o menos.'],
         controls: `<div class="chips">${[...FIJOS, ...draft.fijoOtro].map((f) => `<button type="button" class="chip toggle" data-action="guideFijo" data-n="${esc(f)}" aria-pressed="${sel.includes(f)}">${esc(f)}</button>`).join('')}</div>
-          ${sel.length ? `<form class="form guide-fijos" data-submit="guideFijos" autocomplete="off">${sel.map((f, i) => `<div class="field-row" style="align-items:center"><label class="grow" for="gf-${i}">${esc(f)}</label><input id="gf-${i}" name="f_${esc(f)}" inputmode="decimal" placeholder="$ por mes" value="${draft.fijos[f] ? Math.round(draft.fijos[f]).toLocaleString('es-AR') : ''}" style="max-width:150px" data-change="guideFijoMonto" data-n="${esc(f)}"></div>`).join('')}
+          ${sel.length ? `<form class="form guide-fijos" data-submit="guideFijos" autocomplete="off">${sel.map((f, i) => `<div class="field-row u-items-center"><label class="grow" for="gf-${i}">${esc(f)}</label><input id="gf-${i}" name="f_${esc(f)}" inputmode="decimal" placeholder="$ por mes" value="${draft.fijos[f] ? Math.round(draft.fijos[f]).toLocaleString('es-AR') : ''}" class="u-maxw-150" data-change="guideFijoMonto" data-n="${esc(f)}"></div>`).join('')}
             <button class="btn primary block" type="submit">Seguir (${sel.length})</button></form>` : ''}
           ${inputForm('otroFijo', '¿Otro? Escribí cuál (ej. jardinero)', 'text', 'Agregar')}
           ${sel.length ? '' : `<div class="chips">${chip('', 'No tengo / los cargo después')}</div>`}`,
@@ -135,7 +135,7 @@ function current() {
             <span class="label-like">¿Falta alguna? Creala</span>
             <div class="field-row cat-new"><div class="field"><label for="g-ce" class="sr-only">Emoji</label><input id="g-ce" name="emoji" class="emoji-input" maxlength="8" placeholder="🙂" aria-label="Emoji (opcional)"></div>
               <div class="field"><label for="g-cn" class="sr-only">Nombre</label><input id="g-cn" name="label" placeholder="Ej: Clases de cerámica" maxlength="30" aria-label="Nombre de la categoría"></div>
-              <button type="submit" class="btn small" style="align-self:flex-end">Crear</button></div>
+              <button type="submit" class="btn small u-self-end">Crear</button></div>
           </form>
           ${n ? `<button class="btn primary block" data-action="guideNext" data-value="ok">Seguir (${n})</button>` : `<div class="chips">${chip('todas', 'Prefiero ver todas')}</div>`}`,
       };
@@ -197,9 +197,9 @@ export function render(s) {
   return `<section class="guide">
     <header class="guide-top">
       <div class="guide-top-fila">
-      ${canBack ? `<button class="icon-btn back on-green" data-action="guideBack" aria-label="Volver">${icon('back', 20, 2.2)}</button>` : '<span style="width:44px"></span>'}
+      ${canBack ? `<button class="icon-btn back on-green" data-action="guideBack" aria-label="Volver">${icon('back', 20, 2.2)}</button>` : '<span class="u-w-44"></span>'}
       <div class="guide-brand">${wordmark(26, '#FFFFFF', '#C6F36B')}<span>Tu economista de bolsillo</span></div>
-      <span style="width:44px"></span>
+      <span class="u-w-44"></span>
       </div>
       ${progress}
     </header>

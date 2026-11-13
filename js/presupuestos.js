@@ -39,9 +39,9 @@ export function barra(p) {
 export function alertaPresupuestos(s) {
   const ojo = todosLosPresupuestos(s).filter((p) => p.pct >= 0.8);
   if (!ojo.length) return '';
-  return `<a class="card amber" href="#/estadisticas" style="text-decoration:none;color:inherit">
-    <div class="tip-head"><span style="color:var(--amber)">${icon('bulb', 18)}</span><strong>Topes por categoría</strong></div>
-    ${ojo.slice(0, 3).map((p) => `<div style="display:flex;flex-direction:column;gap:4px"><div class="split" style="font-size:13px"><span>${esc(catById(p.cat).label)}</span><b>${p.pct >= 1 ? `Te pasaste ${money(-p.queda)}` : `Quedan ${money(p.queda)}`}</b></div>${barra(p)}</div>`).join('')}
+  return `<a class="card amber u-td-none-c-inherit" href="#/estadisticas">
+    <div class="tip-head"><span class="u-c-amber">${icon('bulb', 18)}</span><strong>Topes por categoría</strong></div>
+    ${ojo.slice(0, 3).map((p) => `<div class="u-d-flex-dir-column-gap-4"><div class="split u-fs-13"><span>${esc(catById(p.cat).label)}</span><b>${p.pct >= 1 ? `Te pasaste ${money(-p.queda)}` : `Quedan ${money(p.queda)}`}</b></div>${barra(p)}</div>`).join('')}
   </a>`;
 }
 
@@ -54,9 +54,9 @@ export function render(s) {
   const dias = diasRestantes();
   return `<section class="screen">
     ${screenHead('Presupuestos', '', `Topes por categoría · ${monthName(mk, true)}`)}
-    ${lista.length ? `<div class="card green" style="gap:8px">
+    ${lista.length ? `<div class="card green u-gap-8">
       <span class="hero-label">Usaste de tus presupuestos</span>
-      <span style="font-size:30px;font-weight:800">${money(gastado)} <span style="font-size:15px;font-weight:600" class="on-green-muted">de ${money(total)}</span></span>
+      <span class="u-fs-30-fw-800">${money(gastado)} <span class="on-green-muted u-fs-15-fw-600">de ${money(total)}</span></span>
       ${barra({ pct: total ? gastado / total : 0 })}
       <span class="small on-green-muted">${total - gastado >= 0 ? `Te quedan ${money(total - gastado)} para ${dias} día${dias === 1 ? '' : 's'}: unos ${money((total - gastado) / dias)} por día.` : `Te pasaste ${money(gastado - total)} en total.`}</span>
     </div>` : `<div class="card"><p class="text"><b>Poné un tope por mes a las categorías que querés cuidar</b> (súper, salidas, delivery…). Te aviso cuando llegues al 80 % y si te pasás.</p></div>`}
@@ -77,7 +77,7 @@ export const actions = {
     const sug = promedioCategoria(s, cat);
     const gastado = (avancePresupuesto(s, cat) || {}).gastado ?? (monthExpenses(s, monthKey()).byCat[cat] || 0);
     openModal(`Tope por mes: ${c.label}`, `<form class="form" data-submit="savePresupuesto">
-      <p class="small muted" style="margin:0">Un tope es lo máximo que querés gastar por mes en ${esc(c.label.toLowerCase())}. Te aviso al llegar al 80% y si te pasás. Este mes llevás ${money(gastado)}.</p>
+      <p class="small muted u-m-0">Un tope es lo máximo que querés gastar por mes en ${esc(c.label.toLowerCase())}. Te aviso al llegar al 80% y si te pasás. Este mes llevás ${money(gastado)}.</p>
       <input type="hidden" name="cat" value="${esc(cat)}">
       <div class="field"><label for="pr-m">Tope por mes</label><input id="pr-m" name="monto" inputmode="decimal" value="${actual ? String(actual) : ''}" placeholder="Ej: 150.000" required></div>
       ${sug ? `<button type="button" class="chip" data-action="usarSugerido" data-v="${sug}">Usar ${money(sug)} (tu promedio de los últimos 3 meses)</button>` : ''}

@@ -115,7 +115,7 @@ function sugerenciaHtml(s) {
   return `<div class="card lime"><strong>${sprout(18)} Te sugiero: ${esc(g.igual ? 'seguí con tu forma' : g.nombre)}</strong>
     <span class="small">${g.igual ? '' : `Porque ${esc(g.por)}.`}${g.extras.length ? ` Además, ${g.extras.map(([k, r]) => `${ext[k]} (${esc(r)})`).join(' y ')}.` : ''}</span>
     <span class="small muted">Lo calculo con tus últimos ${g.meses} meses y lo voy ajustando a medida que cargás.</span>
-    <button class="btn small green" data-action="usarSugerenciaAhorro" style="align-self:flex-start">Usar la sugerencia</button></div>`;
+    <button class="btn small green u-self-start" data-action="usarSugerenciaAhorro">Usar la sugerencia</button></div>`;
 }
 
 /** Pantalla #/formaahorro: el único lugar donde se elige cómo ahorrar. */
@@ -149,20 +149,20 @@ export const formaAhorro = {
           <button class="chip" data-action="editRule" data-key="${r.key}" aria-label="Cambiar ${r.name}">${r.unit === '$' ? money(v[r.param]) : v[r.param] + '%'}</button>
           <button class="switch" role="switch" aria-checked="${v.on}" aria-label="${r.name}" data-action="toggleRule" data-key="${r.key}"></button></div>`; }).join('')}
       </div>
-      <p class="small muted" style="margin:0">También podés crear reglas propias (por ejemplo, "cada vez que pido delivery, aparto $1.000") en Mi plata → Ahorros → Cómo ahorro.</p>
+      <p class="small muted u-m-0">También podés crear reglas propias (por ejemplo, "cada vez que pido delivery, aparto $1.000") en Mi plata → Ahorros → Cómo ahorro.</p>
       ${lessonBtn()}
     </section>`;
   },
 };
-const lessonBtn = () => '<button class="btn ghost small" data-action="openLesson" data-id="modos" style="align-self:flex-start">¿Cuál me conviene?</button>';
+const lessonBtn = () => '<button class="btn ghost small u-self-start" data-action="openLesson" data-id="modos">¿Cuál me conviene?</button>';
 
 // Mi plata → Ahorros: "Cómo ahorro" (forma de ahorrar + reglas), plegado
 export function comoAhorroHtml(s, abierto = false) {
   const b = budget(s);
   return `<details class="card plegable" id="como-ahorro"${abierto ? ' open' : ''}><summary><strong>Cómo ahorro</strong> <span class="small muted">${esc(MODE_LABEL(s))}</span></summary>
-    <div class="topbar"><strong style="font-size:14px">Tu forma de ahorrar</strong><button class="chip" data-action="changeMode">Cambiar</button></div>
+    <div class="topbar"><strong class="u-fs-14">Tu forma de ahorrar</strong><button class="chip" data-action="changeMode">Cambiar</button></div>
     <span class="text">${esc(MODE_LABEL(s))}</span>
-    <button class="btn ghost small" data-action="openLesson" data-id="modos" style="align-self:flex-start;min-height:36px;padding:0 4px">¿Cuál me conviene?</button>
+    <button class="btn ghost small u-self-start-minh-36-p-0-4" data-action="openLesson" data-id="modos">¿Cuál me conviene?</button>
     <div class="section-title"><span>Reglas de ahorro</span><button data-action="newRule">+ Crear regla</button></div>
     <div class="tight">
       ${BUILTIN.map((r) => { const v = s.rules[r.key]; return `<div class="row">
@@ -171,7 +171,7 @@ export function comoAhorroHtml(s, abierto = false) {
         <button class="switch" role="switch" aria-checked="${v.on}" aria-label="${r.name}" data-action="toggleRule" data-key="${r.key}"></button>
       </div>`; }).join('')}
       ${s.rules.custom.map((c) => `<div class="row">
-        <button class="grow" data-action="editCustomRule" data-id="${c.id}" style="background:none;border:none;text-align:left;padding:0"><span class="name">${esc(c.name)} <span class="pill">Propia</span></span><span class="meta">${esc(customText(c))}</span></button>
+        <button class="grow u-bg-none-bd-none-ta-left-p-0" data-action="editCustomRule" data-id="${c.id}"><span class="name">${esc(c.name)} <span class="pill">Propia</span></span><span class="meta">${esc(customText(c))}</span></button>
         <button class="switch" role="switch" aria-checked="${c.on}" aria-label="${esc(c.name)}" data-action="toggleCustomRule" data-id="${c.id}"></button>
       </div>`).join('')}
     </div>
@@ -184,7 +184,7 @@ export function desafiosHtml(s) {
   const ch = challengeStatus(s);
   return `<div class="section-title"><span>Desafíos de ahorro</span><button data-action="newChallenge">+ Crear desafío</button></div>
     ${ch ? `<div class="card">
-      <div class="topbar"><strong style="font-size:14px">${esc(ch.def.name)}</strong><span class="pill ${ch.broken ? 'warn' : 'lime'}">${ch.broken ? 'Se cortó' : ch.done ? '¡Completado!' : `Día ${ch.day} de ${ch.def.days}`}</span></div>
+      <div class="topbar"><strong class="u-fs-14">${esc(ch.def.name)}</strong><span class="pill ${ch.broken ? 'warn' : 'lime'}">${ch.broken ? 'Se cortó' : ch.done ? '¡Completado!' : `Día ${ch.day} de ${ch.def.days}`}</span></div>
       <div class="bar"><span style="width:${Math.round(ch.pct * 100)}%"></span></div>
       <span class="small muted">${esc(ch.detail)} ${ch.broken ? 'No pasa nada: podés empezar de nuevo.' : `Llevás unos ${money(ch.estimate)} ahorrados frente a tu ritmo habitual.`}</span>
       <div class="btn-row">
@@ -203,7 +203,7 @@ function aprendidoHtml(s) {
   const ap = aprendizajes(s);
   return `<div class="section-title"><span>Lo que aprendí de vos</span></div>
     <div class="card tight aprendi">${loQueSe(s).map((t) => `<span class="text">• ${t}</span>`).join('')}</div>
-    ${ap.length ? ap.map(renderSuggestion).join('') : '<p class="small muted" style="margin:0">Por ahora no tengo consejos nuevos: vas bien. Los reviso cada vez que anotás algo.</p>'}`;
+    ${ap.length ? ap.map(renderSuggestion).join('') : '<p class="small muted u-m-0">Por ahora no tengo consejos nuevos: vas bien. Los reviso cada vez que anotás algo.</p>'}`;
 }
 
 export function render(s) {
@@ -211,16 +211,16 @@ export function render(s) {
   return `<section class="screen">
     ${screenHead('Asesor y ayuda', '', 'Consultá, aprendé o buscá cómo se usa')}
 
-    <div class="tabs" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div class="tabs u-cols-rep3-fr" role="tablist" aria-label="Sección">
       ${[['consultas', 'Consultas'], ['aprende', 'Aprendé'], ['ayuda', 'Ayuda']].map(([v, l]) => `<button role="tab" data-action="asesorTab" data-v="${v}" aria-pressed="${tab === v}">${l}</button>`).join('')}
     </div>
 
 
     ${tab === 'aprende' ? `
-    <p class="small muted" style="margin:0">Lecciones cortas para manejar mejor tu plata. Leíste ${LESSONS.filter((l) => s.lessonsSeen[l.id]).length} de ${LESSONS.length}.</p>
-    <div class="bar" style="height:6px"><span style="width:${Math.round((LESSONS.filter((l) => s.lessonsSeen[l.id]).length / LESSONS.length) * 100)}%"></span></div>
+    <p class="small muted u-m-0">Lecciones cortas para manejar mejor tu plata. Leíste ${LESSONS.filter((l) => s.lessonsSeen[l.id]).length} de ${LESSONS.length}.</p>
+    <div class="bar u-h-6"><span style="width:${Math.round((LESSONS.filter((l) => s.lessonsSeen[l.id]).length / LESSONS.length) * 100)}%"></span></div>
     <div class="card tight">
-      ${LESSONS.map((l) => `<button class="row" data-action="openLesson" data-id="${l.id}"><span class="grow"><span class="name" style="white-space:normal">${esc(l.title)}</span></span>${s.lessonsSeen[l.id] ? '<span class="pill ok">Leída</span>' : ''}${icon('chevron', 16)}</button>`).join('')}
+      ${LESSONS.map((l) => `<button class="row" data-action="openLesson" data-id="${l.id}"><span class="grow"><span class="name u-ws-normal">${esc(l.title)}</span></span>${s.lessonsSeen[l.id] ? '<span class="pill ok">Leída</span>' : ''}${icon('chevron', 16)}</button>`).join('')}
     </div>
 
     ` : ''}
@@ -240,7 +240,7 @@ export function render(s) {
       <input id="ask" name="q" placeholder="Escribí tu consulta" enterkeyhint="send">
       <button type="submit" class="icon-btn green" aria-label="Enviar">${icon('send', 20, 2.2)}</button>
     </form>
-    <p class="small muted" style="margin:0">${DISCLAIMER}</p>
+    <p class="small muted u-m-0">${DISCLAIMER}</p>
     ` : ''}
     ${tab === 'ayuda' ? ayudaHtml() : ''}
   </section>`;
@@ -251,9 +251,9 @@ const enTuMoneda = (s, v) => { const u = monedaBase(s) === 'USD' ? arsPer(s, 'US
 function ruleForm(c = {}, s = null) {
   return `<form class="form" data-submit="saveCustomRule">
     <input type="hidden" name="id" value="${esc(c.id || '')}">
-    ${c.id ? '' : `<span class="small" style="font-weight:800">Ideas listas para usar</span>
+    ${c.id ? '' : `<span class="small u-fw-800">Ideas listas para usar</span>
     <div class="rule-presets">${RULE_PRESETS.map((p, i) => `<button type="button" class="ahorro-op" data-action="usarPreset" data-i="${i}"><b>${esc(p.name)}</b><span>${esc(p.txt((v) => money(s ? enTuMoneda(s, v) : v)))}</span></button>`).join('')}</div>
-    <span class="small" style="font-weight:800">O armala a tu medida</span>`}
+    <span class="small u-fw-800">O armala a tu medida</span>`}
     <div class="field"><label for="r-n">Nombre</label><input id="r-n" name="name" value="${esc(c.name || '')}" placeholder="Ej: Impuesto al antojo" required></div>
     <div class="field"><label for="r-t">¿Cuánto apartar?</label><select id="r-t" name="type">${CUSTOM_RULE_TYPES.map((t) => `<option value="${t.id}" ${t.id === c.type ? 'selected' : ''}>${t.label}</option>`).join('')}</select></div>
     <div class="field-row">
@@ -274,7 +274,7 @@ function challengeForm() {
       <div class="field"><label for="ch-d">Duración (días)</label><input id="ch-d" name="days" inputmode="numeric" placeholder="Ej: 30" required></div>
     </div>
     <div class="field"><label for="ch-a">Monto (tope o gasto mínimo)</label><input id="ch-a" name="amount" inputmode="decimal" placeholder="Ej: 20.000"><span class="hint">Para "No pasar un monto": el tope. Para "Sin gastos chicos": el monto mínimo.</span></div>
-    <label style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;min-height:44px"><input type="checkbox" name="start" checked style="width:20px;height:20px"> Empezarlo hoy</label>
+    <label class="u-d-flex-gap-10-items-center-fs-14-fw-600-minh-44"><input type="checkbox" name="start" checked class="u-w-20-h-20"> Empezarlo hoy</label>
     <button class="btn primary block" type="submit">Crear desafío</button>
   </form>`;
 }

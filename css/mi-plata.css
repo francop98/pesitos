@@ -1,0 +1,83 @@
+/* Mi plata: cuentas, ahorros, ingresos, metas, proyectos, inversiones y deudas */
+.goal-row { display: flex; align-items: center; gap: 14px; }
+
+/* forma de ahorrar (bienvenida) */
+.ahorro-ops { display: flex; flex-direction: column; gap: 8px; }
+.ahorro-op { display: flex; flex-direction: column; gap: 2px; text-align: left; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; font: inherit; color: var(--ink); cursor: pointer; }
+.ahorro-op b { font-size: 15px; }
+.ahorro-op span { font-size: 12.5px; color: var(--muted); }
+.ahorro-op:hover, .ahorro-op:focus-visible { border-color: var(--green); }
+.rinde-box { display: flex; flex-direction: column; gap: 16px; }
+.rinde-box[hidden] { display: none; }
+.cuenta-rinde { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.montos-ocultos-nota { align-self: flex-start; }
+.cuentas-cuotas { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-top: 1px solid rgba(0,0,0,.08); border-bottom: 1px solid rgba(0,0,0,.08); }
+.patrimonio { padding: 0; }
+.pat-top { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 16px; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.pat-top .grow { display: flex; flex-direction: column; gap: 1px; }
+.pat-v { font-size: 24px; font-weight: 800; letter-spacing: -.5px; }
+.pat-top > svg { transform: rotate(90deg); transition: transform .2s; flex-shrink: 0; }
+.pat-top[aria-expanded="true"] > svg { transform: rotate(-90deg); }
+.pat-detalle { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 14px; }
+.deudas-card { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; border: 2px solid var(--line); text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 14px; }
+.deudas-card.activa { border-color: var(--amber-pill); background: var(--amber-bg); }
+.deudas-card[aria-pressed="true"] { outline: 2px solid var(--green); outline-offset: 1px; }
+.deudas-card .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.deudas-card .t { font-size: 15px; }
+.deudas-cta { flex-shrink: 0; font-size: 13px; font-weight: 800; color: var(--green-text); background: var(--green-soft); padding: 7px 12px; border-radius: 999px; }
+.proy-vacio { gap: 8px; }
+.proy-lista { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--ink); }
+.proy-tipos { display: flex; flex-wrap: wrap; gap: 6px; }
+.proy-tipos .medio-chip { display: inline-flex; align-items: center; gap: 5px; }
+.proy-tipos .medio-chip[aria-checked="true"] svg { stroke: currentColor; }
+
+/* inversiones */
+.inv { gap: 8px; }
+.inv summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.inv summary::-webkit-details-marker { display: none; }
+.inv summary .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.riesgo { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.riesgo i { width: 5px; height: 14px; border-radius: 2px; background: var(--line); }
+.riesgo.r1 i.on, .riesgo.r2 i.on { background: var(--green); }
+.riesgo.r3 i.on { background: #E0A526; }
+.riesgo.r4 i.on, .riesgo.r5 i.on { background: #D9534F; }
+.riesgo b { font-size: 11px; color: var(--muted); margin-left: 5px; min-width: 52px; }
+.inv-plazos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.inv-plazos span { background: rgba(255,255,255,.55); color: #16301f; border-radius: 12px; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
+.inv-plazos b { display: block; font-size: 13px; }
+.inv-filtros { flex-wrap: wrap; }
+.inv-plazos b { color: #0f3d24; }
+.ahorro-op { position: relative; }
+.ahorro-op:has(input:checked) { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.sueldo-fila { width: 100%; background: var(--green-soft, #E3F4EA); border: none; font: inherit; text-align: left; cursor: pointer; }
+.riesgo-k { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-right: 4px; }
+.riesgo-ayuda .small { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inv-sim { background: var(--green-soft); border-radius: 10px; padding: 8px 10px; }
+.ahorro-op.on { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+
+/* plan de la semana */
+.plan-semana { display: flex; flex-direction: column; gap: 8px; }
+.plan-dia { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.plan-dia-t { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--green-text); }
+.plan-item { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.plan-item .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tabla-inf { display: flex; flex-direction: column; font-size: 13px; }
+.tabla-inf .ti-fila { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .9fr); gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); align-items: start; }
+.tabla-inf .ti-fila > span:not(:first-child) { text-align: right; }
+.tabla-inf .ti-head { border-top: none; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.tabla-inf .pos { color: var(--green); font-weight: 700; }
+.tabla-inf .neg { color: #C2412D; font-weight: 700; }
+
+/* tabla del año mes a mes (Estadísticas) */
+.tabla-inf.cuatro .ti-fila { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+.tabla-inf .ti-total { font-weight: 800; border-top: 2px solid var(--line); }
+
+/* widget de ahorros por moneda: las tarjetas alinean arriba (pueden tener distinto alto) */
+.ah-carrusel > .slide > .btn-row:last-child { margin-top: auto; }
+.ah-carrusel > .slide { color: #fff; }
+.pasar-fila .btn-row { gap: 6px; margin-top: 6px; }
+
+/* Destinar: opciones */
+.destinos { display: flex; flex-direction: column; gap: 6px; }
+.destino-op { border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px; align-items: flex-start; }
+.destino-op:has(input:checked) { border-color: var(--green-mid); background: var(--green-soft); }

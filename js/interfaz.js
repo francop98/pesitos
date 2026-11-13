@@ -95,24 +95,32 @@ export function sprout(size = 24, color = '#C6F36B') {
 }
 
 // Logotipo: "pesitos" con el brote en la i
+// Logo dibujado (letras de Manrope 800 pasadas a trazos): se ve igual en todos lados, aunque la fuente no cargue.
+// La "s" y la "i" tienen la misma altura que las demás letras; solo cambia el diseño (la raya del $ y las hojitas).
+const WM = { w: 7006, h: 2080,
+  ink: 'M700 1590Q547 1590 442 1522L442 2040L168 2040L168 480L408 480L408 539Q417 532 427 525Q532 450 686 450Q841 450 956 524Q1071 598 1135 727Q1198 855 1198 1020Q1198 1182 1136 1311Q1073 1440 961 1515Q849 1590 700 1590M656 1348Q744 1348 800 1304Q856 1260 883 1186Q910 1111 910 1020Q910 930 882 856Q854 781 796 737Q737 692 646 692Q561 692 509 733Q456 774 432 848Q408 922 408 1020Q408 1118 432 1192Q456 1266 511 1307Q565 1348 656 1348M1860 1590Q1694 1590 1568 1519Q1441 1447 1370 1322Q1298 1196 1298 1034Q1298 857 1368 726Q1438 595 1561 523Q1684 450 1844 450Q2014 450 2133 530Q2252 610 2309 755Q2366 900 2349 1096L1591 1096Q1604 1193 1652 1253Q1717 1336 1844 1336Q1924 1336 1981 1301Q2038 1266 2068 1200L2340 1278Q2279 1426 2148 1508Q2016 1590 1860 1590M1598 894L2074 894Q2062 806 2028 758Q1975 686 1856 686Q1717 686 1652 770Q1614 819 1598 894M4738 1334L4738 1560Q4626 1581 4519 1579Q4411 1576 4327 1541Q4242 1505 4198 1426Q4158 1352 4156 1276Q4154 1199 4154 1102L4154 690L3970 690L3970 480L4154 480L4154 180L4426 180L4426 480L4738 480L4738 690L4426 690L4426 1086Q4426 1149 4428 1200Q4429 1250 4448 1280Q4484 1337 4563 1342Q4642 1347 4738 1334M5344 1590Q5181 1590 5058 1517Q4935 1444 4867 1316Q4798 1187 4798 1020Q4798 851 4868 723Q4938 594 5061 522Q5184 450 5344 450Q5507 450 5631 523Q5754 596 5823 725Q5892 853 5892 1020Q5892 1188 5823 1317Q5753 1445 5630 1518Q5506 1590 5344 1590M5344 1336Q5475 1336 5540 1248Q5604 1159 5604 1020Q5604 876 5539 790Q5473 704 5344 704Q5255 704 5198 744Q5141 784 5114 855Q5086 926 5086 1020Q5086 1165 5152 1251Q5217 1336 5344 1336M6444 1590Q6240 1590 6115 1498Q5989 1405 5962 1236L6240 1194Q6257 1270 6316 1313Q6374 1356 6464 1356Q6538 1356 6578 1328Q6618 1299 6618 1248Q6618 1216 6602 1197Q6586 1177 6531 1158Q6475 1139 6358 1108Q6226 1074 6147 1032Q6068 990 6033 932Q5998 873 5998 790Q5998 686 6051 610Q6104 533 6201 492Q6297 450 6428 450Q6555 450 6653 489Q6751 528 6812 600Q6872 672 6886 770L6608 820Q6601 760 6556 725Q6511 690 6434 684Q6359 679 6314 704Q6268 729 6268 776Q6268 804 6288 823Q6307 842 6369 862Q6430 882 6556 914Q6679 946 6754 989Q6828 1031 6862 1091Q6896 1150 6896 1234Q6896 1400 6776 1495Q6656 1590 6444 1590',
+  s: 'M2936 1590Q2732 1590 2607 1498Q2481 1405 2454 1236L2732 1194Q2749 1270 2808 1313Q2866 1356 2956 1356Q3030 1356 3070 1328Q3110 1299 3110 1248Q3110 1216 3094 1197Q3078 1177 3023 1158Q2967 1139 2850 1108Q2718 1074 2639 1032Q2560 990 2525 932Q2490 873 2490 790Q2490 686 2543 610Q2596 533 2693 492Q2789 450 2920 450Q3047 450 3145 489Q3243 528 3304 600Q3364 672 3378 770L3100 820Q3093 760 3048 725Q3003 690 2926 684Q2851 679 2806 704Q2760 729 2760 776Q2760 804 2780 823Q2799 842 2861 862Q2922 882 3048 914Q3171 946 3246 989Q3320 1031 3354 1091Q3388 1150 3388 1234Q3388 1400 3268 1495Q3148 1590 2936 1590',
+  bar: 'M2851 1710h140V310h-140Z',
+  stem: 'M3578 1560V540q0-60 60-60h152q60 0 60 60V1560Z',
+  leaf: 'M3714 356C3714 152 3816 16 3986 16 3986 186 3884 322 3714 356ZM3714 390C3714 220 3612 118 3442 118 3442 288 3544 373 3714 390Z' };
 export function wordmark(size = 26, ink = 'var(--ink)', leaf = 'var(--logo-leaf)') {
-  const w = Math.round(size * 0.34); const h = Math.round(size * 1.1);
-  return `<span class="wordmark" style="font-size:${size}px;color:${ink}" role="img" aria-label="Pesitos"><span aria-hidden="true">pe<span class="wm-dollar">$</span></span><svg aria-hidden="true" width="${w}" height="${h}" viewBox="0 0 16 50"><rect x="4.5" y="22" width="7" height="25" rx="2" fill="currentColor"/><path d="M8 18C8 12 11 8 16 8 16 13 13 17 8 18Z" style="fill:${leaf}"/><path d="M8 19C8 14 5 11 0 11 0 16 3 18.5 8 19Z" style="fill:${leaf}"/></svg><span aria-hidden="true">tos</span></span>`;
+  const h = Math.round(size * WM.h / 2000 * 10) / 10; const w = Math.round(h * WM.w / WM.h * 10) / 10;
+  return `<span class="wordmark" style="font-size:${size}px;color:${ink}" role="img" aria-label="Pesitos"><svg class="wm-svg" aria-hidden="true" width="${w}" height="${h}" viewBox="0 0 ${WM.w} ${WM.h}"><path d="${WM.ink}" fill="currentColor"/><path d="${WM.stem}" fill="currentColor"/><path d="${WM.s}" class="u-fill-lime"/><path d="${WM.bar}" class="u-fill-lime"/><path d="${WM.leaf}" style="fill:${leaf}"/></svg></span>`;
 }
 
 export function ring(p, size = 72, stroke = 8, label = '', color = 'var(--green)', track = 'var(--track)') {
   const r = (size - stroke) / 2; const c = 2 * Math.PI * r; const v = Math.max(0, Math.min(1, p));
-  return `<svg class="ring" role="img" aria-label="${esc(label || Math.round(v * 100) + '%')}" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">
+  return `<svg class="ring u-shrink-0" role="img" aria-label="${esc(label || Math.round(v * 100) + '%')}" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
     <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" style="stroke:${track}" stroke-width="${stroke}"/>
     <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" style="stroke:${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
-    ${size >= 60 ? `<text x="50%" y="50%" dy="0.35em" text-anchor="middle" style="fill:var(--ink)" font-size="${Math.round(size * 0.22)}" font-weight="800">${Math.round(v * 100)}%</text>` : ''}
+    ${size >= 60 ? `<text x="50%" y="50%" dy="0.35em" text-anchor="middle" class="u-fill-ink" font-size="${Math.round(size * 0.22)}" font-weight="800">${Math.round(v * 100)}%</text>` : ''}
   </svg>`;
 }
 
 export function tipCard(t) {
   const amber = t.tone === 'warn';
   return `<div class="card ${amber ? 'amber' : ''}">
-    <div class="tip-head">${amber ? `<span style="color:var(--amber)">${icon('bulb', 22)}</span>` : `<span class="badge">${sprout(17)}</span>`}<strong>${esc(t.title)}</strong></div>
+    <div class="tip-head">${amber ? `<span class="u-c-amber">${icon('bulb', 22)}</span>` : `<span class="badge">${sprout(17)}</span>`}<strong>${esc(t.title)}</strong></div>
     <p class="text">${esc(t.text)}</p>
     ${t.cta || t.id ? `<div class="btn-row">
       ${t.cta ? `<button class="btn small ${amber ? '' : 'green'}" data-action="${t.cta.action}" ${t.cta.id ? `data-id="${esc(t.cta.id)}"` : ''}>${esc(t.cta.label)}</button>` : ''}
@@ -235,13 +243,13 @@ function selectorHtml() {
   const yMin = Number(c.min.slice(0, 4)); const yMax = Number(c.max.slice(0, 4));
   if (c.vista === 'anio') {
     const anios = []; for (let y = yMax; y >= yMin; y--) anios.push(y);
-    return `<div data-selmes><p class="small muted" style="margin:0">Elegí el año</p>
+    return `<div data-selmes><p class="small muted u-m-0">Elegí el año</p>
       <div class="meses-grid anios-grid">${anios.map((y) => `<button class="mes-op${y === c.anio ? ' on' : ''}${(c.marcados && [...c.marcados].some((k) => k.startsWith(y + '-'))) ? ' datos' : ''}" data-action="selElegirAnio" data-y="${y}" aria-pressed="${y === c.anio}">${y}</button>`).join('')}</div></div>`;
   }
   return `<div data-selmes><div class="month-nav anio-nav">
       <button class="icon-btn" data-action="selElegirAnio" data-y="${c.anio - 1}" aria-label="Año anterior" ${c.anio <= yMin ? 'disabled' : ''}>${icon('back', 18, 2.2)}</button>
       <button class="mes-btn" data-action="selVerAnios" aria-label="Elegir el año">${c.anio} ${icon('chevron', 14, 2.4)}</button>
-      <button class="icon-btn" data-action="selElegirAnio" data-y="${c.anio + 1}" aria-label="Año siguiente" ${c.anio >= yMax ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
+      <button class="icon-btn u-tf-scaleX-1" data-action="selElegirAnio" data-y="${c.anio + 1}" aria-label="Año siguiente" ${c.anio >= yMax ? 'disabled' : ''}>${icon('back', 18, 2.2)}</button>
     </div>
     <div class="meses-grid">${MESES_CORTOS.map((n, i) => {
       const k = `${c.anio}-${String(i + 1).padStart(2, '0')}`;
@@ -328,7 +336,7 @@ export function quickForm(id, s = null, medioHtml = '') {
     <input type="search" class="cat-buscar" placeholder="Buscar categoría" aria-label="Buscar categoría" data-input="catFiltrar" autocomplete="off" hidden>
     <div class="cat-row" role="radiogroup" aria-label="Categoría">
       <button type="button" class="cat-chip cat-lupa" data-action="catLupa" aria-label="Buscar categoría"><span class="cat-chip-ic">${icon('search', 18)}</span><span>Buscar</span></button>
-      <button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="auto" aria-checked="true"><span class="cat-chip-ic">${icon('sprout', 18)}</span><span>Automática</span></button>
+      <button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="auto" aria-checked="true" aria-label="Pesitos elige la categoría según lo que escribas"><span class="cat-chip-ic">${icon('sprout', 18)}</span><span>Pesitos elige</span></button>
       ${cats.map((c) => `<button type="button" class="cat-chip" role="radio" data-action="pickCat" data-id="${esc(c.id)}" aria-checked="false"><span class="cat-chip-ic">${catIcon(c, 18)}</span><span>${esc(c.short || c.label)}</span></button>`).join('')}
       <button type="button" class="cat-chip mas" data-action="openCatManager" aria-label="Crear, ordenar u ocultar categorías"><span class="cat-chip-ic">${icon('plus', 18, 2.4)}</span><span>Más</span></button>
     </div>

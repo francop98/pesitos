@@ -36,7 +36,7 @@ function salaryCard(s, b) {
   const mk = b.cycle.startISO.slice(0, 7);
   const payISO = b.cycle.startISO;
   return `<div class="card ask">
-    <div class="tip-head"><span class="cat-icon green" style="width:26px;height:26px;border-radius:8px">${icon('up', 16, 2.4)}</span><strong>¿Ya cobraste lo de ${monthName(mk, true)}?</strong></div>
+    <div class="tip-head"><span class="cat-icon green u-w-26-h-26-r-8">${icon('up', 16, 2.4)}</span><strong>¿Ya cobraste lo de ${monthName(mk, true)}?</strong></div>
     <p class="text">Confirmalo y lo comparo con los meses anteriores y con la inflación. Así ves mes a mes si tus ingresos crecen de verdad.</p>
     <form class="quick" data-submit="confirmSalary" autocomplete="off">
       <input type="hidden" name="date" value="${payISO <= todayISO() ? payISO : todayISO()}">
@@ -44,7 +44,7 @@ function salaryCard(s, b) {
       <input id="sal-c" name="amount" inputmode="decimal" value="${last ? Math.round(last.amount).toLocaleString('es-AR') : ''}" placeholder="Ej: 900.000">
       <button type="submit" class="icon-btn green" aria-label="Confirmar cobro">${icon('send', 20, 2.2)}</button>
     </form>
-    <button class="btn ghost small" data-action="snoozeCard" data-key="salary" data-days="1" style="align-self:flex-start;min-height:36px;padding:0 4px">Todavía no cobré</button>
+    <button class="btn ghost small u-self-start-minh-36-p-0-4" data-action="snoozeCard" data-key="salary" data-days="1">Todavía no cobré</button>
   </div>`;
 }
 
@@ -96,10 +96,10 @@ function coverageAlert(s) {
   const pr = projection(s);
   if (pr.shortfall <= 0) return '';
   const cov = coverage(s, pr);
-  return `<a class="card amber" href="#/pagos" style="text-decoration:none;color:inherit">
-    <div class="tip-head"><span style="color:var(--amber)">${icon('bulb', 20)}</span><strong>Ojo: no te alcanzaría hasta el cobro</strong></div>
+  return `<a class="card amber u-td-none-c-inherit" href="#/pagos">
+    <div class="tip-head"><span class="u-c-amber">${icon('bulb', 20)}</span><strong>Ojo: no te alcanzaría hasta el cobro</strong></div>
     <p class="text">${esc(cov.text)}</p>
-    <span class="small" style="font-weight:700">Ver qué podés hacer →</span>
+    <span class="small u-fw-700">Ver qué podés hacer →</span>
   </a>`;
 }
 
@@ -121,11 +121,11 @@ function payAlerts(s) {
   const total = list.reduce((a, i) => a + i.amount, 0);
   const urgent = list.some((i) => i.days <= 0);
   return `<div class="card ${urgent ? 'amber' : 'ask'}">
-    <div class="tip-head"><span style="color:${urgent ? 'var(--amber)' : 'var(--green)'}">${icon('calendar', 20)}</span><strong>${list.length === 1 ? 'Tenés un pago por vencer' : `Tenés ${list.length} pagos por vencer`}</strong></div>
-    ${list.slice(0, 3).map((i) => `<div class="row" style="padding:6px 0;border-color:rgba(0,0,0,.06)">
+    <div class="tip-head"><span class="${urgent ? 'u-c-amber' : 'u-c-green'}">${icon('calendar', 20)}</span><strong>${list.length === 1 ? 'Tenés un pago por vencer' : `Tenés ${list.length} pagos por vencer`}</strong></div>
+    ${list.slice(0, 3).map((i) => `<div class="row u-p-6-0-bdc-rgba0-0-0-_06">
       <span class="grow"><span class="name">${esc(i.name)}</span><span class="meta">${dueLabel(i)}${i.estimated ? ' · monto estimado' : ''}</span></span>
       <span class="amount">${money(i.amount)}</span>
-      ${i.autoDebit ? '<span class="small muted">Débito</span>' : `<button class="btn small green" data-action="markPaid" data-key="${esc(i.key)}" style="min-height:36px">Pagué</button>`}
+      ${i.autoDebit ? '<span class="small muted">Débito</span>' : `<button class="btn small green u-minh-36" data-action="markPaid" data-key="${esc(i.key)}">Pagué</button>`}
     </div>`).join('')}
     <span class="small">${list.length > 1 ? `Total: ${money(total)}. ` : ''}Asegurate de tener esa plata disponible.</span>
     <a class="btn small" href="#/pagos">Ver todo lo que tengo por pagar</a>
@@ -139,8 +139,8 @@ function weekCard(s) {
   if (!w.count) return '';
   const f = parseISO(w.from); const t = parseISO(w.to);
   return `<div class="card week">
-    <div class="tip-head"><span class="cat-icon green" style="width:26px;height:26px;border-radius:8px">${icon('calendar', 16)}</span><strong>Tu semana del ${f.getDate()} al ${t.getDate()} de ${MONTHS[t.getMonth()].toLowerCase()}</strong></div>
-    <span style="font-size:24px;font-weight:800">${money(w.spent)} gastados</span>
+    <div class="tip-head"><span class="cat-icon green u-w-26-h-26-r-8">${icon('calendar', 16)}</span><strong>Tu semana del ${f.getDate()} al ${t.getDate()} de ${MONTHS[t.getMonth()].toLowerCase()}</strong></div>
+    <span class="u-fs-24-fw-800">${money(w.spent)} gastados</span>
     <p class="text">${esc(w.verdict)}${w.top[0] ? ` Lo que más pesó: ${esc(w.top.slice(0, 2).map((c) => catLabel(c.cat).toLowerCase()).join(' y '))}.` : ''}</p>
     <div class="btn-row"><button class="btn small green" data-action="openWeek" data-week="${key}">Ver detalle</button><button class="btn small" data-action="dismissWeek" data-week="${key}">Listo</button></div>
   </div>`;
@@ -150,7 +150,7 @@ function weekCard(s) {
 function reintConfirmarCard(s) {
   const l = reintegrosPorConfirmar(s); if (!l.length) return '';
   const t = l.reduce((a, e) => a + e.reintegro.monto, 0);
-  return `<button class="card amber" data-action="irReintegros" style="border:none;text-align:left"><strong>¿Te llegaron ${l.length === 1 ? 'el reintegro' : `${l.length} reintegros`}? (${money(t)})</strong><span class="text">Confirmalo${l.length === 1 ? '' : 's'} para sumarlo${l.length === 1 ? '' : 's'} a tu saldo.</span></button>`;
+  return `<button class="card amber u-bd-none-ta-left" data-action="irReintegros"><strong>¿Te llegaron ${l.length === 1 ? 'el reintegro' : `${l.length} reintegros`}? (${money(t)})</strong><span class="text">Confirmalo${l.length === 1 ? '' : 's'} para sumarlo${l.length === 1 ? '' : 's'} a tu saldo.</span></button>`;
 }
 
 // Todo lo que pide tu atención, ordenado por importancia.
@@ -162,23 +162,25 @@ function avisos(s, b) {
     payAlerts(s),
     coverageAlert(s),
     reintConfirmarCard(s),
-    compararCard(s),
+    info(compararCard(s)),
     salaryCard(s, b),
     arranqueCard(s, b),
     savingCard(s, b),
-    renderQuestion(s),
+    info(renderQuestion(s)),
     alertaPresupuestos(s),
-    pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé.</span>${icon('chevron', 16)}</button>` : '',
-    closingTip(s),
-    weekCard(s),
-    huellaCard(),
-    instalarCard(),
-    sugg[0] ? renderSuggestion(sugg[0]) + (sugg.length > 1 ? `<button class="btn small" data-action="openSuggestions">Ver las ${sugg.length} sugerencias</button>` : '') : '',
+    pending ? `<button class="card amber u-bd-none-ta-left-dir-row-items-center" data-action="openPending"><span class="u-c-amber">${icon('receipt')}</span><span class="text u-flex-1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé.</span>${icon('chevron', 16)}</button>` : '',
+    info(closingTip(s)),
+    info(weekCard(s)),
+    info(huellaCard()),
+    info(instalarCard()),
+    sugg[0] ? '<!--fijo-->' + renderSuggestion(sugg[0]) + (sugg.length > 1 ? `<button class="btn small" data-action="openSuggestions">Ver las ${sugg.length} sugerencias</button>` : '') : '',
     ...insights(s).filter((t) => !tipOculto(s, t.id)).slice(0, 2).map((t) => '<!--fijo-->' + tipCard(t)),
   ];
   return lista.filter((x) => x && x.replace('<!--fijo-->', '').trim());
 }
 
+// lo que es para leer (no pide que hagas algo) no suma en la campanita
+const info = (html) => (html && String(html).trim() ? '<!--fijo-->' + html : '');
 const tipOculto = (s, id) => { const h = (s.tipsNo || {})[id]; return h && h >= todayISO(); };
 
 // Avisos ya vistos (en este dispositivo): la campanita solo cuenta los nuevos.
@@ -199,7 +201,10 @@ function marcarVistos(lista) {
 function novedadesHtml(s) {
   const b = budget(s);
   const resto = avisos(s, b).slice(1);
-  return `<div data-novedades>${resto.length ? resto.join('').replace(/<!--fijo-->/g, '') : '<p class="empty">No hay nada más por ahora. ¡Todo en orden!</p>'}
+  const hacer = resto.filter((h) => !h.startsWith('<!--fijo-->'));
+  const leer = resto.filter((h) => h.startsWith('<!--fijo-->')).map((h) => h.replace('<!--fijo-->', ''));
+  return `<div data-novedades>${resto.length ? `${hacer.length ? `<div class="section-title"><span>Para hacer</span></div>${hacer.join('')}` : ''}
+    ${leer.length ? `<div class="section-title"><span>Para tener en cuenta</span></div>${leer.join('')}` : ''}` : '<p class="empty">No hay nada más por ahora. ¡Todo en orden!</p>'}
 </div>`;
 }
 
@@ -366,7 +371,7 @@ function espacioHero(s) {
   const deuda = mio && otros.length === 1 && Math.round(mio.saldo) !== 0 ? (mio.saldo > 0 ? `${esc(otros[0].nombre)} te debe ${money(mio.saldo)}` : `Le debés ${money(-mio.saldo)} a ${esc(otros[0].nombre)}`) : '';
   return `<div class="card green esp-hero">
     <span class="hero-label">Gastado este mes en ${esc(s.espacio.nombre)}</span>
-    <span class="hero-number" style="font-size:34px">${money(total)}</span>
+    <span class="hero-number u-fs-34">${money(total)}</span>
     ${pres ? `<span class="small on-green-muted">de ${money(pres)} de presupuesto · ${total <= pres ? `quedan ${money(pres - total)}` : `se pasaron ${money(total - pres)}`}</span>` : ''}
     ${d && filas.length > 1 ? `<div class="esp-personas">${filas.filter((x) => !x.sinDato).map((x) => `<span class="esp-persona"><span>${esc(x.nombre)} (${String(x.pct).replace('.', ',')}%)</span><span>puso ${money(x.puso)} · le toca ${money(x.parte)}</span></span>`).join('')}</div>` : ''}
     ${deuda ? `<span class="small"><b>${deuda}</b> este mes</span>` : ''}
@@ -421,7 +426,7 @@ export function render(s) {
       <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><a class="icon-btn" href="#/asesor" aria-label="Asesor y ayuda">${icon('help', 22)}</a></span>
     </div>
 
-    ${s.demo ? '<div class="card amber" style="padding:10px 14px"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
+    ${s.demo ? '<div class="card amber u-p-10-14"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
 
     ${s.espacio ? espacioHero(s) : widget(s, b, payText)}
 
@@ -431,11 +436,11 @@ export function render(s) {
 
     ${tuDia(s, !!lista[0] && lista[0] === payAlerts(s))}`}
 
-    ${g && !s.espacio ? `<a class="card goal-row" href="#/ahorro" style="text-decoration:none;color:inherit;flex-direction:row">
+    ${g && !s.espacio ? `<a class="card goal-row u-td-none-c-inherit-dir-row" href="#/ahorro">
       ${ring(goalPct(g), 56, 7, `${g.name}: ${Math.round(goalPct(g) * 100)}%`)}
-      <div class="grow" style="display:flex;flex-direction:column;gap:2px">
-        <span class="small muted" style="font-weight:600">Tu meta</span>
-        <span style="font-size:16px;font-weight:800">${esc(g.name)}</span>
+      <div class="grow u-d-flex-dir-column-gap-2">
+        <span class="small muted u-fw-600">Tu meta</span>
+        <span class="u-fs-16-fw-800">${esc(g.name)}</span>
         <span class="small muted">${esc(goalEta(g).text.replace('A este ritmo llegás', 'Llegás'))}</span>
       </div>
     </a>` : ''}
@@ -451,7 +456,7 @@ function huellaCard() {
   try { no = localStorage.getItem(K_HUELLA) === '1'; } catch { /* nada */ }
   if (no || !hayBio || bioActiva()) return '';
   return `<div class="card card-huella">
-    <div class="tip-head"><span style="color:var(--green)">${icon('lock', 20)}</span><strong>Entrá con tu huella o tu cara</strong></div>
+    <div class="tip-head"><span class="u-c-green">${icon('lock', 20)}</span><strong>Entrá con tu huella o tu cara</strong></div>
     <span class="text">Cuando inicies sesión en este celular, usá tu huella o tu cara en lugar de escribir el PIN.</span>
     <div class="btn-row"><button class="btn small ghost" data-action="huellaNo">Ahora no</button><button class="btn small primary" data-action="huellaSi">Activar</button></div>
   </div>`;
@@ -464,7 +469,7 @@ function instalarCard() {
   try { no = localStorage.getItem(K_INSTALAR) === '1'; } catch { /* nada */ }
   if (no || instalada()) return '';
   return `<div class="card card-instalar">
-    <div class="tip-head"><span style="color:var(--green)">${icon('phone', 20)}</span><strong>Instalá Pesitos en tu celular</strong></div>
+    <div class="tip-head"><span class="u-c-green">${icon('phone', 20)}</span><strong>Instalá Pesitos en tu celular</strong></div>
     <span class="text">Queda en la pantalla de inicio como cualquier app: abre más rápido, funciona sin conexión, te puede avisar los vencimientos y podés compartirle tus comprobantes.</span>
     <div class="btn-row"><button class="btn small ghost" data-action="instalarNo">No, gracias</button><button class="btn small primary" data-action="instalarApp">Instalar</button></div>
   </div>`;
@@ -487,7 +492,7 @@ function diarioBody(s) {
   const aMedida = cfg.modo === 'personalizado' ? `<div class="card diario-medida">
       <div class="field"><label for="dm-rep">De lo que no gastás, a tus próximos días: <b data-out="rep">${pct}%</b> (a tu meta: <b data-out="aho">${100 - pct}%</b>)</label>
         <input id="dm-rep" type="range" min="0" max="100" step="5" value="${pct}" data-change="setDiarioReparto" data-input="verDiarioReparto"></div>
-      <span class="small" style="font-weight:700">Tu día puede subir hasta</span>
+      <span class="small u-fw-700">Tu día puede subir hasta</span>
       <div class="chips">${topes.map(([v, l]) => `<button type="button" class="chip toggle" data-action="setDiarioTope" data-v="${v}" aria-pressed="${String(v) === String(topeAct)}">${l}</button>`).join('')}</div>
       <span class="small muted">Por encima de tu ritmo normal${b.normalDaily ? ` (${money(b.normalDaily)})` : ''}. Lo que pasa ese techo te sugiero ahorrarlo.</span>
     </div>` : '';
@@ -495,7 +500,7 @@ function diarioBody(s) {
   const sinMeta = !metas.length ? `<div class="card tight"><span class="text">Todavía no tenés una meta. Lo que no gastás se va a <b>ahorro</b>; si le ponés un nombre (vacaciones, fondo de emergencia, un auto) te digo cuánto te adelanta cada peso.</span><button class="btn small ghost" data-action="openGoalForm">Crear una meta</button></div>` : '';
   return `<div class="card"><span class="text">Cada día te muestro tu <b>ritmo normal</b>: lo que cobrás, menos tus gastos fijos y lo que separás para ahorrar, dividido por los días del mes${b.normalDaily ? ` (hoy: <b>${money(b.normalDaily)} por día</b>)` : ''}.</span>
       <span class="text">Si un día gastás de más, los días que siguen bajan para que llegues al cobro. Si gastás de menos, lo que no gastaste se reparte según el modo que elijas.</span></div>
-    <span class="small" style="font-weight:700">Elegí cómo querés que funcione</span>
+    <span class="small u-fw-700">Elegí cómo querés que funcione</span>
     <div class="medio-hoja">${['ahorrador', 'equilibrado', 'flexible', 'personalizado'].map(op).join('')}</div>
     ${aMedida}${destino}${sinMeta}
     ${b.colchon ? `<div class="card lime"><span class="text">Hasta hoy no gastaste <b>${money(b.colchon)}</b> de tu ritmo: ${b.extraDia >= 1 ? `<b>+${money(b.extraDia)} por día</b> hasta el cobro` : 'nada se suma a tus días'}${b.paraAhorrar >= 1 ? ` y <b>${money(b.paraAhorrar)}</b> para ahorrar${adelantoMeta(meta, b.paraAhorrar)}` : ''}.</span>
@@ -519,7 +524,7 @@ export const actions = {
   openArranque(ctx) {
     const s = ctx.state;
     openModal('Empezar con mi saldo de hoy', `<form class="form" data-submit="guardarArranque">
-      <p class="text" style="margin:0">¿Cuánta plata tenés hoy entre tus cuentas, billeteras y efectivo? Sin contar ahorros ni inversiones.</p>
+      <p class="text u-m-0">¿Cuánta plata tenés hoy entre tus cuentas, billeteras y efectivo? Sin contar ahorros ni inversiones.</p>
       <div class="field"><label for="ar-t">Tengo hoy</label><input id="ar-t" name="tengo" inputmode="decimal" required placeholder="Ej: 350.000" data-input="arranqueVivo"></div>
       <p class="small" data-ar-vivo></p>
       <span class="small muted">Con lo que cobraste, tus gastos fijos ya pagados y lo que cargaste, calculo cuánto gastaste antes de empezar y lo anoto como "Gastos de antes de Pesitos" (con fecha del día de cobro, para que no cuente como gasto de hoy). ${(s.cuentas && Object.keys(s.cuentas).length) ? '' : 'También lo tomo como el saldo de tu cuenta principal.'}</span>

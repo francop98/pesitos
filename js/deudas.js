@@ -27,7 +27,7 @@ function fila(s, d) {
   return `<button class="row" data-action="abrirDeuda" data-id="${esc(d.id)}">
     <span class="cat-icon ${d.tipo === 'meDeben' ? 'green' : ''}">${icon(d.tipo === 'meDeben' ? 'down' : 'up', 18)}</span>
     <span class="grow"><span class="name">${esc(d.persona)}</span><span class="meta">${esc(d.nota || (d.tipo === 'meDeben' ? 'Te debe' : 'Le debés'))} · ${relDay(d.date)}${pagadoDeuda(d) ? ` · ya ${d.tipo === 'meDeben' ? 'te devolvió' : 'pagaste'} ${enSu(s, d, pagadoDeuda(d))}` : ''}${aprox(s, d) && saldo > 0.5 ? ` · ${aprox(s, d)}` : ''}</span></span>
-    <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="amount ${d.tipo === 'meDeben' ? 'pos' : ''}">${enSu(s, d, saldo)}</span>${vencida ? '<span class="pill warn">Venció</span>' : ''}</span></button>`;
+    <span class="u-d-flex-dir-column-items-end-gap-4"><span class="amount ${d.tipo === 'meDeben' ? 'pos' : ''}">${enSu(s, d, saldo)}</span>${vencida ? '<span class="pill warn">Venció</span>' : ''}</span></button>`;
 }
 
 export function render(s) {
@@ -83,7 +83,7 @@ export const actions = {
     if (!d) return;
     const saldo = saldoDeuda(d);
     openModal(d.tipo === 'meDeben' ? `${d.persona} te debe` : `Le debés a ${d.persona}`, `
-      <div class="card"><span class="small muted">${esc(d.nota || '')}</span><span style="font-size:28px;font-weight:800">${enSu(s, d, saldo)}</span>
+      <div class="card"><span class="small muted">${esc(d.nota || '')}</span><span class="u-fs-28-fw-800">${enSu(s, d, saldo)}</span>
         ${aprox(s, d) ? `<span class="small">${aprox(s, d)}</span>` : ''}
         <span class="small muted">De ${enSu(s, d, d.monto)}${d.vence ? ` · vence el ${parseISO(d.vence).toLocaleDateString('es-AR')}` : ''}</span></div>
       ${saldo > 0.5 ? `<form class="form" data-submit="pagoDeuda"><input type="hidden" name="id" value="${esc(d.id)}">

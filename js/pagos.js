@@ -40,15 +40,15 @@ function row(it) {
   const label = it.kind === 'recordatorio' ? (it.paid ? 'Hecho' : it.days === 0 ? 'Hoy' : it.days === 1 ? 'Mañana' : it.days < 0 ? `Hace ${-it.days} días` : `En ${it.days} días`) : it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado' : dueLabel(it);
   return `<div class="row pay-row ${it.paid ? 'is-paid' : ''}">
     <span class="cat-icon ${it.kind === 'card' ? 'green' : ''}">${icon(it.icon, 18)}</span>
-    <button class="grow" data-action="openPayment" data-key="${esc(it.key)}" style="background:none;border:none;text-align:left;padding:0">
+    <button class="grow u-bg-none-bd-none-ta-left-p-0" data-action="openPayment" data-key="${esc(it.key)}">
       <span class="name">${esc(it.name)}</span>
       <span class="meta">${esc(it.sub)}${it.payWith ? ` · ${esc(accountName(it.payWith))}` : ''}</span>
-      <span class="pill ${tone}" style="align-self:flex-start;margin-top:4px">${label}</span>
+      <span class="pill ${tone} u-self-start-mt-4">${label}</span>
       ${sugerenciaPago(it)}
     </button>
-    <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+    <span class="u-d-flex-dir-column-items-end-gap-6">
       ${it.kind === 'recordatorio' ? '' : `<span class="amount${it.amount ? '' : ' muted'}">${montoAgenda(it)}</span>`}
-      ${it.paid ? '' : it.kind === 'recordatorio' ? `<button class="btn small" data-action="recordatorioListo" data-key="${esc(it.key)}" style="min-height:36px">Listo</button>` : it.autoDebit ? '<span class="small muted">Se debita solo</span>' : `<button class="btn small green" data-action="markPaid" data-key="${esc(it.key)}" style="min-height:36px">Pagué</button>`}
+      ${it.paid ? '' : it.kind === 'recordatorio' ? `<button class="btn small u-minh-36" data-action="recordatorioListo" data-key="${esc(it.key)}">Listo</button>` : it.autoDebit ? '<span class="small muted">Se debita solo</span>' : `<button class="btn small green u-minh-36" data-action="markPaid" data-key="${esc(it.key)}">Pagué</button>`}
     </span>
   </div>`;
 }
@@ -57,8 +57,8 @@ function inRow(i) {
   return `<div class="row">
     <span class="cat-icon green">${icon('up', 18)}</span>
     <span class="grow"><span class="name">${esc(i.name)}</span><span class="meta">${esc(i.sub || '')} · ${shortDate(i.date)}</span></span>
-    <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="amount pos">${i.estimated ? '≈ ' : ''}+${money(i.amount)}</span>
-    ${i.kind === 'income' && i.date <= todayISO() ? `<button class="btn small" data-action="markReceived" data-key="${esc(i.key)}" style="min-height:36px">Lo cobré</button>` : ''}</span>
+    <span class="u-d-flex-dir-column-items-end-gap-6"><span class="amount pos">${i.estimated ? '≈ ' : ''}+${money(i.amount)}</span>
+    ${i.kind === 'income' && i.date <= todayISO() ? `<button class="btn small u-minh-36" data-action="markReceived" data-key="${esc(i.key)}">Lo cobré</button>` : ''}</span>
   </div>${i.kind === 'aguinaldo' && i.preguntar ? `<div class="aviso-sac small">¿Cobrás aguinaldo? Lo cobran quienes trabajan en relación de dependencia (no monotributistas ni autónomos).
     <span class="btn-row"><button class="btn small" data-action="setAguinaldo" data-v="si">Sí, lo cobro</button><button class="btn small" data-action="setAguinaldo" data-v="no">No cobro</button></span></div>` : ''}`;
 }
@@ -66,8 +66,8 @@ function inRow(i) {
 function section(title, list, note = '') {
   if (!list.length) return '';
   const total = list.reduce((a, i) => a + i.amount, 0);
-  return `<div class="section-title"><span>${title}</span><span class="small" style="font-weight:800;color:var(--ink)">${money(total)}</span></div>
-    ${note ? `<span class="small muted" style="margin-top:-8px">${note}</span>` : ''}
+  return `<div class="section-title"><span>${title}</span><span class="small u-fw-800-c-ink">${money(total)}</span></div>
+    ${note ? `<span class="small muted u-mt-n8">${note}</span>` : ''}
     <div class="card tight">${list.map(row).join('')}</div>`;
 }
 
@@ -127,10 +127,10 @@ function calendar(s) {
       <span class="n">${d}</span><span class="dots">${dots}</span></button>`);
   }
   return `<div class="card">
-    <div class="month-nav" style="background:var(--bg)">
+    <div class="month-nav u-bg-bg">
       <button class="icon-btn" data-action="calMove" data-d="-1" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
       ${botonMes(mk, 'calElegirMes')}
-      <button class="icon-btn" data-action="calMove" data-d="1" aria-label="Mes siguiente" style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
+      <button class="icon-btn u-tf-scaleX-1" data-action="calMove" data-d="1" aria-label="Mes siguiente">${icon('back', 18, 2.2)}</button>
     </div>
     <div class="cal-grid">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => `<span class="cal-head">${d}</span>`).join('')}${cells.join('')}</div>
     <div class="legend small"><span><i class="dot out"></i>Vence</span><span><i class="dot in"></i>Cobro</span><span><i class="dot close"></i>Cierre de tarjeta</span><span><i class="dot late"></i>Vencido</span></div>
@@ -158,7 +158,7 @@ export function render(s) {
   return `<section class="screen">
     ${screenHead('Por pagar', view === 'tarjetas' ? '<button class="btn small" data-action="newCard">+ Tarjeta</button>' : view === 'fijos' ? '<button class="btn small" data-action="newFixed">+ Fijo</button>' : '<button class="btn small" data-action="agregarPorPagar">+ Agregar</button>', 'Vencimientos, tarjetas y cobros')}
 
-    <div class="tabs" role="tablist" aria-label="Vista" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div class="tabs u-cols-rep3-fr" role="tablist" aria-label="Vista">
       <button role="tab" data-action="setPayView" data-v="lista" aria-pressed="${view === 'lista' || view === 'calendario'}">Agenda</button>
       <button role="tab" data-action="setPayView" data-v="fijos" aria-pressed="${view === 'fijos'}">Fijos</button>
       <button role="tab" data-action="setPayView" data-v="tarjetas" aria-pressed="${view === 'tarjetas'}">Tarjetas</button>
@@ -166,16 +166,16 @@ export function render(s) {
 
     ${view === 'tarjetas' ? tarjetasCuerpo(s) : view === 'fijos' ? fijosHtml(s) : `
 
-    <div class="card green" style="gap:6px;padding:20px">
+    <div class="card green u-gap-6-p-20">
       <span class="hero-label">Hasta tu próximo cobro (${shortDate(cycle.nextISO)}) tenés que pagar</span>
-      <span style="font-size:34px;font-weight:800;letter-spacing:-1px">${money(untilPay)}</span>
+      <span class="u-fs-34-fw-800-ls-n1">${money(untilPay)}</span>
       ${chart(pr)}
       <span class="small on-green-muted">${esc(cov.text)}${pr.estimated ? ' Estimado con lo que anotaste.' : ''}</span>
-      ${pr.estimated ? '<button class="btn small" data-action="openClose" style="background:rgba(255,255,255,.14);color:#fff;border-color:transparent">Hacerlo exacto con mi saldo real</button>' : ''}
+      ${pr.estimated ? '<button class="btn small u-bg-rgba255-255-255-_14-c-fff-bdc-transparent" data-action="openClose">Hacerlo exacto con mi saldo real</button>' : ''}
     </div>
 
     ${!cov.ok ? `<div class="card amber">
-      <div class="tip-head"><span style="color:var(--amber)">${icon('bulb', 20)}</span><strong>Qué podés hacer</strong></div>
+      <div class="tip-head"><span class="u-c-amber">${icon('bulb', 20)}</span><strong>Qué podés hacer</strong></div>
       ${cov.options.map((o) => `<p class="text">• ${esc(o)}</p>`).join('')}
     </div>` : ''}
 
@@ -193,7 +193,7 @@ export function render(s) {
       ${section('Esta semana', g.week)}
       ${verMas ? section('Más adelante', g.later) : ''}
       ${!verMas ? '' : ins.length ? `<div class="section-title"><span>Vas a cobrar este mes</span><button data-action="newIncome">+ Cobro</button></div><div class="card tight">${ins.map(inRow).join('')}</div>`
-        : '<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div><p class="small muted" style="margin:0">No tenés más cobros este mes.</p>'}
+        : '<div class="section-title"><span>Vas a cobrar</span><button data-action="newIncome">+ Cobro</button></div><p class="small muted u-m-0">No tenés más cobros este mes.</p>'}
     `}
 
     ${verMas ? `
@@ -202,12 +202,12 @@ export function render(s) {
     <span class="small muted">Tené ese saldo en cada cuenta antes de cada vencimiento${accounts.some((a) => a.auto) ? ', así no rebota ningún débito' : ''}.</span></details>` : ''}
 
     ${prov.length ? `<details class="card plegable"><summary><strong>Ahorrando para pagos grandes</strong> <span class="small muted">${prov.length}</span></summary>
-    <div class="tight">${prov.map((p) => `<div class="row"><span class="grow"><span class="name">${esc(p.bill.name)}</span><span class="meta">${money(p.bill.amount)} el ${shortDate(p.due)} · faltan ${p.months} meses</span></span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount">${money(p.monthly)}</span><span class="small muted">por mes</span></span></div>`).join('')}</div>
+    <div class="tight">${prov.map((p) => `<div class="row"><span class="grow"><span class="name">${esc(p.bill.name)}</span><span class="meta">${money(p.bill.amount)} el ${shortDate(p.due)} · faltan ${p.months} meses</span></span><span class="u-d-flex-dir-column-items-end"><span class="amount">${money(p.monthly)}</span><span class="small muted">por mes</span></span></div>`).join('')}</div>
     <span class="small muted">Ya está incluido en tu ahorro del mes: así cuando llegue el pago, la plata está.</span></details>` : ''}
 
     ${h.total || h.increases.length ? `<details class="card plegable"><summary><strong>Tu historial de pagos</strong>${h.total ? ` <span class="small muted">${h.onTime} de ${h.total} a tiempo</span>` : ''}</summary>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${h.total ? `<div class="stat-grid three" style="gap:8px">
+    <div class="u-d-flex-dir-column-gap-8">
+      ${h.total ? `<div class="stat-grid three u-gap-8">
         <div class="quote"><span class="k">Racha a tiempo</span><span class="v">${h.streak} ${h.streak === 1 ? 'pago' : 'pagos'}</span></div>
         <div class="quote"><span class="k">A tiempo</span><span class="v">${h.onTime} de ${h.total}</span></div>
         <div class="quote"><span class="k">Con atraso</span><span class="v">${h.late}</span></div>
@@ -219,7 +219,7 @@ export function render(s) {
     ${g.paid.length ? `<button class="btn small" data-action="togglePaid">${showPaid ? 'Ocultar' : 'Ver'} pagados (${g.paid.length})</button>${showPaid ? `<div class="card tight">${g.paid.map(row).join('')}</div>` : ''}` : ''}
 
     <details class="card plegable"><summary><strong>Programados, recordatorios y avisos</strong></summary>
-      <p class="text muted" style="margin:0">Sumá todos tus vencimientos al calendario del celular: te avisa el día anterior y el mismo día, aunque no abras la app.</p>
+      <p class="text muted u-m-0">Sumá todos tus vencimientos al calendario del celular: te avisa el día anterior y el mismo día, aunque no abras la app.</p>
       <div class="btn-row">
         <button class="btn small green" data-action="downloadICS">${icon('calendar', 18)} Agregar al calendario</button>
         <button class="btn small" data-action="enableNotifications">Avisos en este dispositivo</button>
@@ -230,11 +230,11 @@ export function render(s) {
 
     <div class="section-title"><span>Tus recordatorios</span><button data-action="newRecordatorio">+ Recordatorio</button></div>
     ${(s.recordatorios || []).length ? `<div class="card tight">${s.recordatorios.map((r) => `<button class="row" data-action="editRecordatorio" data-id="${esc(r.id)}"><span class="cat-icon">${icon('bell', 18)}</span><span class="grow"><span class="name">${esc(r.name)}</span><span class="meta">${r.repeat && r.repeat !== 'once' ? `${repeatLabel(r.repeat, r)} · desde el ` : ''}${shortDate(r.date)}${r.nota ? ` · ${esc(r.nota)}` : ''}</span></span>${icon('chevron', 16)}</button>`).join('')}</div>`
-      : '<p class="small muted" style="margin:0">Para lo que no es un pago: mover la plata antes de un débito, llamar para pedir un descuento, renovar algo. Te aviso ese día.</p>'}
+      : '<p class="small muted u-m-0">Para lo que no es un pago: mover la plata antes de un débito, llamar para pedir un descuento, renovar algo. Te aviso ese día.</p>'}
     ${(s.expectedIncomes || []).length ? `<div class="section-title"><span>Tus cobros programados</span></div>
     <div class="card tight">${s.expectedIncomes.map((c) => `<button class="row" data-action="editIncome" data-id="${c.id}"><span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${repeatLabel(c.repeat, c)} · desde el ${shortDate(c.date)}</span></span><span class="amount pos">+${money(c.amount)}</span></button>`).join('')}</div>` : ''}
     </details>
-    <button class="btn block" data-action="pagosVerMas">Ver menos</button>` : `<button class="btn block" data-action="pagosVerMas">${g.later.length ? `Ver lo que viene después (${g.later.length} ${g.later.length === 1 ? 'pago' : 'pagos'} · ${money(g.later.reduce((x, i) => x + i.amount, 0))})` : 'Ver más'}<br><span class="small muted" style="font-weight:500">Y los cobros que vienen</span></button>`}
+    <button class="btn block" data-action="pagosVerMas">Ver menos</button>` : `<button class="btn block" data-action="pagosVerMas">${g.later.length ? `Ver lo que viene después (${g.later.length} ${g.later.length === 1 ? 'pago' : 'pagos'} · ${money(g.later.reduce((x, i) => x + i.amount, 0))})` : 'Ver más'}<br><span class="small muted u-fw-500">Y los cobros que vienen</span></button>`}
 
     `}
   </section>`;
@@ -270,7 +270,7 @@ export function descuentoDe(d) {
 function recordatorioForm(r = {}) {
   return `<form class="form" data-submit="guardarRecordatorio">
     <input type="hidden" name="id" value="${esc(r.id || '')}">
-    <p class="text muted" style="margin:0">Para lo que no es un pago pero no te podés olvidar: mover la plata de una cuenta antes de un débito, llamar para pedir un descuento, renovar algo.</p>
+    <p class="text muted u-m-0">Para lo que no es un pago pero no te podés olvidar: mover la plata de una cuenta antes de un débito, llamar para pedir un descuento, renovar algo.</p>
     <div class="field"><label for="rc-n">¿Qué tenés que hacer?</label><input id="rc-n" name="name" value="${esc(r.name || '')}" placeholder="Ej: Pasar plata a la cuenta del préstamo" required maxlength="80"></div>
     <div class="field-row">
       <div class="field"><label for="rc-d">¿Cuándo?</label><input id="rc-d" name="date" type="date" value="${esc(r.date || todayISO())}" required></div>
@@ -355,9 +355,9 @@ function historialHtml(s, f) {
       <span class="grow"><span class="name">${MES_CAP(x.mk)}</span>
         <span class="meta">${[x.date ? `pagado el ${shortDate(x.date)}` : '', x.account ? esc(accountName(x.account)) : '', x.empresa ? esc(x.empresa) : '', x.quedan != null ? `quedan ${x.quedan} cuota${x.quedan === 1 ? '' : 's'}` : '', x.usd ? `${nfUsd(x.usd)} a $${Number(x.rate || x.amount / x.usd).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : ''].filter(Boolean).join(' · ')}</span>
         ${x.nota ? `<span class="meta">📝 ${esc(x.nota)}</span>` : ''}</span>
-      <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="amount">${money(x.amount)}</span>${x.vari != null ? `<span class="pill ${x.raro ? 'warn' : ''}">${pct1(x.vari)}${x.raro ? ' · fuera de lo normal' : ''}</span>` : ''}</span>
+      <span class="u-d-flex-dir-column-items-end-gap-4"><span class="amount">${money(x.amount)}</span>${x.vari != null ? `<span class="pill ${x.raro ? 'warn' : ''}">${pct1(x.vari)}${x.raro ? ' · fuera de lo normal' : ''}</span>` : ''}</span>
     </button>`).join('');
-  return `<div data-hist="${esc(f.id)}" style="display:flex;flex-direction:column;gap:10px">
+  return `<div data-hist="${esc(f.id)}" class="u-d-flex-dir-column-gap-10">
     <div class="stat-grid">
       <div class="stat"><span class="k">Pagado en ${anio}</span><span class="v">${money(delAnio.reduce((a, x) => a + x.amount, 0))}</span><span class="small muted">${delAnio.length} pago${delAnio.length === 1 ? '' : 's'}</span></div>
       <div class="stat"><span class="k">${esp > 0 ? 'Aumento normal' : 'Último cambio'}</span><span class="v">${esp > 0 ? `${String(esp).replace('.', ',')}% por mes` : l.length > 1 ? pct1(l[l.length - 1].vari) : '—'}</span><span class="small muted">${esp > 0 ? 'te marco lo que se aleja más de 1 punto' : 'contra el pago anterior'}</span></div>
@@ -370,7 +370,7 @@ function historialHtml(s, f) {
 function pagoHistForm(s, f, key, p = {}) {
   const mk = key ? key.split(':')[2] : addMonthKey(monthKey(), -1);
   return `<form class="form" data-submit="guardarPagoHist"><input type="hidden" name="id" value="${esc(f.id)}"><input type="hidden" name="key" value="${esc(key || '')}">
-    ${key ? `<p class="small muted" style="margin:0">${MES_CAP(mk)}</p>` : `<div class="field"><label for="ph-m">Mes</label><input id="ph-m" name="mk" type="month" value="${mk}" max="${monthKey()}" required></div>`}
+    ${key ? `<p class="small muted u-m-0">${MES_CAP(mk)}</p>` : `<div class="field"><label for="ph-m">Mes</label><input id="ph-m" name="mk" type="month" value="${mk}" max="${monthKey()}" required></div>`}
     <div class="field-row"><div class="field"><label for="ph-a">Importe</label><input id="ph-a" name="amount" inputmode="decimal" value="${p.amount ? String(p.amount).replace('.', ',') : ''}" required placeholder="Lo que pagaste o te debitaron"></div>
       <div class="field"><label for="ph-d">Fecha</label><input id="ph-d" name="date" type="date" value="${esc(p.date || '')}" max="${todayISO()}"></div></div>
     ${f.usd || p.usd ? `<div class="field"><label for="ph-u">En dólares</label><input id="ph-u" name="usd" inputmode="decimal" value="${p.usd ? String(p.usd).replace('.', ',') : f.usd ? String(f.usd).replace('.', ',') : ''}"><span class="hint">Con esto calculo a qué cotización te lo cobraron.</span></div>` : ''}
@@ -506,7 +506,7 @@ export const actions = {
     const campoUsd = fijo && fijo.usd ? `<div class="field"><label for="pp-u">En dólares</label><input id="pp-u" name="usd" inputmode="decimal" value="${String(fijo.usd).replace('.', ',')}"><span class="hint">Poné en "Monto pagado" lo que te cobraron en pesos: calculo la cotización.</span></div>` : '';
     const campoNota = '<div class="field"><label for="pp-n">Observación</label><input id="pp-n" name="nota" placeholder="Opcional: algo para revisar o reclamar después"></div>';
     const auto = it.paid && it.paidInfo && it.paidInfo.auto;
-    openModal(it.name, `<div class="card"><span class="small muted">${esc(it.sub)}</span><span style="font-size:28px;font-weight:800">${montoAgenda(it)}</span><span class="pill ${it.overdue ? 'warn' : ''}" style="align-self:flex-start">${it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado automáticamente' : dueLabel(it)}</span>
+    openModal(it.name, `<div class="card"><span class="small muted">${esc(it.sub)}</span><span class="u-fs-28-fw-800">${montoAgenda(it)}</span><span class="pill ${it.overdue ? 'warn' : ''} u-self-start">${it.paid && it.paidInfo && it.paidInfo.auto ? 'Debitado automáticamente' : dueLabel(it)}</span>
       ${it.payWith ? `<span class="small">Se paga con ${esc(accountName(it.payWith))}</span>` : ''}
       ${it.paidInfo && !it.paidInfo.auto ? `<span class="small">Pagado el ${shortDate(it.paidInfo.date)} · ${money(it.paidInfo.amount)}${it.paidInfo.usd ? ` · ${nfUsd(it.paidInfo.usd)}` : ''}</span>${it.paidInfo.nota ? `<span class="small">📝 ${esc(it.paidInfo.nota)}</span>` : ''}` : ''}</div>
       ${auto ? `<form class="form" data-submit="markPaidForm"><input type="hidden" name="key" value="${esc(it.key)}">
@@ -528,10 +528,10 @@ export const actions = {
         ${campoUsd}${campoNota}
         <button class="btn green block" type="submit">Marcar como pagado</button>
       </form>`}
-      ${!it.paid && (it.autoDebit || it.stopDebit) ? `<div class="card" style="gap:8px">
+      ${!it.paid && (it.autoDebit || it.stopDebit) ? `<div class="card u-gap-8">
         <button class="btn small block" data-action="stopDebit" data-key="${esc(it.key)}">${it.stopDebit ? 'Volver al débito automático este mes' : 'Este mes no se debita (stop debit): lo pago yo'}</button>
-        <details><summary class="small" style="cursor:pointer;font-weight:700">¿Qué es el stop debit?</summary>
-          <p class="small" style="margin:6px 0 0">${STOP_DEBIT_TXT}</p></details></div>` : ''}
+        <details><summary class="small u-cur-pointer-fw-700">¿Qué es el stop debit?</summary>
+          <p class="small u-m-6-0-0">${STOP_DEBIT_TXT}</p></details></div>` : ''}
       ${!it.paid && it.kind === 'fixed' ? `<details class="card"><summary><strong>¿Este mes vence otro día?</strong></summary>
         <form class="form" data-submit="cambiarVencMes"><input type="hidden" name="key" value="${esc(it.key)}">
           <div class="field"><label for="pv-d">Este mes vence el</label><input id="pv-d" name="date" type="date" value="${it.dueDate.toISOString().slice(0, 10)}"></div>

@@ -1,0 +1,25 @@
+/* Tema oscuro (elegido en el menú o automático según el celular) */
+
+/* tema oscuro */
+:root[data-tema="oscuro"] {
+  --bg: #0F1412; --card: #18201C; --ink: #ECEFEA; --muted: #A3ABA6; --line: #2C3631; --line-soft: #212925; --track: #26302B;
+  --green-soft: #1D2E25; --green-mid: #5FBF8A; --lime-soft: #26331A; --lime-ink: #C6F36B; --amber-bg: #33290F; --amber: #F2C462; --amber-ink: #F5E3B3; --amber-pill: #4A3B12;
+  --on-ink: #0F1412; --field: #111816; --switch: #3A4540; --logo-leaf: #C6F36B; --link: #7ED3A4; --green-text: #7ED3A4; --danger: #F08A65;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --bg: #0F1412; --card: #18201C; --ink: #ECEFEA; --muted: #A3ABA6; --line: #2C3631; --line-soft: #212925; --track: #26302B;
+    --green-soft: #1D2E25; --green-mid: #5FBF8A; --lime-soft: #26331A; --lime-ink: #C6F36B; --amber-bg: #33290F; --amber: #F2C462; --amber-ink: #F5E3B3; --amber-pill: #4A3B12;
+    --on-ink: #0F1412; --field: #111816; --switch: #3A4540; --logo-leaf: #C6F36B; --link: #7ED3A4; --green-text: #7ED3A4; --danger: #F08A65;
+    color-scheme: dark;
+  }
+}
+
+/* contrastes propios del tema oscuro */
+:root[data-tema="oscuro"] .result.ok, :root[data-tema="oscuro"] .card.learn .tip-head strong { color: #CFEBDA; }
+:root[data-tema="oscuro"] .result.no { background: #3A2418; color: #F5D2BE; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .result.ok, :root:not([data-tema="claro"]) .card.learn .tip-head strong { color: #CFEBDA; }
+  :root:not([data-tema="claro"]) .result.no { background: #3A2418; color: #F5D2BE; }
+}

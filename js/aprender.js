@@ -77,8 +77,8 @@ export function lessonFor(s, place) {
 export function lessonCard(s, place) {
   const l = lessonFor(s, place);
   if (!l) return '';
-  return `<button class="card learn" data-action="openLesson" data-id="${l.id}" style="border:none;text-align:left">
+  return `<button class="card learn u-bd-none-ta-left" data-action="openLesson" data-id="${l.id}">
     <span class="tip-head"><span class="badge">${sprout(17)}</span><strong>Aprendé en 1 minuto</strong></span>
-    <span class="text" style="font-weight:700">${esc(l.title)}</span>
+    <span class="text u-fw-700">${esc(l.title)}</span>
   </button>`;
 }

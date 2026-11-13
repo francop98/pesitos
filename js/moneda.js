@@ -47,8 +47,8 @@ function body(s) {
   const actual = monedaBase(s);
   const usd = arsPer(s, 'USD');
   return `<form class="form" data-submit="guardarMoneda">
-    <p class="small muted" style="margin:0">Es la moneda de tu día a día: en la que ves "Hoy podés gastar", tus gastos, tus metas y tus cuentas. Podés anotar gastos en otra moneda igual (por ejemplo, "Netflix US$ 10" o "Coto 20.000 pesos") y los paso solos.</p>
-    <div class="ahorro-ops">${MONEDAS_BASE.map(([id, n, t]) => `<label class="ahorro-op ${id === actual ? 'on' : ''}"><input type="radio" name="moneda" value="${id}" ${id === actual ? 'checked' : ''} style="position:absolute;opacity:0"><b>${n}</b><span>${t}</span></label>`).join('')}</div>
+    <p class="small muted u-m-0">Es la moneda de tu día a día: en la que ves "Hoy podés gastar", tus gastos, tus metas y tus cuentas. Podés anotar gastos en otra moneda igual (por ejemplo, "Netflix US$ 10" o "Coto 20.000 pesos") y los paso solos.</p>
+    <div class="ahorro-ops">${MONEDAS_BASE.map(([id, n, t]) => `<label class="ahorro-op ${id === actual ? 'on' : ''}"><input type="radio" name="moneda" value="${id}" ${id === actual ? 'checked' : ''} class="u-pos-absolute-op-0"><b>${n}</b><span>${t}</span></label>`).join('')}</div>
     <span class="hint">Si la cambiás, paso todo lo que cargaste a la nueva moneda con el ${esc(nombreDolar(dolarRef(s)).toLowerCase())} de hoy${usd ? ` ($${Math.round(usd)})` : ''}. Las promos y los topes de los bancos siguen en pesos y los convierto solos.</span>
     <button class="btn primary block" type="submit">Guardar</button>
   </form>`;

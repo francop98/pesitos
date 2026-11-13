@@ -1,0 +1,20 @@
+/* Impresión y PDF de resúmenes */
+
+/* impresión / PDF */
+#print-area { display: none; }
+@media print {
+  body.imprimiendo > *:not(#print-area) { display: none !important; }
+  body.imprimiendo #print-area { display: block; color: #111; font-size: 11pt; }
+  body.imprimiendo { background: #fff; }
+  .print-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #1F6F4A; padding-bottom: 6px; margin-bottom: 12px; gap: 12px; }
+  .print-head b { font-size: 18pt; color: #1F6F4A; }
+  .print-tabla { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+  .print-tabla th, .print-tabla td { border-bottom: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: top; }
+  .print-tabla th { background: #E3F1E8; }
+  .print-tabla .num { text-align: right; white-space: nowrap; }
+  .print-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .print-grid div { border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+  .print-grid b { display: block; font-size: 14pt; }
+  .print-pie { margin-top: 16px; color: #666; font-size: 9pt; }
+  h2 { font-size: 13pt; margin: 14px 0 4px; }
+}

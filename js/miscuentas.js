@@ -28,11 +28,11 @@ export function cuerpo(s) {
   const con = cuentasConSaldo(s);
   const ppal = cuentaPrincipal(s);
   return `
-    <div class="card green" style="gap:6px">
+    <div class="card green u-gap-6">
       <span class="hero-label">${con.length ? 'Tenés en tus cuentas' : 'Cargá el saldo de tus cuentas'}</span>
-      <span class="hero-number" style="font-size:34px">${con.length ? money(totalCuentas(s)) : '—'}</span>
+      <span class="hero-number u-fs-34">${con.length ? money(totalCuentas(s)) : '—'}</span>
       <span class="small on-green-muted">${con.length ? `Se actualiza solo con lo que anotás${con.some((c) => tnaCuenta(s, c.id)) ? ' y con los intereses de las cuentas que rinden' : ''}. Si no coincide con tu banco, tocá la cuenta y ajustalo.` : 'Tocá una cuenta y poné cuánto tiene hoy: después se actualiza sola con cada gasto e ingreso.'}</span>
-      ${con.length ? `<button class="link-btn on-green-muted" data-action="openComparar" style="align-self:flex-start">Comparar con el banco${s.comparacion && s.comparacion.ultima ? ` (última vez: ${relDay(s.comparacion.ultima).toLowerCase()})` : ''} ›</button>` : ''}
+      ${con.length ? `<button class="link-btn on-green-muted u-self-start" data-action="openComparar">Comparar con el banco${s.comparacion && s.comparacion.ultima ? ` (última vez: ${relDay(s.comparacion.ultima).toLowerCase()})` : ''} ›</button>` : ''}
     </div>
     <div class="card tight">${todas.map((c) => { const sal = saldoCuenta(s, c.id); return `<button class="row" data-action="abrirCuenta" data-id="${esc(c.id)}">
       <span class="cat-icon ${c.id === ppal ? 'green' : ''}">${icon(c.id === 'efectivo' ? 'wallet' : 'card', 18)}</span>
@@ -51,7 +51,7 @@ export function cuerpo(s) {
 export function patrimonioHtml(s, abierto = false) {
   const pat = patrimonio(s);
   return `<div class="card patrimonio">
-    <button class="pat-top" data-action="patToggle" aria-expanded="${abierto}"><span class="grow"><span class="small muted" style="font-weight:700">Tu patrimonio neto</span><b class="pat-v ${pat.neto >= 0 ? '' : 'neg'}">${money(pat.neto)}</b><span class="small muted">Lo que tenés menos lo que debés</span></span>${icon('chevron', 18)}</button>
+    <button class="pat-top" data-action="patToggle" aria-expanded="${abierto}"><span class="grow"><span class="small muted u-fw-700">Tu patrimonio neto</span><b class="pat-v ${pat.neto >= 0 ? '' : 'neg'}">${money(pat.neto)}</b><span class="small muted">Lo que tenés menos lo que debés</span></span>${icon('chevron', 18)}</button>
     ${abierto ? `<div class="pat-detalle">
       <div class="split"><span>Cuentas</span><b>${money(pat.cuentas)}</b></div>
       <div class="split"><span>Ahorros e inversiones</span><b>${money(pat.ahorros)}</b></div>
@@ -60,7 +60,7 @@ export function patrimonioHtml(s, abierto = false) {
       ${pat.creditos ? `<div class="split"><span>Créditos y cuotas que faltan</span><b>−${money(pat.creditos)}</b></div>` : ''}
       ${pat.debo ? `<div class="split"><span>Debés a otras personas</span><b>−${money(pat.debo)}</b></div>` : ''}
       ${pat.conCuentas ? '' : '<span class="small muted">Para que sea exacto, cargá el saldo de tus cuentas.</span>'}
-      ${pat.meDeben || pat.debo ? `<button class="btn small ghost" data-action="verDeudas" style="align-self:flex-start">Ver ${pat.debo && pat.meDeben ? 'lo que debés y te deben' : pat.debo ? 'a quién le debés' : 'quién te debe'}</button>` : ''}
+      ${pat.meDeben || pat.debo ? `<button class="btn small ghost u-self-start" data-action="verDeudas">Ver ${pat.debo && pat.meDeben ? 'lo que debés y te deben' : pat.debo ? 'a quién le debés' : 'quién te debe'}</button>` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -110,23 +110,23 @@ export function panelAhorrar(s) {
   const sinForma = !s.savingMode || s.savingMode === 'none';
   // cada sugerencia: Pasar (lo sugerido), Otro monto (más o menos) y Ahora no.
   // Lo que elijas recalcula lo que podés gastar.
-  const fila = (titulo, sub, monto, attrs, hecho = '', ahoraNo = '') => `<div class="row pasar-fila" style="cursor:default;flex-wrap:wrap">
+  const fila = (titulo, sub, monto, attrs, hecho = '', ahoraNo = '') => `<div class="row pasar-fila u-cur-default-flex-wrap-wrap">
       <span class="grow"><span class="name">${titulo}</span><span class="meta">${sub}</span></span>
       ${hecho ? `<span class="pill ok">${hecho}</span>` : `<b class="amount">${money(monto)}</b>
-      <span class="btn-row" style="flex-basis:100%;justify-content:flex-end"><button class="link-btn" data-action="${ahoraNo}">Ahora no</button><button class="btn small" data-action="pasarAhorros" ${attrs} data-otro="1">Otro monto</button><button class="btn small green" data-action="pasarAhorros" ${attrs}>Pasar</button></span>`}
+      <span class="btn-row u-flex-basis-100-justify-end"><button class="link-btn" data-action="${ahoraNo}">Ahora no</button><button class="btn small" data-action="pasarAhorros" ${attrs} data-otro="1">Otro monto</button><button class="btn small green" data-action="pasarAhorros" ${attrs}>Pasar</button></span>`}
     </div>`;
   const filas = [];
-  if (sinForma) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo de cada mes</span><span class="meta">Todavía no elegiste cuánto ahorrar por mes.</span></span><a class="btn small" href="#/formaahorro">Elegir</a></div>`);
+  if (sinForma) filas.push(`<div class="row u-cur-default"><span class="grow"><span class="name">Lo de cada mes</span><span class="meta">Todavía no elegiste cuánto ahorrar por mes.</span></span><a class="btn small" href="#/formaahorro">Elegir</a></div>`);
   else if (a.sobra) filas.push(b.cycle.daysLeft <= 3 && a.toca > 0 && !b.decision.sobraNo ? fila('Lo que te sobró del mes', 'Elegiste ahorrar lo que sobra', a.toca, `data-monto="${a.toca}" data-tipo="regla"`, '', 'ahorroAhoraNo')
-    : `<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo que te sobre del mes</span><span class="meta">Elegiste ahorrar lo que sobra: te lo propongo cuando falten 3 días para el cobro${a.toca > 0 ? ` (hoy serían ${money(a.toca)})` : ''}.</span></span></div>`);
-  else if (a.decidido) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo de este mes</span><span class="meta">${a.toca > 0 ? `Elegiste ahorrar ${money(a.toca)} en vez de ${money(a.plan)}` : `Elegiste no ahorrar este mes (tus reglas decían ${money(a.plan)})`}: ${money(Math.max(0, a.plan - a.toca))} quedaron para gastar.</span></span><button class="link-btn" data-action="ahorroDeshacer">Volver a ${money(a.plan)}</button></div>`);
+    : `<div class="row u-cur-default"><span class="grow"><span class="name">Lo que te sobre del mes</span><span class="meta">Elegiste ahorrar lo que sobra: te lo propongo cuando falten 3 días para el cobro${a.toca > 0 ? ` (hoy serían ${money(a.toca)})` : ''}.</span></span></div>`);
+  else if (a.decidido) filas.push(`<div class="row u-cur-default"><span class="grow"><span class="name">Lo de este mes</span><span class="meta">${a.toca > 0 ? `Elegiste ahorrar ${money(a.toca)} en vez de ${money(a.plan)}` : `Elegiste no ahorrar este mes (tus reglas decían ${money(a.plan)})`}: ${money(Math.max(0, a.plan - a.toca))} quedaron para gastar.</span></span><button class="link-btn" data-action="ahorroDeshacer">Volver a ${money(a.plan)}</button></div>`);
   else if (a.toca > 0) filas.push(fila('Lo de este mes', a.pasado ? `Según tu forma de ahorrar (${money(a.toca)}). Ya pasaste ${money(a.pasado)}` : `Según tu forma de ahorrar${a.partes.length > 1 ? ` (${a.partes.map((p) => esc(p.name)).join(', ')})` : ''}`, a.falta, `data-monto="${a.falta}" data-tipo="regla"`, a.falta <= 0 ? 'Listo ✓' : '', 'ahorroAhoraNo'));
   if (b.paraAhorrar >= 1) filas.push(fila('Lo que no gastaste de tus días', meta ? `Va a "${esc(meta.name)}"` : 'Lo que te sobró de días anteriores', b.paraAhorrar, `data-monto="${Math.round(b.paraAhorrar)}" data-tipo="extra"${meta ? ` data-goal="${esc(meta.id)}"` : ''}`, '', 'diarioAhoraNo'));
-  if (Number(b.decision.liberado) > 0) filas.push(`<div class="row" style="cursor:default"><span class="grow"><span class="name">Lo que no gastaste de tus días</span><span class="meta">Dejaste ${money(b.decision.liberado)} para gastar en los próximos días.</span></span><button class="link-btn" data-action="diarioDeshacer">Deshacer</button></div>`);
+  if (Number(b.decision.liberado) > 0) filas.push(`<div class="row u-cur-default"><span class="grow"><span class="name">Lo que no gastaste de tus días</span><span class="meta">Dejaste ${money(b.decision.liberado)} para gastar en los próximos días.</span></span><button class="link-btn" data-action="diarioDeshacer">Deshacer</button></div>`);
   const ultimos = (s.transfers || []).filter((t) => t.holdingId || t.deDiario || t.tipo).slice(-3).reverse();
-  return `<div class="card destacada" style="gap:8px">
+  return `<div class="card destacada u-gap-8">
     <div class="split"><strong class="tit-destacada">${icon('sprout', 18)} Pasar a ahorros</strong><button class="btn small" data-action="pasarAhorros" data-tipo="extra" data-otro="1">+ Pasar algo más</button></div>
-    <div class="tight" style="display:flex;flex-direction:column">${filas.join('')}</div>
+    <div class="tight u-d-flex-dir-column">${filas.join('')}</div>
     ${ultimos.length ? `<span class="small muted">Últimos: ${ultimos.map((t) => `${money(t.amount)} el ${shortDate(t.date)}`).join(' · ')}</span>` : ''}
     <div class="btn-row"><a class="link-btn" href="#/formaahorro">Cambiar cuánto ahorro por mes</a><button class="link-btn" data-action="openDiario">Qué pasa con lo que no gasto</button></div>
   </div>`;
@@ -181,7 +181,7 @@ export function compararPendiente(s) {
 export function compararCard(s) {
   if (!compararPendiente(s)) return '';
   const n = cuentasConSaldo(s).length;
-  return `<div class="card"><div class="tip-head"><span style="color:var(--green)">${icon('scale', 20)}</span><strong>¿Tu saldo coincide con el del banco?</strong></div>
+  return `<div class="card"><div class="tip-head"><span class="u-c-green">${icon('scale', 20)}</span><strong>¿Tu saldo coincide con el del banco?</strong></div>
     <span class="text">Una vez por semana conviene comparar: si anotaste todo, coincide; si no, lo ajusto y seguimos desde el saldo real.</span>
     <div class="btn-row"><button class="btn small primary" data-action="openComparar">Comparar ${n === 1 ? 'mi cuenta' : `mis ${n} cuentas`}</button><button class="btn small" data-action="compararCoincide">Coinciden</button></div></div>`;
 }
@@ -253,7 +253,7 @@ export const actions = {
   openComparar(ctx) {
     const s = ctx.state;
     openModal('Comparar con el banco', `<form class="form" data-submit="guardarComparar">
-      <p class="text muted" style="margin:0">Abrí la app de cada banco o billetera y escribí el saldo de hoy. Si coincide, dejalo vacío.</p>
+      <p class="text muted u-m-0">Abrí la app de cada banco o billetera y escribí el saldo de hoy. Si coincide, dejalo vacío.</p>
       ${cuentasConSaldo(s).map((c) => `<div class="field"><label for="cmp-${esc(c.id)}">${esc(c.name)}</label><input id="cmp-${esc(c.id)}" name="c_${esc(c.id)}" inputmode="decimal" placeholder="Pesitos: ${money(saldoCuenta(s, c.id) || 0)}"></div>`).join('')}
       <button class="btn primary block" type="submit">Listo</button></form>`);
   },
@@ -284,9 +284,9 @@ export const actions = {
     const noRinde = (s.cuentasRinden || {})[id] === false;
     const tObj = tasaDe(s, id); const tasaHoy = tObj && tObj.tna;
     openModal(nombreCuenta(s, id), `
-      ${sal != null ? `<div class="card"><span class="small muted">Saldo de hoy</span><span style="font-size:28px;font-weight:800">${money(sal)}</span>${det && det.intereses >= 1 ? `<span class="small pos">Incluye +${money(det.intereses)} de intereses desde el ${c.desde.split('-').reverse().slice(0, 2).join('/')}</span>` : ''}</div>` : ''}
+      ${sal != null ? `<div class="card"><span class="small muted">Saldo de hoy</span><span class="u-fs-28-fw-800">${money(sal)}</span>${det && det.intereses >= 1 ? `<span class="small pos">Incluye +${money(det.intereses)} de intereses desde el ${c.desde.split('-').reverse().slice(0, 2).join('/')}</span>` : ''}</div>` : ''}
       ${cuentaPuedeRendir(id) ? `<div class="card"><div class="cuenta-rinde"><span class="grow"><strong>¿Te da intereses?</strong><br><span class="small muted">${tObj ? `Hoy rinde <b>${textoTasa(tObj, money)}</b>.${tObj.condiciones ? ` ${esc(tObj.condiciones)}.` : ''}<br>${esc(tObj.fuente || '')}${tObj.fecha ? `, vigente desde el ${String(tObj.fecha).slice(0, 10).split('-').reverse().join('/')}` : ''}. Se actualiza sola dos veces por día.${tObj.control ? `<br>ℹ️ ${esc(tObj.control)}` : ''}` : 'Busco la tasa del día apenas haya conexión.'}</span></span>
-        <div class="tabs" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:0 0 120px"><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="1" aria-pressed="${!noRinde}">Sí</button><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="0" aria-pressed="${noRinde}">No</button></div></div>
+        <div class="tabs u-cols-rep2-fr-flex-0-0-120"><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="1" aria-pressed="${!noRinde}">Sí</button><button data-action="cuentaRinde" data-id="${esc(id)}" data-v="0" aria-pressed="${noRinde}">No</button></div></div>
         <span class="small muted">Si es sí, sumo los intereses al saldo cada día, sobre lo que quedó en la cuenta a la noche.</span></div>` : ''}
       <form class="form" data-submit="ajustarSaldo"><input type="hidden" name="id" value="${esc(id)}">
         <div class="field"><label for="sa-v">${sal == null ? '¿Cuánto tenés hoy en esta cuenta?' : '¿No coincide? Poné el saldo real de hoy'}</label><input id="sa-v" name="saldo" inputmode="decimal" placeholder="Ej: 250.000" required></div>

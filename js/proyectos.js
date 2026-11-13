@@ -75,9 +75,9 @@ function compartidoHtml(s, p) {
       <div class="row"><span class="grow"><span class="name">Total del proyecto</span><span class="meta">${money(c.total)} · ${money(c.parte)} cada uno</span></span></div>
       ${c.personas.map(fila).join('')}
     </div>
-    <p class="small muted" style="margin:0">Tus gastos del proyecto cuentan como lo que pusiste vos. Lo que pongan los demás cargalo como aporte (si te lo dieron a vos o si pagaron algo directo).${r1(yo.saldo) > 0 ? ' Cuando quieras, pasalo a Deudas para seguir quién te devuelve.' : ''}</p>
+    <p class="small muted u-m-0">Tus gastos del proyecto cuentan como lo que pusiste vos. Lo que pongan los demás cargalo como aporte (si te lo dieron a vos o si pagaron algo directo).${r1(yo.saldo) > 0 ? ' Cuando quieras, pasalo a Deudas para seguir quién te devuelve.' : ''}</p>
     ${c.aportes.length ? `<details class="card"><summary><strong>Aportes (${c.aportes.length})</strong></summary>${c.aportes.slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).map((a) => `<button class="row" data-action="editarAporte" data-id="${esc(p.id)}" data-a="${esc(a.id)}"><span class="grow"><span class="name">${esc(a.quien)}${a.nota ? ` · ${esc(a.nota)}` : ''}</span><span class="meta">${relDay(a.fecha)} · ${a.aMi ? 'te lo dio a vos' : 'lo pagó directo'}</span></span><span class="amount">${money(a.monto)}</span></button>`).join('')}</details>` : ''}
-    ${c.personas.slice(1).some((x) => r1(x.saldo) < 0) && r1(yo.saldo) > 0 ? `<button class="btn small" data-action="aportesADeudas" data-id="${esc(p.id)}" style="align-self:flex-start">Anotar en Deudas lo que me deben</button>` : ''}`;
+    ${c.personas.slice(1).some((x) => r1(x.saldo) < 0) && r1(yo.saldo) > 0 ? `<button class="btn small u-self-start" data-action="aportesADeudas" data-id="${esc(p.id)}">Anotar en Deudas lo que me deben</button>` : ''}`;
 }
 function aporteForm(p, a = {}) {
   return `<form class="form" data-submit="guardarAporte"><input type="hidden" name="id" value="${esc(p.id)}"><input type="hidden" name="a" value="${esc(a.id || '')}">
@@ -122,7 +122,7 @@ export function cuerpo(s) {
     : `<div class="card proy-vacio">
         <span class="cat-icon green">${icon('folder', 20)}</span>
         <strong>Agrupá los gastos de un objetivo puntual</strong>
-        <p class="small muted" style="margin:0">Un proyecto junta todos los movimientos de algo con principio y fin: una remodelación, un viaje, un evento o un emprendimiento. Así sabés cuánto llevás invertido, en qué se fue y cuánto te queda del presupuesto, sin mezclarlo con tus gastos de todos los días.</p>
+        <p class="small muted u-m-0">Un proyecto junta todos los movimientos de algo con principio y fin: una remodelación, un viaje, un evento o un emprendimiento. Así sabés cuánto llevás invertido, en qué se fue y cuánto te queda del presupuesto, sin mezclarlo con tus gastos de todos los días.</p>
         <ul class="proy-lista small">
           <li>Presupuesto y fecha objetivo opcionales, con aviso de ritmo.</li>
           <li>Desglose por categoría.</li>
@@ -152,7 +152,7 @@ function detalle(s, p) {
   const cats = Object.entries(r.porCat).sort((a, b) => b[1] - a[1]);
   const movs = [...r.gastos.map((e) => ({ ...e, _k: 'e' })), ...r.ingresos.map((i) => ({ ...i, _k: 'i' }))].sort((a, b) => b.date.localeCompare(a.date));
   const objetivo = p.presupuesto || (r.meta && r.meta.target) || 0;
-  const ahorroHtml = r.meta ? `<div class="card" style="gap:8px">
+  const ahorroHtml = r.meta ? `<div class="card u-gap-8">
       <div class="split"><strong>Ahorro del proyecto</strong><span class="btn-row"><button class="btn small" data-action="destinarMeta" data-id="${esc(r.meta.id)}" data-proy="${esc(p.id)}">Destinar</button><button class="btn small green" data-action="pasarAhorros" data-tipo="extra" data-goal="${esc(r.meta.id)}" data-otro="1">+ Sumar</button></span></div>
       <div class="split"><span>Ahorrado</span><b>${money(r.ahorrado)}${objetivo ? ` <span class="small muted">de ${money(objetivo)}</span>` : ''}</b></div>
       ${objetivo ? barra(r.ahorrado / objetivo).replace('pres-barra mal', 'pres-barra bien').replace('pres-barra ojo', 'pres-barra bien') : ''}
@@ -160,9 +160,9 @@ function detalle(s, p) {
       <div class="split"><span>${r.queda >= 0 ? 'Te queda de lo ahorrado' : 'Gastaste más de lo ahorrado'}</span><b class="${r.queda >= 0 ? 'pos' : 'neg'}">${money(Math.abs(r.queda))}</b></div>
       <span class="small muted">Pasás plata desde Mi plata → Ahorros (elegís este proyecto como destino) o con "+ Sumar ahorro".</span>
     </div>` : '';
-  return `<div class="card green" style="gap:6px">
+  return `<div class="card green u-gap-6">
       <span class="hero-label">${esc(p.nombre)}${p.cerrado ? ' · terminado' : ''}</span>
-      <span class="hero-number" style="font-size:32px">${money(r.gastado)}</span>
+      <span class="hero-number u-fs-32">${money(r.gastado)}</span>
       <span class="small on-green-muted">${p.presupuesto ? `de ${money(p.presupuesto)} de presupuesto · ${r.gastado <= p.presupuesto ? `quedan ${money(p.presupuesto - r.gastado)}` : `te pasaste ${money(r.gastado - p.presupuesto)}`}` : 'gastado en total'}</span>
       ${p.presupuesto ? barra(r.gastado / p.presupuesto) : ''}
       ${r.entro ? `<span class="small on-green-muted">Entró ${money(r.entro)} · resultado ${r.neto >= 0 ? '+' : '−'}${money(Math.abs(r.neto))}</span>` : ''}
@@ -208,7 +208,7 @@ function listaParaSumar(s, id) {
   const items = [...s.expenses.filter((e) => !e.pending).map((e) => ({ ...e, _k: 'e' })), ...s.incomes.map((i) => ({ ...i, _k: 'i' }))]
     .filter((x) => x.proyectoId !== id && x.date >= lim).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 80);
   return `<form class="form" data-submit="guardarSumaProyecto"><input type="hidden" name="id" value="${esc(id)}">
-    <p class="small muted" style="margin:0">Marcá los movimientos de los últimos 6 meses que son de este proyecto.</p>
+    <p class="small muted u-m-0">Marcá los movimientos de los últimos 6 meses que son de este proyecto.</p>
     <div class="card tight sumar-lista">${items.length ? items.map((x) => `<label class="row check-row"><input type="checkbox" name="m_${x._k}_${esc(x.id)}"><span class="grow"><span class="name">${esc(x.note)}</span><span class="meta">${relDay(x.date)}${x.proyectoId ? ' · en otro proyecto' : ''}</span></span><span class="amount ${x._k === 'i' ? 'pos' : ''}">${x._k === 'i' ? '+' : '−'}${money(x.amount)}</span></label>`).join('') : '<p class="empty">No hay movimientos para sumar.</p>'}</div>
     <button class="btn primary block" type="submit">Sumar al proyecto</button></form>`;
 }

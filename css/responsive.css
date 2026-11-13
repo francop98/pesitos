@@ -1,0 +1,22 @@
+/* Ajustes por tamaño de pantalla (celulares angostos, tablets y computadoras) */
+@media (min-width: 768px) {
+  .app, .modal-sheet { max-width: 600px; }
+  .nav { padding-left: max(4px, calc((100vw - 600px) / 2)); padding-right: max(4px, calc((100vw - 600px) / 2)); }
+  .modal { align-items: center; }
+  .modal-sheet { border-radius: 24px; max-height: 88dvh; }
+  .screen { padding-left: 24px; padding-right: 24px; }
+}
+@media (min-width: 1200px) {
+  .app, .modal-sheet { max-width: 680px; }
+  .nav { padding-left: calc((100vw - 680px) / 2); padding-right: calc((100vw - 680px) / 2); }
+}
+@media (max-width: 340px) {
+  .screen { padding-left: 14px; padding-right: 14px; }
+  .field-row { grid-template-columns: minmax(0, 1fr); }
+  .cat-new { grid-template-columns: 84px minmax(0, 1fr); }
+}
+@media (max-width: 380px) {
+  .stat-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-grid.three > .stat:nth-child(3):last-child { grid-column: span 2; }
+}
+@media (max-width: 360px) { .nav a { font-size: 9.5px; letter-spacing: -.2px; } }

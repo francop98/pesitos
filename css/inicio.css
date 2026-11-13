@@ -1,0 +1,66 @@
+/* Pantalla Inicio: tarjeta principal, Tu día, novedades y avisos */
+.dia-fila:hover, .dia-fila:active, .dia-fila:focus { color: inherit; }
+.hero-label { font-size: 14px; font-weight: 500; color: var(--green-on); }
+.hero-number { font-size: 50px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; }
+.hero-number.negative { color: var(--lime); }
+.card.week { border: 2px solid var(--green-soft); }
+.card.suggest { border: 2px dashed #A9D8BE; }
+
+/* "Pesitos quiere saber" */
+.card.ask { border: 2px solid var(--lime); }
+.ask-q { font-size: 16px; font-weight: 600; }
+.card.ask .quick { background: var(--bg); }
+.novedades-btn { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); text-align: left; cursor: pointer; margin-top: -4px; }
+.nov-dot { min-width: 24px; height: 24px; border-radius: 12px; background: var(--amber-bg); color: var(--amber-ink); display: grid; place-items: center; font-size: 12px; font-weight: 800; padding: 0 6px; }
+[data-novedades] { display: flex; flex-direction: column; gap: 14px; }
+.campana { position: relative; }
+.hero-msg { line-height: 1.45; }
+.hero-msg b { color: #fff; font-weight: 800; }
+.hero-msg.alerta { background: rgba(0, 0, 0, .16); border-radius: 12px; padding: 10px 12px; margin-top: 4px; color: #fff; }
+.tu-dia { padding: 6px 4px; gap: 0; }
+.tu-dia-t { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; padding: 8px 12px 2px; }
+.dia-fila { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: inherit; border-radius: 12px; min-height: 52px; }
+.dia-fila + .dia-fila { border-top: 1px solid var(--line); }
+.dia-fila .grow { display: flex; flex-direction: column; min-width: 0; }
+.dia-fila .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dia-fila .v { font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.dia-fila { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+
+/* widget de Inicio */
+.hero-wrap { display: flex; flex-direction: column; gap: 8px; }
+.hero-carrusel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.hero-carrusel::-webkit-scrollbar { display: none; }
+.hero-carrusel > .slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; min-width: 0; color: #fff; }
+.hero-puntos { display: flex; justify-content: center; gap: 6px; }
+.hero-puntos button { width: 7px; height: 7px; padding: 0; border: none; border-radius: 99px; background: var(--line); transition: width .2s, background .2s; min-height: 0; }
+.hero-puntos button[aria-selected="true"] { width: 20px; background: var(--green); }
+.aviso-sac { background: var(--amber-bg); border-radius: 12px; padding: 10px 12px; margin: 0 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.hero-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+.hero-acciones .link-btn { color: inherit; opacity: .85; text-decoration: underline; font-size: 13px; }
+.hero-label { display: inline-flex; align-items: center; gap: 6px; }
+.hero-info { border: 0; background: rgba(255,255,255,.14); color: inherit; width: 26px; height: 26px; border-radius: 99px; display: inline-grid; place-items: center; cursor: pointer; padding: 0; }
+.diario-medida input[type=range] { width: 100%; accent-color: var(--green); }
+.card.suggest.alerta { border-color: var(--amber, #F2B33D); }
+
+/* espacio compartido */
+.esp-hero { gap: 6px; }
+.esp-personas { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.esp-persona { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; }
+
+/* volver arriba */
+.arriba { position: fixed; right: max(16px, calc((100vw - 480px) / 2 + 16px)); bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 25; width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--green); color: #fff; display: grid; place-items: center; box-shadow: 0 8px 18px -6px rgba(31, 90, 61, .6); cursor: pointer; animation: up .18s ease-out; }
+.arriba.en-hoja { z-index: 40; bottom: calc(20px + env(safe-area-inset-bottom)); }
+.arriba[hidden] { display: none; }
+
+/* Inicio: tarjeta "Hoy podés gastar" más compacta (solo el widget de Inicio) */
+[data-widget] > .slide.hero { padding: 14px 18px; gap: 4px; }
+[data-widget] > .slide .hero-label { font-size: 13px; }
+[data-widget] > .slide .hero-number { font-size: 34px; letter-spacing: -1px; }
+[data-widget] > .slide .bar { margin-top: 4px; height: 6px; }
+[data-widget] > .slide .hero-msg, [data-widget] > .slide .small { font-size: 12.5px; line-height: 1.4; }
+[data-widget] > .slide .hero-msg.alerta { padding: 7px 10px; margin-top: 2px; }
+[data-widget] > .slide .hero-info { width: 22px; height: 22px; }
+[data-widget] > .slide .hero-acciones { margin-top: 0; }
+
+/* "Hoy te pasaste": el número en ámbar (aviso), no en lima (logro) */
+.hero-number.negative { color: #F2B33D; }

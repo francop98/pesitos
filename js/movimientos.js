@@ -73,7 +73,7 @@ export function render(s) {
     <div class="month-nav">
       <button class="icon-btn" data-action="monthPrev" aria-label="Mes anterior">${icon('back', 18, 2.2)}</button>
       ${botonMes(mk, 'movElegirMes')}
-      <button class="icon-btn" data-action="monthNext" aria-label="Mes siguiente" ${offset === 0 ? 'disabled' : ''} style="transform:scaleX(-1)">${icon('back', 18, 2.2)}</button>
+      <button class="icon-btn u-tf-scaleX-1" data-action="monthNext" aria-label="Mes siguiente" ${offset === 0 ? 'disabled' : ''}>${icon('back', 18, 2.2)}</button>
     </div>
 
     <a class="card mov-resumen" href="#/estadisticas">
@@ -85,7 +85,7 @@ export function render(s) {
     ${ahorroPesitos || offset === 0 ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos en ${monthLabel(mk).split(' ')[0]}</b><span class="small">${ahorroPesitos ? `${reintMes ? `Reintegros ${money(reintMes)} · ` : ''}promos y desafíos` : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
 
     ${`
-      ${pending ? `<button class="card amber" data-action="openPending" style="border:none;text-align:left;flex-direction:row;align-items:center"><span style="color:var(--amber)">${icon('receipt')}</span><span class="text" style="flex:1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
+      ${pending ? `<button class="card amber u-bd-none-ta-left-dir-row-items-center" data-action="openPending"><span class="u-c-amber">${icon('receipt')}</span><span class="text u-flex-1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}
       <div class="chips">${[['todo', 'Todo'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']].map(([f, l]) => `<button class="chip toggle" data-action="setFilter" data-f="${f}" aria-pressed="${filter === f}">${l}</button>`).join('')}</div>
       ${dias.length ? dias.map((d) => `<div class="dia-grupo"><span class="dia-t">${esc(relDay(d.date))}</span><div class="card tight">${d.items.map((x) => (x._k === 'e' ? expenseRow(s, x) : incomeRow(x, s))).join('')}</div></div>`).join('')
         : `<div class="card"><p class="empty">${offset ? 'No hay movimientos en este mes.' : 'Todavía no anotaste nada este mes. Cargá tus gastos desde Inicio.'}</p></div>`}
@@ -97,7 +97,7 @@ export function render(s) {
 export function fijosHtml(s) {
   const mk = monthKey(); const offset = 0; const today = new Date().getDate();
   const fixed = fixedTotal(s, mk);
-  return `      <p class="small muted" style="margin:0">Lo que pagás todos los meses. Se descuenta solo de lo que podés gastar${fixed ? `: ${money(fixed)} este mes` : ''}. Los vencimientos los ves en Agenda.</p>
+  return `      <p class="small muted u-m-0">Lo que pagás todos los meses. Se descuenta solo de lo que podés gastar${fixed ? `: ${money(fixed)} este mes` : ''}. Los vencimientos los ves en Agenda.</p>
       <div class="card tight">
       ${s.fixed.length ? s.fixed.filter((f) => fixedActive(f, mk) || (f.endMonth && f.endMonth >= addMonthKey(mk, -2))).map((f) => {
         if (!fixedActive(f, mk)) return `<button class="row" data-action="editFixed" data-id="${f.id}"><span class="grow"><span class="name">${esc(f.name)}</span><span class="meta">Terminó en ${monthLabel(f.endMonth)}</span></span><span class="pill ok">Terminado</span></button>`;
@@ -107,7 +107,7 @@ export function fijosHtml(s) {
         const isPaid = !!(s.paid || {})[`fixed:${f.id}:${mk}`];
         const status = up ? `<span class="pill warn">Subió ${Math.round((f.amount / f.lastAmount - 1) * 100)}%</span>` : isPaid ? '<span class="pill ok">Pagado</span>' : (offset === 0 && Number(f.dueDay) < today ? '<span class="pill warn">¿Lo pagaste?</span>' : `<span class="pill">Vence el ${f.dueDay}</span>`);
         return `<button class="row" data-action="editFixed" data-id="${f.id}"><span class="grow"><span class="name">${esc(f.name)}</span>${extra ? `<span class="meta">${extra}</span>` : ''}</span><span class="amount">${f.variable ? '≈ ' : ''}${money(f.amount)}</span>${status}</button>`;
-      }).join('') : `<div style="padding:14px 0;display:flex;flex-direction:column;gap:8px"><p class="text"><b>¿Qué es un gasto fijo?</b> Lo que pagás todos los meses por un monto parecido: alquiler, expensas, servicios, prepaga, cuotas, suscripciones.</p><p class="text muted">Cargalos una vez con el nombre que quieras y los descuento solos. Si algo no cuadra, te lo sugiero.</p></div>`}
+      }).join('') : `<div class="u-p-14-0-d-flex-dir-column-gap-8"><p class="text"><b>¿Qué es un gasto fijo?</b> Lo que pagás todos los meses por un monto parecido: alquiler, expensas, servicios, prepaga, cuotas, suscripciones.</p><p class="text muted">Cargalos una vez con el nombre que quieras y los descuento solos. Si algo no cuadra, te lo sugiero.</p></div>`}
       </div>
       <button class="btn primary block" data-action="newFixed">+ Agregar gasto fijo</button>`;
 }
@@ -168,7 +168,7 @@ export const actions = {
   monthPrev(ctx) { offset += 1; ctx.render(); },
   monthNext(ctx) { offset = Math.max(0, offset - 1); ctx.render(); },
   ahorroPesitosInfo(ctx) {
-    openModal('Plata que te ahorraste', `<p class="text" style="margin:0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
+    openModal('Plata que te ahorraste', `<p class="text u-m-0">Acá se suma lo que te ahorrás gracias a Pesitos:</p>
       <div class="card"><span class="small">💸 <b>Reintegros y cashback:</b> cuando anotás un gasto con un medio que tiene promo (o un cashback que cargaste), calculo cuánto te devuelven. Cuando confirmás que llegó, se suma acá y a tu saldo.</span>
       <span class="small">🏷️ <b>Promos:</b> cuando usás un descuento, tocá <b>Lo aproveché</b> (en Beneficios, en las promos de hoy, o en la sugerencia de Inicio) y poné cuánto te ahorraste.</span>
       <span class="small">🏆 <b>Desafíos:</b> cuando cumplís un desafío de Mi plata → Metas, se suma lo que no gastaste.</span></div>

@@ -68,13 +68,26 @@ Si corregís la categoría de un gasto, la próxima vez la reconoce sola.
 
 ## Estructura
 
-Misma base que DBTYCS y Rutenda: archivos principales en la raíz, una carpeta `js/` plana con un archivo por función, `api/` para el servidor y las reglas de Firebase en el repositorio.
+Misma base que DBTYCS y Rutenda: archivos principales en la raíz, una carpeta `js/` plana con un archivo por función, una carpeta `css/` con un archivo por parte de la app, `api/` para el servidor y las reglas de Firebase en el repositorio.
+
+Cada lenguaje va en su archivo: el HTML no tiene estilos ni scripts escritos adentro, y el JS no escribe estilos fijos (usa clases de `css/`). Lo único que el JS pone como `style=""` son valores que dependen de los datos (el largo de una barra, el color de un gráfico) y las posiciones mientras arrastrás con el dedo.
 
 ```
 pesitos/
 ├── index.html              Estructura base y navegación
 ├── main.js                 Arranque: cuenta, nube, navegación y eventos
-├── styles.css              Estilos (colores de la marca y tema oscuro en :root)
+├── styles.css              Junta los estilos de css/ en orden (no tiene reglas propias)
+├── css/
+│   ├── base.css            Colores de la marca (:root), tipografía y estructura
+│   ├── componentes.css     Tarjetas, filas, botones, chips, pestañas, formularios, hoja inferior, avisos, navegación
+│   ├── carga-rapida.css    Anotar gastos e ingresos y el gestor de categorías
+│   ├── menu.css            Menú ☰ y modo personal/compartido
+│   ├── inicio.css · movimientos.css · estadisticas.css · pagos.css · mi-plata.css
+│   ├── herramientas.css · asesor.css · beneficios.css   (una pantalla por archivo)
+│   ├── bienvenida.css      Charla de arranque, ingreso y páginas legales
+│   ├── bloqueo.css         PIN y huella
+│   ├── tema-oscuro.css · responsive.css · impresion.css
+│   └── utilidades.css      Ajustes puntuales de una sola pantalla (clases u-…)
 ├── manifest.webmanifest    PWA: ícono, nombre y "Compartir → Pesitos"
 ├── sw.js                   Funcionamiento sin conexión
 ├── firestore.rules         Reglas de seguridad de Firestore (se pegan en la consola)
@@ -94,6 +107,7 @@ pesitos/
     ├── almacenamiento.js   Copia local por cuenta y estructura de los datos
     ├── menu.js             Menú ☰: Mis datos, tema, letra, copia, Mi cuenta…
     ├── tema.js             Tema claro/oscuro y tamaño de letra
+    ├── tema-inicial.js     Aplica el tema y la letra antes de dibujar (se carga en el <head>, sin parpadeo)
     ├── bienvenida.js       Charla de arranque
     ├── inicio.js           Pantalla principal
     ├── movimientos.js · tarjetas.js · pagos.js · sueldo.js · ahorro.js
@@ -127,7 +141,7 @@ Para agregar una acción: poné `data-action="miAccion"` en un botón (o `data-s
 ## Cuentas y datos
 - La cuenta es obligatoria: mail y contraseña (con verificación de mail) o Google.
 - Tus datos se guardan en Firestore (`usuarios/{uid}/estado`) y solo los puede leer su dueño, con el mail verificado (`firestore.rules`). Viajan por HTTPS y Google los guarda cifrados. Ya no hay cifrado de extremo a extremo: las cuentas de la versión anterior migran solas la primera vez que entran.
-- Encabezados de seguridad (CSP, HSTS, X-Frame-Options…) en `vercel.json`. Si cambiás el `<script>` de `index.html` o de `pages/`, hay que actualizar su hash en la CSP. El dispositivo guarda una copia para abrir rápido y funcionar sin conexión; lo que cargás sin internet se envía solo cuando vuelve.
+- Encabezados de seguridad (CSP, HSTS, X-Frame-Options…) en `vercel.json`. No hay scripts escritos dentro del HTML, así que la CSP no necesita hashes: si agregás un script, va en su propio archivo `.js`. El dispositivo guarda una copia para abrir rápido y funcionar sin conexión; lo que cargás sin internet se envía solo cuando vuelve.
 - Avisos en el celular (opcional): si los activás, el servidor guarda solo **qué días** hay algo y cuántas cosas (`usuarios/{uid}/avisos/agenda`) y la suscripción del navegador (`usuarios/{uid}/push`). Nunca montos ni nombres.
 - PIN de seguridad de 4 a 6 números, de la cuenta (se guarda solo su hash en `usuarios/{uid}.pin`): se pide al iniciar sesión (opcional: también al abrir la app). En cada celular se puede usar huella o cara. Si se olvida, se vuelve a entrar con la cuenta y se crea otro.
 - Desde *Menú → Copia de seguridad* podés descargar o restaurar un archivo, y desde *Menú → tu nombre (Mi cuenta)*, eliminar la cuenta con todos sus datos.

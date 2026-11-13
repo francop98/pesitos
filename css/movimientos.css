@@ -1,0 +1,50 @@
+/* Pantalla Movimientos: lista por día, importar y dividir gastos */
+.split-box { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--bg); border: 1px dashed var(--line); }
+.split-box .field-row select, .split-box .field-row input { min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); padding: 8px 10px; font-size: 15px; width: 100%; }
+.money-row { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.tag { font-size: 11px; font-weight: 700; color: var(--green-text); background: var(--green-soft); border-radius: 999px; padding: 1px 8px; }
+
+/* importar movimientos */
+.imp-h { font-size: 15px; margin: 10px 0 2px; }
+.imp-row { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "chk main amt" "chk cat cat"; gap: 4px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.imp-row > input[type=checkbox] { grid-area: chk; width: 20px; height: 20px; accent-color: var(--green); }
+.imp-row .imp-main { grid-area: main; display: flex; flex-direction: column; min-width: 0; cursor: pointer; }
+.imp-row .imp-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.imp-row select, .imp-row > .small { grid-area: cat; justify-self: start; max-width: 100%; }
+.imp-row .imp-amt { grid-area: amt; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.imp-row .imp-amt.pos { color: var(--green); }
+.imp-row.dup { opacity: .65; }
+.imp-pegar { margin-top: 4px; }
+.imp-pegar summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.imp-ej { margin: 0; padding-left: 18px; overflow-x: auto; }
+.split-box { gap: 10px; }
+
+/* Movimientos ordenado */
+.mov-resumen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 8px; text-decoration: none; color: inherit; padding: 14px 16px; }
+.mov-resumen > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mov-resumen .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.mov-resumen b { font-size: clamp(14px, 4.2vw, 17px); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mov-resumen b.pos { color: var(--green); }
+.mov-ver { grid-column: 1 / -1; flex-direction: row !important; align-items: center; gap: 2px !important; font-size: 12.5px; font-weight: 700; color: var(--green-text); padding-top: 6px; border-top: 1px solid var(--line-soft); margin-top: 6px; }
+.dia-grupo { display: flex; flex-direction: column; gap: 6px; }
+.dia-t { font-size: 12.5px; font-weight: 800; color: var(--muted); text-transform: capitalize; padding-left: 4px; }
+.mov-ahorro { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; }
+.mov-ahorro .v { font-size: 17px; font-weight: 800; white-space: nowrap; }
+button.mov-ahorro { border: none; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.mov-mini { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+button.mov-ahorro { display: flex; flex-direction: row; align-items: center; gap: 10px; background: var(--green-soft); color: var(--green-text); border: 1px solid transparent; }
+button.mov-ahorro .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+button.mov-ahorro .t { font-size: 14px; }
+button.mov-ahorro .small { color: inherit; opacity: .85; }
+button.mov-ahorro .v { color: inherit; }
+button.mov-resumen { border: none; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+
+/* accesos a Deudas y Proyectos (pantallas propias) */
+.mov-accesos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.mov-acceso { flex-direction: row; align-items: center; gap: 10px; padding: 12px; text-decoration: none; color: inherit; border: 2px solid var(--line-soft); min-width: 0; }
+.mov-acceso.activa { border-color: var(--amber-pill); background: var(--amber-bg); }
+.mov-acceso .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mov-acceso .t { font-size: 14px; line-height: 1.2; }
+.mov-acceso .small { line-height: 1.3; overflow-wrap: anywhere; }
+.mov-acceso .cat-icon { width: 34px; height: 34px; }

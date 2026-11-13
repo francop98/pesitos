@@ -234,13 +234,13 @@ export async function abrirConfigBloqueo(email) {
   const c = leer();
   const bio = await bioDisponible();
   openModal('PIN de seguridad', `
-    <p class="text muted" style="margin:0">Te pido el PIN al iniciar sesión y, si lo dejás así, cada vez que abrís la app. Es el mismo en todos tus dispositivos.</p>
+    <p class="text muted u-m-0">Te pido el PIN al iniciar sesión y, si lo dejás así, cada vez que abrís la app. Es el mismo en todos tus dispositivos.</p>
     <div class="card">
       <div class="split"><span><b>PIN</b><br><span class="small muted">${c.pin ? `Activado (${c.pin.largo} números)` : 'Sin PIN'}</span></span><button class="btn small" data-action="bloqueoPin">${c.pin ? 'Cambiar' : 'Crear PIN'}</button></div>
       <div class="split"><span><b>Huella o cara</b><br><span class="small muted">${!bio ? 'Este dispositivo no tiene o el navegador no lo permite' : c.bio ? 'Activada en este dispositivo: la uso en lugar del PIN' : 'Desactivada'}</span></span>${bio ? `<button class="btn small" data-action="bloqueoBio">${c.bio ? 'Desactivar' : 'Activar'}</button>` : ''}</div>
     </div>
     <div class="field"><label for="bl-t">¿Cuándo te lo pido?</label><select id="bl-t" data-change="bloqueoTiempo">${[[-1, 'Solo cuando iniciás sesión'], [-2, 'También cada vez que abro la app'], [5, 'Al abrir y al volver después de 5 minutos'], [1, 'Al abrir y al volver después de 1 minuto'], [0, 'Al abrir y cada vez que vuelvo a la app']].map(([v, l]) => `<option value="${v}" ${(c.minutos ?? -2) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    <p class="small muted" style="margin:0">¿Te olvidaste el PIN? En la pantalla del PIN tocá "Olvidé mi PIN": volvés a entrar con tu mail o Google y creás otro. Tus datos no se pierden.</p>
+    <p class="small muted u-m-0">¿Te olvidaste el PIN? En la pantalla del PIN tocá "Olvidé mi PIN": volvés a entrar con tu mail o Google y creás otro. Tus datos no se pierden.</p>
   `, { push: true });
   window.__pesitosEmail = email;
 }

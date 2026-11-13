@@ -153,7 +153,7 @@ function rindeLista(s, monto) {
   filas.sort((a, b) => b.g30 - a.g30);
   if (!filas.length) return '<p class="empty">Todavía no pude traer las tasas. Se cargan solas apenas haya conexión.</p>';
   const at = s.rendimientos && s.rendimientos.at;
-  return `${rindeTab === 'pf' ? zonaSeg(s) : ''}<div class="card tight">${filas.map((f, i) => `<div class="row"><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="grow"><span class="name">${esc(f.n)}</span><span class="meta">${rindeTab === 'billeteras' ? `${textoTasa(f.t, money)} · ${money(f.g1)} por día${f.t.condiciones ? ` · ${esc(f.t.condiciones)}` : ''}` : `${tasaTxt(f.t.tna)}% anual`}</span>${f.t.control ? `<span class="meta">ℹ️ ${esc(f.t.control)}</span>` : ''}</span><span style="display:flex;flex-direction:column;align-items:flex-end"><span class="amount pos">+${money(f.g30)}</span><span class="small muted">en 30 días</span></span></div>`).join('')}</div>
+  return `${rindeTab === 'pf' ? zonaSeg(s) : ''}<div class="card tight">${filas.map((f, i) => `<div class="row"><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="grow"><span class="name">${esc(f.n)}</span><span class="meta">${rindeTab === 'billeteras' ? `${textoTasa(f.t, money)} · ${money(f.g1)} por día${f.t.condiciones ? ` · ${esc(f.t.condiciones)}` : ''}` : `${tasaTxt(f.t.tna)}% anual`}</span>${f.t.control ? `<span class="meta">ℹ️ ${esc(f.t.control)}</span>` : ''}</span><span class="u-d-flex-dir-column-items-end"><span class="amount pos">+${money(f.g30)}</span><span class="small muted">en 30 días</span></span></div>`).join('')}</div>
     <span class="small muted">${rindeTab === 'billeteras' ? 'Ordenadas por lo que ganás con el monto que pusiste: si una paga más pero tiene tope, lo tengo en cuenta. Las de tasa fija son las que publica cada billetera; las que invierten en un fondo, el rendimiento de los últimos 7 días (criterio del BCRA). Fuente: ArgentinaDatos (los mismos datos que comparatasas.ar).' : 'El plazo fijo paga todo al final y la plata queda inmovilizada esos días. Tasas para clientes que publica el BCRA para cada banco.'} ${at ? `Actualizado ${new Date(at).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}</span>`;
 }
 
@@ -165,7 +165,7 @@ function installmentsForm(s, d = {}) {
       <div class="field"><label for="iq-t">Precio total en cuotas</label><input id="iq-t" name="tarjeta" inputmode="decimal" placeholder="Valor total" data-input="cuotaVivo"></div>
       <div class="field"><label for="iq-n">Cantidad de cuotas</label><input id="iq-n" name="n" inputmode="numeric" value="${d.n || ''}" placeholder="Ej: 6" required data-input="cuotaVivo"></div>
     </div>
-    <span class="hint" style="margin-top:-6px">El valor de cada cuota lo calculo solo (total ÷ cantidad). Si el total ya trae el interés, dejá "Sin interés".</span>
+    <span class="hint u-mt-n6">El valor de cada cuota lo calculo solo (total ÷ cantidad). Si el total ya trae el interés, dejá "Sin interés".</span>
     <div class="field-row">
       <div class="field"><label for="iq-i">¿Tiene interés?</label><select id="iq-i" name="interes" data-change="cuotaVivo"><option value="no">Sin interés</option><option value="si">Con interés</option></select></div>
       <div class="field" data-iq-pct hidden><label for="iq-x">Interés o recargo total (%)</label><input id="iq-x" name="pct" inputmode="decimal" placeholder="Ej: 15" data-input="cuotaVivo"><span class="hint">Sobre el precio, si no lo incluye.</span></div>
@@ -182,7 +182,7 @@ function installmentsForm(s, d = {}) {
         <button type="button" role="radio" data-action="iqTengo" data-v="no" aria-checked="true">No, pago con lo que cobro</button>
         <button type="button" role="radio" data-action="iqTengo" data-v="si" aria-checked="false">Sí, la tengo</button>
       </div>
-      <div class="iq-donde" data-iq-donde hidden><span class="small" style="font-weight:700">Mientras pagás las cuotas, la dejarías en:</span>
+      <div class="iq-donde" data-iq-donde hidden><span class="small u-fw-700">Mientras pagás las cuotas, la dejarías en:</span>
         <div class="medio-row iq-chips" role="radiogroup" aria-label="Dónde dejarías la plata">${opcionesPlata(s).map(([v, l, corto], i) => `<button type="button" class="medio-chip" role="radio" data-action="iqDonde" data-v="${esc(v)}" aria-checked="${v === (opcionesPlata(s).find((o) => o[0] !== 'otra') || [])[0]}" title="${esc(l)}">${esc(corto)}</button>`).join('')}</div>
         <div class="field" data-iq-otra hidden><label for="iq-o">Tasa anual (TNA %)</label><input id="iq-o" name="tnaOtra" inputmode="decimal" placeholder="Ej: 30"></div>
         <span class="small muted" data-iq-donde-txt></span>
@@ -391,7 +391,7 @@ export const actions = {
   // ---------- ¿Dónde rinde más? ----------
   openRinde(ctx) {
     openModal('¿Dónde rinde más?', `<div class="field"><label for="rd-a">Si ponés</label><input id="rd-a" inputmode="decimal" placeholder="Ej: 1.000.000" data-input="calcRinde"></div>
-      <div class="tabs" role="tablist" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button data-action="rindeTab" data-v="billeteras" aria-pressed="${rindeTab === 'billeteras'}">Billeteras (día a día)</button><button data-action="rindeTab" data-v="pf" aria-pressed="${rindeTab === 'pf'}">Plazo fijo (30 días)</button></div>
+      <div class="tabs u-cols-rep2-fr" role="tablist"><button data-action="rindeTab" data-v="billeteras" aria-pressed="${rindeTab === 'billeteras'}">Billeteras (día a día)</button><button data-action="rindeTab" data-v="pf" aria-pressed="${rindeTab === 'pf'}">Plazo fijo (30 días)</button></div>
       <div id="rd-lista">${rindeLista(ctx.state, 1000000)}</div>
       <button class="btn block" data-action="openYield" data-push="1">${icon('percent', 18)} ¿Te ofrecen otra tasa? Calculá cuánto ganás</button>`);
   },
@@ -444,7 +444,7 @@ export const actions = {
       leyenda = `<div class="result ${reint >= gasto * p - 1 ? 'ok' : 'warn'} tp-leyenda"><span class="small">Tu compra de ${money(gasto)}${n > 1 ? ` entre ${n} personas` : ''}</span>
         <div class="tp-datos">${dato('Te devuelven', money(reint), 'pos')}${dato('Terminás pagando', money(gasto - reint))}${dato('Descuento real', pctTxt(reint / gasto, 1))}${dato('Para todo el tope, hasta', money(ideal * n))}</div>
         <span class="small">${reint >= gasto * p - 1 ? `Entra entera en el tope: te devuelven el ${pctTxt(p, 0)} de todo.` : `Pasás el tope: ${money(gasto - ideal * Math.min(n, necesitan))} de la compra van sin descuento.`}${n > 1 && reint > solo + 1 ? ` Si pagara una sola persona, serían ${money(solo)}.` : ''}</span></div>`;
-      if (gasto < ideal * n * 0.99 && necesitan <= n) nota = `<p class="small muted" style="margin:0">Les sobra tope: podrían sumar ${money(ideal * n - gasto)} más de compras con descuento.</p>`;
+      if (gasto < ideal * n * 0.99 && necesitan <= n) nota = `<p class="small muted u-m-0">Les sobra tope: podrían sumar ${money(ideal * n - gasto)} más de compras con descuento.</p>`;
       // 2) qué hacer: sumar gente, o cómo dividir
       if (necesitan > n) {
         const extra = necesitan - n;

@@ -143,9 +143,9 @@ function pantalla() {
   const atras = paso !== 'hola' && !ocupado;
   return `<section class="guide auth">
     <header class="guide-top">
-      ${atras ? `<button class="icon-btn back on-green" data-auth="atras" aria-label="Volver">${icon('back', 20, 2.2)}</button>` : '<span style="width:44px"></span>'}
+      ${atras ? `<button class="icon-btn back on-green" data-auth="atras" aria-label="Volver">${icon('back', 20, 2.2)}</button>` : '<span class="u-w-44"></span>'}
       <div class="guide-brand">${wordmark(26, '#FFFFFF', '#C6F36B')}<span>Tu economista de bolsillo</span></div>
-      <span style="width:44px"></span></header>
+      <span class="u-w-44"></span></header>
     <div class="chat guide-chat">
       ${charla.map((t) => `<div class="bubble bot faded">${esc(t.q)}</div><div class="bubble me">${esc(t.a)}</div>`).join('')}
       ${c.bubbles.map((b, i) => `<div class="bot-row">${i === 0 ? `<span class="bot-avatar">${sprout(18)}</span>` : '<span class="bot-avatar ghost"></span>'}<div class="bubble bot">${esc(b)}</div></div>`).join('')}
@@ -269,8 +269,8 @@ export function renderVerificar(cont, alVerificar) {
   let nota = '';
   const n = (u.displayName || '').split(' ')[0];
   const html = () => `<section class="guide auth">
-    <header class="guide-top"><span style="width:44px"></span>
-      <div class="guide-brand">${wordmark(26, '#FFFFFF', '#C6F36B')}<span>Tu economista de bolsillo</span></div><span style="width:44px"></span></header>
+    <header class="guide-top"><span class="u-w-44"></span>
+      <div class="guide-brand">${wordmark(26, '#FFFFFF', '#C6F36B')}<span>Tu economista de bolsillo</span></div><span class="u-w-44"></span></header>
     <div class="chat guide-chat">
       <div class="bot-row"><span class="bot-avatar">${sprout(18)}</span><div class="bubble bot">${esc(`¡Listo${n ? ', ' + n : ''}! Te mandé un mail a ${u.email} para confirmar que es tuyo.`)}</div></div>
       <div class="bot-row"><span class="bot-avatar ghost"></span><div class="bubble bot">Tocá el link del mail y después volvé acá. Si no lo ves, buscalo en spam o promociones.</div></div>
@@ -308,7 +308,7 @@ export function abrirMiCuenta({ onNombre, onEliminar, moneda = 'Pesos' } = {}) {
   const mail = esPorMail(u);
   openModal('Mi cuenta', `
     <div class="card">
-      <strong style="overflow-wrap:anywhere">${esc(u.email || '')}</strong>
+      <strong class="u-ow-anywhere">${esc(u.email || '')}</strong>
       <span class="small muted">Ingresás con ${mail ? 'mail y contraseña' : 'Google'}${mail ? (u.emailVerified ? ' · mail confirmado' : ' · mail sin confirmar') : ''}</span>
       ${fechaCuenta(u)}
       <span class="small muted">Este dispositivo recuerda tu sesión: no tenés que volver a ingresar.</span>
@@ -372,8 +372,8 @@ function abrirEliminar() {
   const u = actual;
   const mail = esPorMail(u);
   openModal('Eliminar mi cuenta', `<form class="form" id="f-eliminar">
-      <div class="card amber"><strong>Esto no se puede deshacer</strong><p class="text" style="margin:0">Se borran tu cuenta y todos tus datos de Pesitos: movimientos, ingresos, metas, tarjetas y ahorros. Si querés, antes descargá una copia desde el menú.</p></div>
-      ${mail ? '<div class="field"><label for="e-clave">Tu contraseña, para confirmar</label><input id="e-clave" name="clave" type="password" autocomplete="current-password" required></div>' : '<p class="small muted" style="margin:0">Te vamos a pedir que confirmes con Google.</p>'}
+      <div class="card amber"><strong>Esto no se puede deshacer</strong><p class="text u-m-0">Se borran tu cuenta y todos tus datos de Pesitos: movimientos, ingresos, metas, tarjetas y ahorros. Si querés, antes descargá una copia desde el menú.</p></div>
+      ${mail ? '<div class="field"><label for="e-clave">Tu contraseña, para confirmar</label><input id="e-clave" name="clave" type="password" autocomplete="current-password" required></div>' : '<p class="small muted u-m-0">Te vamos a pedir que confirmes con Google.</p>'}
       <div class="field"><label for="e-conf">Escribí ELIMINAR para confirmar</label><input id="e-conf" name="conf" autocomplete="off" required placeholder="ELIMINAR"></div>
       <p class="auth-error" role="alert" hidden></p>
       <button class="btn block danger-fill" type="submit">Eliminar definitivamente</button></form>`, { push: true });

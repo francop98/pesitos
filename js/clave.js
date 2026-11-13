@@ -19,8 +19,8 @@ const campo = (id, ph, extra = '') => `<form class="quick" data-clave-form="${id
 
 function pantalla({ bubbles, controls, nota = '', atras = false }) {
   return `<section class="guide auth">
-    <header class="guide-top">${atras ? `<button class="icon-btn back on-green" data-clave="atras" aria-label="Volver">${icon('back', 20, 2.2)}</button>` : '<span style="width:44px"></span>'}
-      <div class="guide-brand">${wordmark(26, '#FFFFFF', '#C6F36B')}<span>Tu economista de bolsillo</span></div><span style="width:44px"></span></header>
+    <header class="guide-top">${atras ? `<button class="icon-btn back on-green" data-clave="atras" aria-label="Volver">${icon('back', 20, 2.2)}</button>` : '<span class="u-w-44"></span>'}
+      <div class="guide-brand">${wordmark(26, '#FFFFFF', '#C6F36B')}<span>Tu economista de bolsillo</span></div><span class="u-w-44"></span></header>
     <div class="chat guide-chat">
       ${bubbles.map((b, i) => `<div class="bot-row">${i === 0 ? `<span class="bot-avatar">${sprout(18)}</span>` : '<span class="bot-avatar ghost"></span>'}<div class="bubble bot">${b}</div></div>`).join('')}
       ${nota ? `<div class="bot-row"><span class="bot-avatar ghost"></span><div class="bubble bot aviso" role="alert">${esc(nota)}</div></div>` : ''}

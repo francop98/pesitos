@@ -94,7 +94,7 @@ function cuerpo(ctx, extra = '') {
   const fila = (id, nombre, sub, activo) => `<button class="row modo-op ${activo ? 'activo' : ''}" data-action="cambiarModo" data-id="${esc(id)}" ${activo ? 'aria-current="true"' : ''}>
       <span class="cat-icon ${activo ? 'green' : ''}">${icon(id ? 'people' : 'user', 18)}</span>
       <span class="grow"><span class="name">${esc(nombre)}</span><span class="meta">${esc(sub)}</span></span>${activo ? '<span class="pill ok">Abierto</span>' : icon('chevron', 16)}</button>`;
-  return `<p class="small muted" style="margin:0">Tu plata es solo tuya. Un espacio compartido es para llevar la plata de la casa entre varias personas: todos ven y cargan lo mismo.</p>
+  return `<p class="small muted u-m-0">Tu plata es solo tuya. Un espacio compartido es para llevar la plata de la casa entre varias personas: todos ven y cargan lo mismo.</p>
     <div class="card tight">
       ${fila('', 'Mi plata', 'Personal: solo vos', !s.espacio)}
       ${lista.map((e) => { const con = s.espacio && s.espacio.id === e.id ? s.espacio.con : e.con; return fila(e.id, e.nombre, `Compartido${con ? ' ' + conTxt(con) : ''}`, s.espacio && s.espacio.id === e.id); }).join('')}
@@ -102,13 +102,13 @@ function cuerpo(ctx, extra = '') {
     ${s.espacio ? `<div class="btn-row"><button class="btn small green" data-action="invitarEspacio">${icon('send', 16)} Invitar a alguien</button><button class="btn small" data-action="verMiembros">${icon('people', 16)} Quiénes están</button><button class="btn small" data-action="verReparto">Cómo dividen</button></div>` : ''}
     <div id="esp-extra">${extra}</div>
     ${s.espacio ? '' : `<details class="card"><summary><strong>Crear un espacio compartido</strong></summary>
-      <form class="form" data-submit="crearEspacio" style="margin-top:8px"><div class="field"><label for="es-n">Nombre</label><input id="es-n" name="nombre" placeholder="Ej: Casa, Familia, Con Sofi" maxlength="40" required></div>
+      <form class="form u-mt-8" data-submit="crearEspacio"><div class="field"><label for="es-n">Nombre</label><input id="es-n" name="nombre" placeholder="Ej: Casa, Familia, Con Sofi" maxlength="40" required></div>
       <span class="hint">Después invitás a tu pareja o tu familia con un código.</span>
       <button class="btn primary block" type="submit">Crear</button></form></details>`}
     <details class="card"><summary><strong>Tengo un código para sumarme</strong></summary>
-      <form class="form" data-submit="unirseEspacio" style="margin-top:8px"><div class="field"><label for="es-c">Código</label><input id="es-c" name="codigo" placeholder="Ej: K7M2QX9P" maxlength="12" autocapitalize="characters" autocomplete="off" required></div>
+      <form class="form u-mt-8" data-submit="unirseEspacio"><div class="field"><label for="es-c">Código</label><input id="es-c" name="codigo" placeholder="Ej: K7M2QX9P" maxlength="12" autocapitalize="characters" autocomplete="off" required></div>
       <button class="btn primary block" type="submit">Sumarme</button></form></details>
-    ${s.espacio ? `<button class="btn ghost small" data-action="salirEspacio" style="align-self:flex-start">Salir de "${esc(s.espacio.nombre)}"</button>` : ''}`;
+    ${s.espacio ? `<button class="btn ghost small u-self-start" data-action="salirEspacio">Salir de "${esc(s.espacio.nombre)}"</button>` : ''}`;
 }
 
 const yo = (ctx) => ((ctx.state.espacio ? ctx.miNombre : ctx.state.profile && ctx.state.profile.name) || ctx.miNombre || '').split(' ')[0];
@@ -178,7 +178,7 @@ export const espacioActions = {
     const m = d.miembros || [];
     setModalBody('#esp-extra', `<form class="card form" data-submit="guardarReparto"><strong>¿Cómo dividen los gastos de "${esc(e.nombre)}"?</strong>
       <span class="small muted">Tu parte de cada gasto se suma sola a tu plata personal (no lo cargás dos veces). Lo mismo para los demás.</span>
-      ${m.map((u) => `<div class="field-row" style="align-items:center"><span class="grow">${esc(u === ctx.uid ? 'Vos' : ((d.nombres || {})[u] || 'Alguien'))}</span><input name="p_${esc(u)}" inputmode="decimal" value="${String(pctDe(ctx.state, u, m)).replace('.', ',')}" style="max-width:90px" aria-label="Porcentaje"> %</div>`).join('')}
+      ${m.map((u) => `<div class="field-row u-items-center"><span class="grow">${esc(u === ctx.uid ? 'Vos' : ((d.nombres || {})[u] || 'Alguien'))}</span><input name="p_${esc(u)}" inputmode="decimal" value="${String(pctDe(ctx.state, u, m)).replace('.', ',')}" class="u-maxw-90" aria-label="Porcentaje"> %</div>`).join('')}
       <div class="btn-row"><button class="btn small" type="button" data-action="repartoIgual">Partes iguales</button><button class="btn small primary" type="submit">Guardar</button></div></form>`);
   },
   repartoIgual(ctx) { ctx.commit((s) => { delete s.reparto; }); toast('Listo: partes iguales'); espacioActions.verReparto(ctx); },

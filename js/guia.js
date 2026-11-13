@@ -88,7 +88,7 @@ function controls(q) {
       return `<form class="quick" data-submit="guideQAnswer"><input type="hidden" name="qid" value="${esc(q.id)}"><label class="sr-only" for="gq-s">${esc(q.title || '')}</label><select id="gq-s" name="value"><option value="">Elegí…</option>${q.options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}</select>${send}</form>`;
     case 'choice':
       return `<div class="chips ${q.options.some((o) => typeof o === 'object') ? 'stack' : ''}">${q.options.map((o) => { const v = typeof o === 'object' ? o.value : o; const l = typeof o === 'object' ? o.label : o; return `<button class="chip" data-action="guideQChoice" data-qid="${esc(q.id)}" data-value="${esc(v)}">${esc(l)}</button>`; }).join('')}${no}</div>
-        ${q.lesson ? `<button class="btn ghost small" data-action="openLesson" data-id="${q.lesson}" style="align-self:flex-start;min-height:36px;padding:0 4px">¿Cuál me conviene?</button>` : ''}
+        ${q.lesson ? `<button class="btn ghost small u-self-start-minh-36-p-0-4" data-action="openLesson" data-id="${q.lesson}">¿Cuál me conviene?</button>` : ''}
         ${q.other ? `<form class="quick" data-submit="guideQAnswer" autocomplete="off"><input type="hidden" name="qid" value="${esc(q.id)}"><label class="sr-only" for="gq-o">${esc(q.other)}</label><input id="gq-o" name="other" placeholder="${esc(q.other)}">${send}</form>` : ''}`;
     default: return '';
   }
@@ -101,7 +101,7 @@ export function renderQuestion(s) {
     <div class="tip-head"><span class="badge">${sprout(17)}</span><strong>${esc(q.title || 'Pesitos quiere saber')}</strong><span class="small muted">Te conozco un ${knownPct(s)}%</span></div>
     <p class="text ask-q">${esc(q.text)}</p>
     ${controls(q)}
-    <button class="btn ghost small" data-action="guideQLater" data-qid="${esc(q.id)}" style="align-self:flex-start;min-height:36px;padding:0 4px">Después</button>
+    <button class="btn ghost small u-self-start-minh-36-p-0-4" data-action="guideQLater" data-qid="${esc(q.id)}">Después</button>
   </div>`;
 }
 
