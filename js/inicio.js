@@ -36,13 +36,13 @@ function salaryCard(s, b) {
   const mk = b.cycle.startISO.slice(0, 7);
   const payISO = b.cycle.startISO;
   return `<div class="card ask">
-    <div class="tip-head"><span class="cat-icon green" style="width:26px;height:26px;border-radius:8px">${icon('up', 16, 2.4)}</span><strong>¿Ya cobraste el sueldo de ${monthName(mk, true)}?</strong></div>
-    <p class="text">Confirmalo y lo comparo con los meses anteriores y con la inflación. Así ves mes a mes si tu sueldo crece de verdad.</p>
+    <div class="tip-head"><span class="cat-icon green" style="width:26px;height:26px;border-radius:8px">${icon('up', 16, 2.4)}</span><strong>¿Ya cobraste lo de ${monthName(mk, true)}?</strong></div>
+    <p class="text">Confirmalo y lo comparo con los meses anteriores y con la inflación. Así ves mes a mes si tus ingresos crecen de verdad.</p>
     <form class="quick" data-submit="confirmSalary" autocomplete="off">
       <input type="hidden" name="date" value="${payISO <= todayISO() ? payISO : todayISO()}">
       <label class="sr-only" for="sal-c">Monto cobrado</label>
       <input id="sal-c" name="amount" inputmode="decimal" value="${last ? Math.round(last.amount).toLocaleString('es-AR') : ''}" placeholder="Ej: 900.000">
-      <button type="submit" class="icon-btn green" aria-label="Confirmar sueldo">${icon('send', 20, 2.2)}</button>
+      <button type="submit" class="icon-btn green" aria-label="Confirmar cobro">${icon('send', 20, 2.2)}</button>
     </form>
     <button class="btn ghost small" data-action="snoozeCard" data-key="salary" data-days="1" style="align-self:flex-start;min-height:36px;padding:0 4px">Todavía no cobré</button>
   </div>`;
@@ -216,7 +216,7 @@ const tile = ([a, ic, l]) => (a.startsWith('#')
 // Qué decir debajo de "Hoy podés gastar": cómo venís y qué hacer si te pasaste.
 const diasTxt = (n) => (n === 1 ? '1 día' : `${String(Math.round(n * 10) / 10).replace('.', ',')} días`);
 function heroMensaje(s, b, payText) {
-  const est = b.estimated ? ' Estimado con tu último sueldo.' : '';
+  const est = b.estimated ? ' Estimado con tu último cobro.' : '';
   const linea = (t, extra = '') => `<span class="small on-green-muted hero-msg ${extra}">${t}${est}</span>`;
   const restantes = Math.max(1, b.cycle.daysLeft - 1);
   // te pasaste de todo lo que tenías hasta el cobro
@@ -393,7 +393,7 @@ function tuDia(s, yaHayPagos = false) {
   const tm = totalMeDeben(s); const td = totalDebo(s);
   const fila = (href, ic, k, v, sub) => `<a class="dia-fila" href="${href}"><span class="cat-icon">${icon(ic, 18)}</span><span class="grow"><span class="k">${k}${sub ? ` · ${sub}` : ''}</span><span class="v">${v}</span></span>${icon('chevron', 16)}</a>`;
   const sueldo = sueldoPorCargar(s);
-  const filas = `${sueldo ? `<button class="dia-fila sueldo-fila" data-action="newSalary" data-mk="${sueldo.mk}"><span class="cat-icon green">${icon('up', 18)}</span><span class="grow"><span class="k">${sueldo.hoy ? 'Hoy cobrás' : `Cobraste el ${sueldo.dia}`}</span><span class="v">Cargá tu sueldo</span></span>${icon('chevron', 16)}</button>` : ''}
+  const filas = `${sueldo ? `<button class="dia-fila sueldo-fila" data-action="newSalary" data-mk="${sueldo.mk}"><span class="cat-icon green">${icon('up', 18)}</span><span class="grow"><span class="k">${sueldo.hoy ? 'Hoy cobrás' : `Cobraste el ${sueldo.dia}`}</span><span class="v">Anotá lo que cobraste</span></span>${icon('chevron', 16)}</button>` : ''}
     ${prox && !yaHayPagos ? fila('#/pagos', 'calendar', 'Próximo pago', `${esc(prox.name)}${prox.amount ? ` · ${prox.estimated ? '≈ ' : ''}${money(prox.amount)}` : ''}`, esc(dueLabel(prox))) : ''}
     ${rec ? fila('#/pagos', 'bell', 'Recordatorio', esc(rec.name), rec.days === 0 ? 'hoy' : rec.days === 1 ? 'mañana' : rec.days < 0 ? 'pendiente' : `en ${rec.days} días`) : ''}
     ${promo ? fila('#/beneficios', 'ticket', 'Promo de hoy', `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}`, esc(promo.name)) : ''}
@@ -522,7 +522,7 @@ export const actions = {
       <p class="text" style="margin:0">¿Cuánta plata tenés hoy entre tus cuentas, billeteras y efectivo? Sin contar ahorros ni inversiones.</p>
       <div class="field"><label for="ar-t">Tengo hoy</label><input id="ar-t" name="tengo" inputmode="decimal" required placeholder="Ej: 350.000" data-input="arranqueVivo"></div>
       <p class="small" data-ar-vivo></p>
-      <span class="small muted">Con tu sueldo, tus gastos fijos ya pagados y lo que cargaste, calculo cuánto gastaste antes de empezar y lo anoto como "Gastos de antes de Pesitos" (con fecha del día de cobro, para que no cuente como gasto de hoy). ${(s.cuentas && Object.keys(s.cuentas).length) ? '' : 'También lo tomo como el saldo de tu cuenta principal.'}</span>
+      <span class="small muted">Con lo que cobraste, tus gastos fijos ya pagados y lo que cargaste, calculo cuánto gastaste antes de empezar y lo anoto como "Gastos de antes de Pesitos" (con fecha del día de cobro, para que no cuente como gasto de hoy). ${(s.cuentas && Object.keys(s.cuentas).length) ? '' : 'También lo tomo como el saldo de tu cuenta principal.'}</span>
       <button class="btn primary block" type="submit">Ajustar</button></form>`);
   },
   arranqueVivo(ctx, el) {

@@ -29,7 +29,7 @@ const MODE_LABEL = (s) => ({
 }[s.savingMode] || 'Todavía no elegiste cómo ahorrar.');
 
 const BUILTIN = [
-  { key: 'payFirst', name: 'Págate primero', text: (r) => `El día que cobrás, apartás el ${r.pct}% del sueldo`, param: 'pct', unit: '%' },
+  { key: 'payFirst', name: 'Págate primero', text: (r) => `El día que cobrás, apartás el ${r.pct}% de lo que cobrás`, param: 'pct', unit: '%' },
   { key: 'raiseHalf', name: 'Ahorro por aumento', text: (r) => `El ${r.pct}% de cada aumento va a tus metas`, param: 'pct', unit: '%' },
   { key: 'extraPct', name: 'Ingresos extra', text: (r) => `El ${r.pct}% de cada ingreso extra va al ahorro`, param: 'pct', unit: '%' },
   { key: 'roundup', name: 'Redondeo', text: (r) => `Cada gasto se redondea a ${money(r.to)} y la diferencia va al ahorro`, param: 'to', unit: '$' },
@@ -39,7 +39,7 @@ const cap = (w) => w[0].toUpperCase() + w.slice(1);
 const catOpts = (sel) => allCategories().filter((c) => !['varios', 'otros'].includes(c.id)).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${c.label}</option>`).join('');
 
 function customText(c) {
-  if (c.type === 'pctSalary') return `El ${c.value}% del sueldo`;
+  if (c.type === 'pctSalary') return `El ${c.value}% de lo que cobrás`;
   if (c.type === 'fixedMonthly') return `${money(c.value)} por mes`;
   if (c.type === 'porGasto') return `${money(c.value)} cada vez que gastás en ${catLabel(c.category).toLowerCase()}`;
   if (c.type === 'bajoTope') return `Lo que no gastes de ${money(c.value)} en ${catLabel(c.category).toLowerCase()}`;
@@ -74,7 +74,7 @@ const MODOS = [
 const EXTRAS = [
   { key: 'roundup', name: 'Redondear cada gasto', text: (r) => `Cada gasto se redondea a ${money(r.to)} y la diferencia va al ahorro`, param: 'to', unit: '$' },
   { key: 'extraPct', name: 'Parte de los ingresos extra', text: (r) => `El ${r.pct}% de cada ingreso extra (aguinaldo, changas, ventas)`, param: 'pct', unit: '%' },
-  { key: 'raiseHalf', name: 'Parte de cada aumento', text: (r) => `El ${r.pct}% de lo que te aumenten el sueldo`, param: 'pct', unit: '%' },
+  { key: 'raiseHalf', name: 'Parte de cada aumento', text: (r) => `El ${r.pct}% de cada aumento de lo que cobrás`, param: 'pct', unit: '%' },
 ];
 
 // ---------- lo que te sugiero, según cómo manejás tu plata ----------

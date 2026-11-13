@@ -312,7 +312,7 @@ function billForm(s, b = {}) {
 function incomeForm(c = {}) {
   return `<form class="form" data-submit="saveIncome">
     <input type="hidden" name="id" value="${esc(c.id || '')}">
-    <p class="text muted">Para cobros que no son tu sueldo: un alquiler que cobrás, un trabajo, una venta en cuotas. El sueldo y el aguinaldo los estimo solo.</p>
+    <p class="text muted">Para cobros aparte de tu ingreso de cada mes: un alquiler que cobrás, un trabajo, una venta en cuotas. Tu cobro del mes (y el aguinaldo, si te corresponde) los estimo solo.</p>
     <div class="field"><label for="in-n">¿Qué vas a cobrar?</label><input id="in-n" name="name" value="${esc(c.name || '')}" placeholder="Ej: Alquiler del departamento" required></div>
     <div class="field-row">
       <div class="field"><label for="in-a">Monto</label><input id="in-a" name="amount" inputmode="decimal" value="${c.amount || ''}" placeholder="Ej: 250.000" required></div>

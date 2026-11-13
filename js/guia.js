@@ -4,6 +4,7 @@
 // Máximo 3 preguntas por día; cualquiera se puede dejar para después.
 
 import { uid } from './almacenamiento.js';
+import { notaCobro } from './calculos.js';
 import { money, num, todayISO, toISO, addDays, esc, normalize, addMonthKey, monthKey } from './formato.js';
 import { parseAmount, merchantKey, guessCategory } from './interprete.js';
 import { aprendizajes } from './habitos.js';
@@ -124,7 +125,7 @@ function apply(ctx, qid, input) {
     if (!no) {
       switch (q.id) {
         case 'salary':
-          s.incomes.push({ id: uid(), date: todayISO(), amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) });
+          s.incomes.push({ id: uid(), date: todayISO(), amount, type: 'sueldo', note: notaCobro(s), ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) });
           msg = 'Listo, ya calculo tu día';
           break;
         case 'goal': {

@@ -10,7 +10,7 @@ import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
-import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal, periodoDe } from './calculos.js';
+import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal, periodoDe, notaCobro } from './calculos.js';
 import { statementDates, statementOf, resumenDeCompra } from './agenda.js';
 import { demoState } from './ejemplo.js';
 import { detectarReintegro, promosCandidatas } from './reintegros.js';
@@ -130,9 +130,9 @@ export function entryForm(s, e, kind) {
     <div class="field" data-cur-box ${cur === B ? 'hidden' : ''}><label for="f-rate">Cotización (${B === 'USD' ? 'dólares' : 'pesos'} por unidad)</label><input id="f-rate" name="rate" inputmode="decimal" value="${e.rate && cur !== B ? montoTxt(e.rate) : ''}" placeholder="${cur !== B && aBase(s, cur) ? `Hoy: ${montoTxt(aBase(s, cur))}` : B === 'USD' ? 'Ej: 0,0007' : 'Ej: 1.200'}"><span class="hint">Si la dejás vacía, uso la cotización del día. Si pagaste con otra (por ejemplo, dólar tarjeta), escribila.</span></div>
     <div class="field"><label for="f-note">Descripción</label><input id="f-note" name="note" value="${esc(e.note || '')}" placeholder="Ej: Coto, nafta, cena con amigos"></div>
     ${isIncome
-      ? `<div class="field-row"><div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Sueldo</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>
+      ? `<div class="field-row"><div class="field"><label for="f-type">Tipo</label><select id="f-type" name="type"><option value="sueldo" ${e.type === 'sueldo' ? 'selected' : ''}>Cobro del mes</option><option value="extra" ${e.type !== 'sueldo' ? 'selected' : ''}>Ingreso extra</option></select></div>
          <div class="field"><label for="f-acc">Entró en</label><select id="f-acc" name="medio">${medioOptions(s, medio, { conTarjetas: false })}</select></div></div>
-         ${e.id && (e.type === 'sueldo' || e.laboral) ? `<div class="field"><label for="f-per">Mes trabajado</label><input id="f-per" name="periodo" type="month" value="${periodoDe(e)}"><span class="hint">A qué mes corresponde este cobro. Con esto se arma la evolución de tu sueldo.</span></div>` : ''}`
+         ${e.id && (e.type === 'sueldo' || e.laboral) ? `<div class="field"><label for="f-per">Mes al que corresponde</label><input id="f-per" name="periodo" type="month" value="${periodoDe(e)}"><span class="hint">A qué mes corresponde este cobro. Con esto se arma la evolución de tus ingresos.</span></div>` : ''}`
       : `<div class="field"><label for="f-cat">Categoría</label><select id="f-cat" name="category">${catOptions(e.category)}</select><span class="hint">Si la corregís, la próxima vez la reconozco sola.</span></div>
          <label class="check"><input type="checkbox" name="dividir" data-change="entryToggle" data-box="split" ${splits.length ? 'checked' : ''}> <span>Dividir en varias categorías<br><span class="small muted">Ej: en el súper compraste comida y cosas de limpieza.</span></span></label>
          <div class="split-box" data-box-id="split" ${splits.length ? '' : 'hidden'}>
@@ -207,7 +207,7 @@ function walletsBody(s) {
   const sueldo = s.cuentaSueldo || ppal;
   return `${cuentas.length > 1 ? `<div class="card form">
       <div class="field"><label for="w-ppal">Cuenta del día a día (principal)</label><select id="w-ppal" data-change="setPrincipal">${cuentas.map((c) => `<option value="${esc(c.id)}" ${c.id === ppal ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><span class="hint">Donde solés tener la plata: la uso cuando cargás un gasto rápido sin elegir con qué pagaste.</span></div>
-      <div class="field"><label for="w-sue">Donde te depositan el sueldo</label><select id="w-sue" data-change="setCuentaSueldo">${cuentas.map((c) => `<option value="${esc(c.id)}" ${c.id === sueldo ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><span class="hint">Cuando cargás el sueldo, entra en esta cuenta.</span></div></div>` : ''}
+      <div class="field"><label for="w-sue">Dónde cobrás</label><select id="w-sue" data-change="setCuentaSueldo">${cuentas.map((c) => `<option value="${esc(c.id)}" ${c.id === sueldo ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><span class="hint">Cuando cargás el sueldo, entra en esta cuenta.</span></div></div>` : ''}
     <p class="text muted">Tocá los que usás. Con eso cruzo los descuentos de cada día y te aviso el día antes.</p>
     ${groups.map((g) => `<div class="field"><label>${g}</label><div class="chips">${all.filter((w) => w.kind === g).map((w) => `<button class="chip toggle" data-action="toggleWallet" data-id="${esc(w.id)}" aria-pressed="${mine.has(w.id)}">${esc(w.name)}</button>`).join('')}</div></div>`).join('')}
     <form class="form card" data-submit="addWallet" autocomplete="off">
@@ -302,7 +302,7 @@ function numerosCompra(s, amount) {
     if (porDia > 0) lineas.push(['chart', 'Tu gasto de siempre', `Es como <b>${(amount / porDia).toFixed(1).replace('.', ',')} días</b> de lo que gastás normalmente (${money(porDia)} por día en promedio).`]);
     if (sal) {
       const dias = amount / (sal.amount / 22);
-      lineas.push(['clock', 'Tu trabajo', `Es el ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de tu sueldo: <b>${dias < 1 ? (Math.round(dias * 8) <= 1 ? 'menos de 1 hora' : `${Math.round(dias * 8)} horas`) : `${dias.toFixed(1).replace('.', ',')} días`}</b> de trabajo.`]);
+      lineas.push(['clock', 'Tu trabajo', `Es el ${Math.max(1, Math.round((amount / sal.amount) * 100))}% de lo que cobrás por mes: <b>${dias < 1 ? (Math.round(dias * 8) <= 1 ? 'menos de 1 hora' : `${Math.round(dias * 8)} horas`) : `${dias.toFixed(1).replace('.', ',')} días`}</b> de trabajo.`]);
     }
     if (g) {
       const exceso = Math.max(0, amount - Math.max(0, b.todayLeft));
@@ -325,7 +325,7 @@ function numerosCompra(s, amount) {
     // en cuotas sin interés
     const infl = expectedInflation(s) / 100;
     const vh = (n) => { let pv = 0; for (let k = 1; k <= n; k++) pv += amount / n / Math.pow(1 + infl, k); return pv; };
-    lineas.push(['repeat', 'Si hay cuotas sin interés', [3, 6, 12].map((n) => `${n} de <b>${money(amount / n)}</b>${sal ? ` (${Math.max(1, Math.round((amount / n / sal.amount) * 100))}% del sueldo)` : ''}`).join(' · ') + `. En 6 cuotas, con la inflación, en plata de hoy pagarías ${money(vh(6))}: ${money(amount - vh(6))} menos.`]);
+    lineas.push(['repeat', 'Si hay cuotas sin interés', [3, 6, 12].map((n) => `${n} de <b>${money(amount / n)}</b>${sal ? ` (${Math.max(1, Math.round((amount / n / sal.amount) * 100))}% de tus ingresos)` : ''}`).join(' · ') + `. En 6 cuotas, con la inflación, en plata de hoy pagarías ${money(vh(6))}: ${money(amount - vh(6))} menos.`]);
   return { b, r, sal, lineas, ahorrado, fijos };
 }
 
@@ -368,7 +368,7 @@ function pintarGuiaCompra(s) {
   if (plata === 'no-alcanza') razones.push(`No te alcanza: ni con la plata del mes ni con tus ahorros cargados (te faltan ${money(amount - Math.max(0, b.free) - n.ahorrado)}).`);
   if (plata === 'sin-datos') razones.push('Todavía no sé cuánto cobrás, así que no puedo medirlo contra tu mes.');
   const pctSueldo = sal ? amount / sal.amount : 0;
-  if (sal) razones.push(`Equivale a ${Math.max(1, Math.round(pctSueldo * 100))}% de tu sueldo.`);
+  if (sal) razones.push(`Equivale a ${Math.max(1, Math.round(pctSueldo * 100))}% de tus ingresos del mes.`);
   const grande = amount > 3 * Math.max(1, b.dailyBase || 0);
   const fondoMeses = n.fijos > 0 ? n.ahorrado / n.fijos : 99;
   const sePasa = b.adelanto > b.normalDaily * 0.3;
@@ -387,9 +387,9 @@ function pintarGuiaCompra(s) {
     if (impulso && plata === 'holgado' && grande) no.push('Es grande y por impulso: esperá 48 horas aunque te alcance.');
     if (plata === 'ajustado' && sePasa) { razones.push(`Venís gastando más rápido que tu ritmo: ya vas ${money(b.adelanto)} adelantado.`); no.push('Este mes no: compralo el mes que viene, cuando arranques al día.'); }
     if (fondoMeses < 1 && (plata !== 'holgado' || grande)) { razones.push(`No tenés un fondo para imprevistos: lo ahorrado (${money(n.ahorrado)}) no cubre ni un mes de gastos fijos (${money(n.fijos)}).`); no.push('Primero juntá al menos un mes de gastos fijos; después, el gusto.'); }
-    if (pctSueldo >= 0.1 && !(resp.pensado === 'si' && fondoMeses >= 3)) no.push(`Es más del 10% de tu sueldo: para un gusto así, pensalo al menos 2 días y tené 3 meses de gastos fijos ahorrados (tenés ${fondoMeses >= 99 ? 'sin datos' : `${fondoMeses.toFixed(1).replace('.', ',')}`}).`);
+    if (pctSueldo >= 0.1 && !(resp.pensado === 'si' && fondoMeses >= 3)) no.push(`Es más del 10% de tus ingresos del mes: para un gusto así, pensalo al menos 2 días y tené 3 meses de gastos fijos ahorrados (tenés ${fondoMeses >= 99 ? 'sin datos' : `${fondoMeses.toFixed(1).replace('.', ',')}`}).`);
     if (atrasaMeta > 15) { razones.push(`Atrasa "${esc(g.name)}" unos ${atrasaMeta} días.`); no.push('Tu meta va primero: si lo querés, sumalo como meta aparte.'); }
-    if (resp.pago === 'cuotas' && cuotasPct > 0.25) { razones.push(`Con esta compra, tus cuotas se llevarían el ${Math.round(cuotasPct * 100)}% de tu sueldo por mes.`); no.push('No sumes más cuotas para gustos hasta bajar de 25% del sueldo.'); }
+    if (resp.pago === 'cuotas' && cuotasPct > 0.25) { razones.push(`Con esta compra, tus cuotas se llevarían el ${Math.round(cuotasPct * 100)}% de tus ingresos por mes.`); no.push('No sumes más cuotas para gustos hasta bajar de 25% del sueldo.'); }
     if (comeAhorro) { razones.push(`Se come lo que te iba a sobrar este mes (${money(b.sobrante)}).`); ojo.push('Ahorrás menos este mes.'); }
     if (resp.compare === 'no' && grande) ojo.push('Antes de pagar, compará el precio en 2 o 3 lugares.');
     if (impulso && plata === 'holgado' && !grande) ojo.push('Es por impulso: si mañana lo seguís queriendo, es buena señal.');
@@ -398,7 +398,7 @@ function pintarGuiaCompra(s) {
     if (plata === 'ahorros') { ojo.push('Usá ahorros y reponelos en los próximos meses.'); if (fondoMeses < 3) razones.push('Después de la compra tu fondo de emergencia quedaría por debajo de 3 meses de gastos fijos.'); }
     if (plata === 'ajustado' && sePasa) ojo.push(`Venís ${money(b.adelanto)} arriba de tu ritmo: ajustá los próximos días.`);
     if (resp.compare === 'no' && grande) ojo.push('Como es grande, compará el precio en 2 o 3 lugares antes de pagar.');
-    if (resp.pago === 'cuotas' && cuotasPct > 0.3) { razones.push(`Tus cuotas se llevarían el ${Math.round(cuotasPct * 100)}% de tu sueldo por mes.`); ojo.push('Si podés, elegí menos cuotas o una alternativa más barata.'); }
+    if (resp.pago === 'cuotas' && cuotasPct > 0.3) { razones.push(`Tus cuotas se llevarían el ${Math.round(cuotasPct * 100)}% de tus ingresos por mes.`); ojo.push('Si podés, elegí menos cuotas o una alternativa más barata.'); }
   }
   let nivel; let titulo;
   if (no.length) { nivel = 'bad'; titulo = plata === 'no-alcanza' ? (gusto ? 'No ahora' : 'No te alcanza') : impulso && gusto ? 'No: esperá y volvé a pensarlo' : 'No te lo compres ahora'; hacer.push(...no); }
@@ -759,7 +759,7 @@ export const commonActions = {
         const conservar = Object.fromEntries(['periodo', 'laboral', 'concepto'].filter((k) => antes[k] !== undefined).map((k) => [k, antes[k]]));
         if (d.type === 'sueldo') { delete conservar.laboral; delete conservar.concepto; }
         if (/^\d{4}-\d{2}$/.test(d.periodo || '')) conservar.periodo = d.periodo;
-        const item = { ...conservar, id: d.id || uid(), date: d.date || todayISO(), amount: ars(original), type: d.type, note: d.note || (d.type === 'sueldo' ? 'Sueldo' : 'Ingreso'), ...moneda };
+        const item = { ...conservar, id: d.id || uid(), date: d.date || todayISO(), amount: ars(original), type: d.type, note: d.note || (d.type === 'sueldo' ? notaCobro(s) : 'Ingreso'), ...moneda };
         if (medioTipo === 'acc') item.accountId = medioId;
         if (tags.length) item.tags = tags;
         if (d.proyectoId) item.proyectoId = d.proyectoId;
@@ -937,7 +937,7 @@ export const commonActions = {
   },
 
   // ---------- medios de pago ----------
-  setCuentaSueldo(ctx, el) { ctx.commit((s) => { s.cuentaSueldo = el.value; }); toast(`Listo: el sueldo entra en ${nombreCuenta(ctx.state, el.value)}`); },
+  setCuentaSueldo(ctx, el) { ctx.commit((s) => { s.cuentaSueldo = el.value; }); toast(`Listo: cobrás en ${nombreCuenta(ctx.state, el.value)}`); },
   setPrincipal(ctx, el) { ctx.commit((s) => { s.cuentaPrincipal = el.value; }); toast(`Listo: ${nombreCuenta(ctx.state, el.value)} es tu cuenta principal`); },
   openWallets(ctx, el) { openModal('Mis medios de pago', `<div id="wallets-body">${walletsBody(ctx.state)}</div>`, { push: !!(el && el.dataset && el.dataset.push) }); },
   toggleWallet(ctx, el) {
@@ -974,8 +974,8 @@ export const commonActions = {
   confirmSalary(ctx, d) {
     const amount = parseAmount(d.amount);
     if (!amount) { toast('Ingresá el monto que cobraste'); return; }
-    ctx.commit((s) => { s.incomes.push({ id: uid(), date: d.date || todayISO(), amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) }); });
-    toast('Sueldo confirmado: ya lo comparo con los meses anteriores');
+    ctx.commit((s) => { s.incomes.push({ id: uid(), date: d.date || todayISO(), amount, type: 'sueldo', note: notaCobro(s), ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) }); });
+    toast('Cobro anotado: ya lo comparo con los meses anteriores');
   },
   snoozeCard(ctx, el) {
     ctx.commit((s) => { s.snooze[el.dataset.key] = toISO(addDays(new Date(), Number(el.dataset.days || 1))); });

@@ -27,6 +27,16 @@ export function payCycle(s, today = startOfToday()) {
   return { start, next, startISO: toISO(start), nextISO: toISO(next), daysLeft: Math.max(1, daysBetween(today, next)) };
 }
 
+/** ¿Cobra aguinaldo? Relación de dependencia y jubilación sí; monotributo e independientes no (salvo que diga lo contrario). */
+export function cobraAguinaldo(s) {
+  const p = s.profile || {};
+  if (p.aguinaldo !== undefined) return !!p.aguinaldo;
+  return !['mono', 'var'].includes(p.ingresos);
+}
+/** Cómo se llama el cobro principal según cómo entra la plata. */
+export function notaCobro(s) {
+  return { dep: 'Sueldo', jub: 'Jubilación', mono: 'Ingresos del mes', var: 'Ingresos del mes', mix: 'Ingresos del mes' }[(s.profile || {}).ingresos] || 'Cobro del mes';
+}
 export function lastSalary(s) {
   return [...s.incomes].filter((i) => i.type === 'sueldo').sort((a, b) => b.date.localeCompare(a.date))[0] || null;
 }
@@ -199,7 +209,7 @@ export function goalEta(g) {
 // ---------- "¿Me lo compro?" ----------
 export function buyImpact(s, amount) {
   const b = budget(s);
-  if (b.noIncome) return { level: 'warn', title: 'Primero cargá tu sueldo', text: 'Sin ingreso no puedo calcular el impacto.' };
+  if (b.noIncome) return { level: 'warn', title: 'Primero cargá lo que cobrás', text: 'Sin ingreso no puedo calcular el impacto.' };
   if (amount <= b.todayLeft) {
     return { level: 'ok', title: 'Dale, entra en lo de hoy', text: `Te quedarían ${money(b.todayLeft - amount)} para hoy, sin tocar tus metas.` };
   }

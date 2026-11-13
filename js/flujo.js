@@ -7,7 +7,7 @@
 // - Plan para pagar cada resumen de tarjeta.
 
 import { toISO, parseISO, startOfToday, daysBetween, addDays, money, monthName } from './formato.js';
-import { payCycle, lastSalary, expectedBalance } from './calculos.js';
+import { payCycle, lastSalary, expectedBalance, cobraAguinaldo } from './calculos.js';
 import { agendaBetween, billOccurrences, repeatLabel } from './agenda.js';
 import { fechaDeCobro } from './feriados.js';
 import { reintegrosPendientes, reintegrosCobrados, totalReintegros } from './reintegros.js';
@@ -29,14 +29,14 @@ export function inflows(s, from, to) {
       const mk = toISO(d).slice(0, 7);
       const already = s.incomes.some((i) => i.type === 'sueldo' && i.date.slice(0, 7) === mk);
       if (already) continue;
-      out.push({ key: `sal:${mk}`, kind: 'salary', name: `Sueldo de ${monthName(mk, true)}`, amount: last.amount, date: toISO(d), estimated: true, sub: 'Estimado con tu último sueldo' });
+      out.push({ key: `sal:${mk}`, kind: 'salary', name: `Cobro de ${monthName(mk, true)}`, amount: last.amount, date: toISO(d), estimated: true, sub: 'Estimado con tu último cobro' });
     }
   }
 
   // aguinaldo: se paga hasta el 30 de junio y el 18 de diciembre;
   // es la mitad del mejor sueldo del semestre
   // solo si cobrás aguinaldo (relación de dependencia). Si no lo dijiste, lo estimo y te pregunto.
-  if (s.profile.aguinaldo !== false) for (const y of [from.getFullYear(), from.getFullYear() + 1]) {
+  if (cobraAguinaldo(s)) for (const y of [from.getFullYear(), from.getFullYear() + 1]) {
     for (const [m, day, semFrom, semTo] of [[5, 30, `${y}-01`, `${y}-06`], [11, 18, `${y}-07`, `${y}-12`]]) {
       const d = new Date(y, m, day);
       if (d < from || d > to) continue;

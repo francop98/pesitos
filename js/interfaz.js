@@ -262,7 +262,7 @@ export const selectorActions = {
 /** Botón con el nombre del mes que abre el selector. */
 export const botonMes = (mk, accion) => { const [y, m] = mk.split('-').map(Number); return `<button class="mes-btn" data-action="${accion}" aria-label="Elegir mes y año">${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][m - 1]} ${y} ${icon('chevron', 14, 2.4)}</button>`; };
 
-// ---------- ocultar montos (Ahorro y Sueldo) ----------
+// ---------- ocultar montos (Ahorro e Ingresos) ----------
 // Se recuerda en este dispositivo. Tapa los importes con puntitos; los porcentajes quedan.
 const K_OCULTAR = 'pesitos_ocultar';
 // Mi plata (clave 'ahorro'): queda como lo dejaste la última vez (visible u oculto).

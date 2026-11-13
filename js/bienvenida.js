@@ -150,7 +150,7 @@ function current() {
           ${inputForm('otro', '¿Otro? Escribilo: ej. Banco Patagonia', 'text', 'Agregar', 'list="g-wallet-list" maxlength="40"')}
           <datalist id="g-wallet-list">${OTROS_CONOCIDOS.map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
           ${cuentas.length ? `<div class="card guide-cuenta">
-            <div class="field"><label for="g-cs">¿Dónde te depositan ${varia() ? 'lo que cobrás' : 'el sueldo'}?</label><select id="g-cs" data-change="guideCuenta" data-k="cuentaSueldo">${cuentas.map(([id, nm]) => `<option value="${esc(id)}" ${id === (draft.cuentaSueldo || cuentas[0][0]) ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select></div>
+            <div class="field"><label for="g-cs">¿Dónde cobrás?</label><select id="g-cs" data-change="guideCuenta" data-k="cuentaSueldo">${cuentas.map(([id, nm]) => `<option value="${esc(id)}" ${id === (draft.cuentaSueldo || cuentas[0][0]) ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select></div>
             <label class="check"><input type="checkbox" data-change="guideOtraCuenta" ${draft.otraCuenta ? 'checked' : ''}> <span>Después la paso a otra cuenta y gasto desde ahí</span></label>
             ${draft.otraCuenta ? `<div class="field"><label for="g-cp">¿Cuál es tu cuenta del día a día?</label><select id="g-cp" data-change="guideCuenta" data-k="cuentaPrincipal">${cuentas.map(([id, nm]) => `<option value="${esc(id)}" ${id === draft.cuentaPrincipal ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select></div>` : ''}
             <span class="small muted">La cambiás cuando quieras en Menú → Mis medios de pago.</span></div>` : ''}

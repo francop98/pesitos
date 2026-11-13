@@ -42,7 +42,7 @@ export function expenseRow(s, e) {
 export function incomeRow(i, s = null) {
   return `<button class="row" data-action="openEntry" data-id="${i.id}" data-kind="income">
     <span class="cat-icon green">${icon('up', 18)}</span>
-    <span class="grow"><span class="name">${esc(i.note)}</span><span class="meta">${relDay(i.date)} · ${i.type === 'sueldo' ? 'Sueldo' : 'Ingreso extra'}${s && i.accountId ? ` · ${esc(nombreCuenta(s, i.accountId))}` : ''}${enMoneda(i)}${s && i.proyectoId && proyectoDe(s, i.proyectoId) ? ` · 📁 ${esc(proyectoDe(s, i.proyectoId).nombre)}` : ''}</span>${tagsHtml(i.tags)}</span>
+    <span class="grow"><span class="name">${esc(i.note)}</span><span class="meta">${relDay(i.date)} · ${i.type === 'sueldo' ? 'Cobro del mes' : 'Ingreso extra'}${s && i.accountId ? ` · ${esc(nombreCuenta(s, i.accountId))}` : ''}${enMoneda(i)}${s && i.proyectoId && proyectoDe(s, i.proyectoId) ? ` · 📁 ${esc(proyectoDe(s, i.proyectoId).nombre)}` : ''}</span>${tagsHtml(i.tags)}</span>
     <span class="amount pos">+${money(i.amount)}</span>
   </button>`;
 }

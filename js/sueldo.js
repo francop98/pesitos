@@ -3,14 +3,14 @@
 // otro extra del trabajo. El informe muestra la evolución mes a mes como una planilla.
 
 import { money, pct, esc, monthName, monthKey, addMonthKey, num, todayISO, toISO, MONTHS_LONG } from './formato.js';
-import { salaryStats, lastSalary, periodoDe } from './calculos.js';
+import { salaryStats, lastSalary, periodoDe, cobraAguinaldo, notaCobro } from './calculos.js';
 import { lastIpc } from './datosvivos.js';
 import { sprout, icon, screenHead, openModal, closeModal, toast, ojoMontos, taparMontos, borrarConDeshacer } from './interfaz.js';
 import { uid } from './almacenamiento.js';
 import { fechaDeCobro } from './feriados.js';
 import { lessonCard } from './aprender.js';
 
-const CONCEPTOS = [['sueldo', 'Sueldo'], ['aguinaldo', 'Aguinaldo'], ['otro', 'Otro extra del trabajo']];
+const CONCEPTOS = [['sueldo', 'Cobro del mes'], ['aguinaldo', 'Aguinaldo'], ['otro', 'Otro extra del trabajo']];
 const mesCap = (mk) => `${monthName(mk, true).replace(/^./, (c) => c.toUpperCase())} ${mk.slice(0, 4)}`;
 const pctTxt = (v) => (v == null ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v * 1000) / 10).toLocaleString('es-AR')}%`);
 /** Fecha de cobro sugerida para el sueldo de un mes trabajado (a mes vencido si cobrás en la primera quincena). */
@@ -56,8 +56,8 @@ function informe(s) {
       <div class="stat"><span class="k">Mayor aumento</span><span class="v">${mayor ? pctTxt(mayor.var) : '—'}</span><span class="small muted">${mayor ? `en ${monthName(mayor.p, true)} (${money(mayor.dif)})` : ''}</span></div>
     </div>
     ${barras}
-    <div class="tabla-inf" role="table" aria-label="Sueldo mes a mes">
-      <div class="ti-fila ti-head" role="row"><span>Mes trabajado</span><span>Sueldo</span><span>Aumento</span></div>
+    <div class="tabla-inf" role="table" aria-label="Ingresos mes a mes">
+      <div class="ti-fila ti-head" role="row"><span>Mes</span><span>Cobro</span><span>Aumento</span></div>
       ${filas.map((f) => `<div class="ti-fila" role="row"><span>${monthName(f.p, true).replace(/^./, (c) => c.toUpperCase())}${f.ext ? `<br><span class="small muted">+ ${money(f.ext)} extras</span>` : ''}</span><span><b>${f.v ? money(f.v) : '—'}</b></span><span class="${f.var > 0 ? 'pos' : f.var < 0 ? 'neg' : ''}">${pctTxt(f.var)}${f.dif ? `<br><span class="small muted">${f.dif > 0 ? '+' : '−'}${money(Math.abs(f.dif))}</span>` : ''}</span></div>`).join('')}
     </div>
     <div class="split small"><span>Total cobrado por el trabajo en ${anio} (con aguinaldo y extras)</span><b>${money(totalAnio)}</b></div>
@@ -69,14 +69,14 @@ function salarioForm(s, mk, concepto = 'sueldo', i = null) {
   const fecha = i ? i.date : toISO(cobroDe(s.profile, mk));
   return `<form class="form" data-submit="saveSalary">
       <input type="hidden" name="id" value="${esc(i ? i.id : '')}">
-      <div class="field"><label for="sal-c">Concepto</label><select id="sal-c" name="concepto" data-change="salConcepto">${CONCEPTOS.map(([v, l]) => `<option value="${v}" ${v === concepto ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label for="sal-c">Concepto</label><select id="sal-c" name="concepto" data-change="salConcepto">${CONCEPTOS.filter(([v]) => v !== 'aguinaldo' || concepto === 'aguinaldo' || cobraAguinaldo(s)).map(([v, l]) => `<option value="${v}" ${v === concepto ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="field" data-sal-det ${concepto === 'otro' ? '' : 'hidden'}><label for="sal-n">¿Qué es?</label><input id="sal-n" name="detalle" value="${esc(i && i.laboral && i.concepto === 'otro' ? i.note : '')}" placeholder="Ej: arreglo de sensores, bono, horas extra"></div>
       <div class="field"><label for="sal-a">Neto cobrado</label><input id="sal-a" name="amount" inputmode="decimal" value="${i ? String(i.amount).replace('.', ',') : concepto === 'sueldo' && last ? last.amount : ''}" placeholder="Ej: 900.000" required></div>
       <div class="field-row">
-        <div class="field"><label for="sal-p">Mes trabajado</label><input id="sal-p" name="periodo" type="month" value="${mk}" required></div>
+        <div class="field"><label for="sal-p">Mes al que corresponde</label><input id="sal-p" name="periodo" type="month" value="${mk}" required></div>
         <div class="field"><label for="sal-d">Fecha de cobro</label><input id="sal-d" name="date" type="date" value="${fecha}"></div>
       </div>
-      <span class="hint">Si cobrás a mes vencido (por ejemplo, el sueldo de octubre el 4 de noviembre), el mes trabajado es octubre.</span>
+      <span class="hint">Si cobrás a mes vencido (por ejemplo, lo de octubre el 4 de noviembre), el mes es octubre.</span>
       <button class="btn primary block" type="submit">Guardar</button>
       ${concepto === 'sueldo' && !i ? '<button class="btn block" type="submit" name="otro" value="1">Guardar y cargar otro concepto del mismo mes</button>' : ''}
     </form>`;
@@ -93,7 +93,7 @@ function chart(series) {
   const line = (k) => pts.map((p, i) => `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join(' ');
   const last = pts[pts.length - 1];
   const labels = pts.map((p, i) => (i % 2 === pts.length % 2 || i === pts.length - 1 ? `<text x="${x(i)}" y="${H + 14}" text-anchor="middle" font-size="11" style="fill:${i === pts.length - 1 ? 'var(--ink)' : 'var(--muted)'}" font-weight="${i === pts.length - 1 ? 800 : 500}">${monthName(p.mk)}</text>` : '')).join('');
-  return `<svg role="img" aria-label="Sueldo de los últimos ${pts.length} meses, nominal y real" viewBox="0 0 ${W} ${H + 20}" width="100%">
+  return `<svg role="img" aria-label="Ingresos de los últimos ${pts.length} meses, nominal y real" viewBox="0 0 ${W} ${H + 20}" width="100%">
     <line x1="0" y1="${H - 4}" x2="${W}" y2="${H - 4}" style="stroke:var(--track)"/>
     <polyline points="${line('nominal')}" fill="none" stroke="#9A9DA3" stroke-width="2.5" stroke-dasharray="5 5" stroke-linecap="round" stroke-linejoin="round"/>
     <polyline points="${line('real')}" fill="none" stroke="#1F6F4A" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -105,7 +105,7 @@ function chart(series) {
 
 export function render(s) {
   return `<section class="screen">
-    ${screenHead('Tu sueldo', ojoMontos('sueldo'))}
+    ${screenHead('Tus ingresos', ojoMontos('sueldo'))}
     ${cuerpo(s)}
   </section>`;
 }
@@ -121,7 +121,7 @@ export function cuerpo(s, clave = 'sueldo') {
     const parts = [];
     if (st.streak >= 2) parts.push(`Le ganaste a la inflación ${st.streak} meses seguidos.`);
     else if (st.streak === 1) parts.push('Este mes le ganaste a la inflación.');
-    else if (st.series.length > 1) parts.push('Este mes tu sueldo perdió contra la inflación.');
+    else if (st.series.length > 1) parts.push('Este mes lo que cobrás perdió contra la inflación.');
     if (st.isBest) parts.push(`${MONTHS_LONG[Number(st.cur.mk.slice(5)) - 1][0].toUpperCase() + MONTHS_LONG[Number(st.cur.mk.slice(5)) - 1].slice(1)} es tu mejor mes en términos reales.`);
     if (st.toRecover > 0.005) parts.push(`Para volver a tu mejor mes (${monthName(st.best.mk, true)}) necesitás un aumento de ${pct(st.toRecover, 0, false)}: es un buen número para llevar a una negociación.`);
     if (s.rules.raiseHalf.on) parts.push(`Regla activa: el ${s.rules.raiseHalf.pct}% de cada aumento va a tus metas.`);
@@ -133,7 +133,7 @@ export function cuerpo(s, clave = 'sueldo') {
     <div class="card" style="gap:12px">
       <div class="topbar" style="align-items:flex-start;flex-wrap:wrap">
         <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
-          <span class="small muted" style="font-weight:600">${monthName(st.cur.mk, true).replace(/^./, (c) => c.toUpperCase())} (mes trabajado) · neto</span>
+          <span class="small muted" style="font-weight:600">${monthName(st.cur.mk, true).replace(/^./, (c) => c.toUpperCase())} · neto</span>
           <span style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">${money(st.cur.nominal)}</span>
         </div>
         ${st.isBest ? '<span class="pill lime">Mejor mes real</span>' : ''}
@@ -152,18 +152,18 @@ export function cuerpo(s, clave = 'sueldo') {
       return (l ? ` · último dato: ${monthName(l.mk, true)} ${l.mk.slice(0, 4)}.` : '.') + (pend ? ` ${pend === 1 ? 'El último mes se estima' : `Los últimos ${pend} meses se estiman`} hasta que el INDEC publique el dato.` : '');
     })()}</span>
     ${reading ? `<div class="card"><div class="tip-head"><span class="badge">${sprout(17)}</span><strong>Lo que dicen tus números</strong></div><p class="text">${esc(reading)}</p></div>` : ''}
-    ` : '<div class="card"><p class="text">Cargá tus sueldos de los últimos meses y te muestro si le estás ganando a la inflación, tu mejor mes y cuánto creciste de verdad.</p></div>'}
+    ` : '<div class="card"><p class="text">Cargá lo que cobraste los últimos meses y te muestro si le estás ganando a la inflación, tu mejor mes y cuánto creciste de verdad.</p></div>'}
 
     <div class="btn-row">
-      <button class="btn primary" data-action="newSalary" data-mk="${nextMk}">Cargar sueldo de ${monthName(nextMk, true)}</button>
+      <button class="btn primary" data-action="newSalary" data-mk="${nextMk}">Cargar cobro de ${monthName(nextMk, true)}</button>
       <button class="btn" data-action="newSalary" data-mk="${addMonthKey(nextMk, -1)}" data-concepto="otro" style="flex:0 0 auto">+ Extra</button>
     </div>
-    <button class="btn small block" data-action="pastSalaries">${icon('calendar', 18)} Cargar sueldos de meses anteriores</button>
+    <button class="btn small block" data-action="pastSalaries">${icon('calendar', 18)} Cargar meses anteriores</button>
 
     ${st || history.length ? `<details class="card plegable" id="sueldo-informe"${informeAbierto ? ' open' : ''}><summary><strong>Informe del año y tus cobros</strong> <span class="small muted">mes a mes, aumentos y total</span></summary>
     ${informe(s).replace('<div class="card" style="gap:10px">', '<div style="display:flex;flex-direction:column;gap:10px">')}
     ${history.length ? `<div class="section-title"><span>Últimos cobros</span></div>
-    <div class="tight" style="display:flex;flex-direction:column">${history.map((i) => `<button class="row" data-action="editSalary" data-id="${i.id}"><span class="grow"><span class="name">${conceptoDe(i) === 'sueldo' ? 'Sueldo' : conceptoDe(i) === 'aguinaldo' ? 'Aguinaldo' : esc(i.note || 'Extra')} de ${mesCap(periodoDe(i)).replace(/^./, (c) => c.toLowerCase())}</span><span class="meta">Cobrado el ${Number(i.date.slice(8))}/${Number(i.date.slice(5, 7))}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
+    <div class="tight" style="display:flex;flex-direction:column">${history.map((i) => `<button class="row" data-action="editSalary" data-id="${i.id}"><span class="grow"><span class="name">${conceptoDe(i) === 'sueldo' ? 'Cobro' : conceptoDe(i) === 'aguinaldo' ? 'Aguinaldo' : esc(i.note || 'Extra')} de ${mesCap(periodoDe(i)).replace(/^./, (c) => c.toLowerCase())}</span><span class="meta">Cobrado el ${Number(i.date.slice(8))}/${Number(i.date.slice(5, 7))}</span></span><span class="amount">${money(i.amount)}</span></button>`).join('')}</div>` : ''}
     </details>` : ''}
   `, clave);
 }
@@ -172,7 +172,7 @@ export const actions = {
   newSalary(ctx, el) {
     const mk = el.dataset.mk || addMonthKey(monthKey(), -1);
     const c = el.dataset.concepto || 'sueldo';
-    openModal(c === 'sueldo' ? `Sueldo de ${monthName(mk, true)}` : 'Extra del trabajo', salarioForm(ctx.state, mk, c));
+    openModal(c === 'sueldo' ? `Cobro de ${monthName(mk, true)}` : 'Extra del trabajo', salarioForm(ctx.state, mk, c));
   },
   editSalary(ctx, el) {
     const i = ctx.state.incomes.find((x) => x.id === el.dataset.id); if (!i) return;
@@ -187,12 +187,12 @@ export const actions = {
     const loaded = new Set(s.incomes.filter((i) => i.type === 'sueldo').map((i) => i.date.slice(0, 7)));
     const months = [];
     for (let k = 1; k <= 12; k++) { const mk = addMonthKey(monthKey(), -k); if (!loaded.has(mk)) months.push(mk); }
-    openModal('Sueldos anteriores', months.length ? `<form class="form" data-submit="savePastSalaries">
+    openModal('Meses anteriores', months.length ? `<form class="form" data-submit="savePastSalaries">
       <p class="text muted" style="margin:0">Completá los que te acuerdes (el neto que cobraste). Los que dejes vacíos no se cargan. Con más meses, mejor te muestro si le ganás a la inflación.</p>
       ${months.map((mk) => `<div class="field"><label for="ps-${mk}">${monthName(mk, true).replace(/^./, (c) => c.toUpperCase())} ${mk.slice(0, 4)}</label><input id="ps-${mk}" name="m_${mk}" inputmode="decimal" placeholder="Ej: 850.000"></div>`).join('')}
       <div class="field"><label for="ps-x">¿Es de un mes más viejo?</label><div class="field-row"><input id="ps-x" name="otherMonth" type="month" max="${addMonthKey(monthKey(), -1)}"><input name="otherAmount" inputmode="decimal" placeholder="Monto"></div></div>
       <button class="btn primary block" type="submit">Guardar</button></form>`
-      : `<p class="text">Ya tenés cargados los sueldos de los últimos 12 meses. Si querés uno más viejo, elegí el mes:</p>
+      : `<p class="text">Ya tenés cargados los cobros de los últimos 12 meses. Si querés uno más viejo, elegí el mes:</p>
       <form class="form" data-submit="savePastSalaries"><div class="field-row"><input name="otherMonth" type="month" max="${addMonthKey(monthKey(), -1)}" aria-label="Mes"><input name="otherAmount" inputmode="decimal" placeholder="Monto" aria-label="Monto"></div><button class="btn primary block" type="submit">Guardar</button></form>`);
   },
   savePastSalaries(ctx, d) {
@@ -206,7 +206,7 @@ export const actions = {
         s.incomes.push({ id: uid(), date: fecha(x.mk), periodo: x.mk, amount: x.amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) });
       }
     });
-    closeModal(); toast(add.length === 1 ? 'Sueldo cargado' : `Cargué ${add.length} sueldos`);
+    closeModal(); toast(add.length === 1 ? 'Cobro anotado' : `Anoté ${add.length} cobros`);
   },
   saveSalary(ctx, d) {
     const amount = num(d.amount);
@@ -219,7 +219,7 @@ export const actions = {
       ctx.commit((s) => {
         const i = s.incomes.find((x) => x.id === d.id); if (!i) return;
         Object.assign(i, { amount, date, ...(periodo ? { periodo } : {}) });
-        if (concepto === 'sueldo') { i.type = 'sueldo'; i.note = 'Sueldo'; delete i.laboral; delete i.concepto; }
+        if (concepto === 'sueldo') { i.type = 'sueldo'; i.note = notaCobro(s); delete i.laboral; delete i.concepto; }
         else { i.type = 'extra'; i.laboral = true; i.concepto = concepto; i.note = concepto === 'aguinaldo' ? 'Aguinaldo' : String(d.detalle || '').trim() || 'Extra del trabajo'; }
       });
       closeModal(); toast('Guardado'); return;
@@ -230,12 +230,12 @@ export const actions = {
     }
     const prev = lastSalary(ctx.state);
     const isLatest = !prev || date >= prev.date;
-    let msg = 'Sueldo cargado';
+    let msg = 'Cobro anotado';
     ctx.commit((s) => {
       s.incomes.push({ id: uid(), date, ...(periodo ? { periodo } : {}), amount, type: 'sueldo', note: 'Sueldo', ...(s.cuentaSueldo ? { accountId: s.cuentaSueldo } : {}) });
       if (isLatest && prev && amount > prev.amount) {
         const raise = amount - prev.amount;
-        msg = `Tu sueldo subió ${money(raise)}`;
+        msg = `Cobraste ${money(raise)} más que el mes anterior`;
         const g = s.goals.find((x) => x.main) || s.goals[0];
         const part = Math.round((raise * (s.rules.raiseHalf.pct || 50)) / 100);
         if (s.rules.raiseHalf.on && g) { g.monthly = (g.monthly || 0) + part; msg += `: sumé ${money(part)} al aporte mensual de "${g.name}"`; }

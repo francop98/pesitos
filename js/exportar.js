@@ -17,7 +17,7 @@ export function aCSV(s, items) {
   const filas = items.map((x) => {
     const e = x._k === 'e';
     const medio = x.cardId ? `Tarjeta ${(s.cards.find((c) => c.id === x.cardId) || {}).name || ''}` : x.accountId ? nombreCuenta(s, x.accountId) : '';
-    const cat = e ? (x.splits && x.splits.length > 1 ? x.splits.map((p) => `${catById(p.category).label} ${numero(p.amount)}`).join(' + ') : catById(x.category).label) : (x.type === 'sueldo' ? 'Sueldo' : 'Ingreso extra');
+    const cat = e ? (x.splits && x.splits.length > 1 ? x.splits.map((p) => `${catById(p.category).label} ${numero(p.amount)}`).join(' + ') : catById(x.category).label) : (x.type === 'sueldo' ? 'Cobro del mes' : 'Ingreso extra');
     return [fecha(x.date), e ? 'Gasto' : 'Ingreso', x.note, cat, numero(e ? -x.amount : x.amount), x.currency || 'ARS', x.currency && x.currency !== 'ARS' ? numero(x.original) : '', medio, e ? (x.installments || 1) : '', (x.tags || []).join(' '), x.shared ? x.shared.with : ''];
   });
   return '﻿' + [cab, ...filas].map((f) => f.map(celda).join(';')).join('\r\n');

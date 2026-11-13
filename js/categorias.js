@@ -221,12 +221,12 @@ export const CHALLENGE_TYPES = [
 ];
 
 export const CUSTOM_RULE_TYPES = [
-  { id: 'pctSalary', label: 'Un % del sueldo', unit: '%' },
+  { id: 'pctSalary', label: 'Un % de lo que cobrás', unit: '%' },
   { id: 'fixedMonthly', label: 'Un monto fijo por mes', unit: '$' },
   { id: 'catPct', label: 'Un % de lo que gasto en una categoría', unit: '%' },
   { id: 'porGasto', label: 'Un monto cada vez que gasto en una categoría', unit: '$', cat: true },
   { id: 'bajoTope', label: 'Si gasto menos de un tope en una categoría, la diferencia', unit: '$', cat: true },
-  { id: 'pctIngresos', label: 'Un % de todo lo que entra (sueldo y extras)', unit: '%' },
+  { id: 'pctIngresos', label: 'Un % de todo lo que entra (cobro del mes y extras)', unit: '%' },
   { id: 'porSemana', label: 'Un monto fijo por semana', unit: '$' },
   { id: 'porDia', label: 'Un monto por día', unit: '$' },
 ];
@@ -236,6 +236,6 @@ export const RULE_PRESETS = [
   { name: 'Impuesto al antojo', type: 'porGasto', category: 'comida', value: 1000, txt: (m) => `Cada vez que pedís delivery o comés afuera, apartás ${m(1000)}.` },
   { name: 'Lo que no gasto en el súper', type: 'bajoTope', category: 'super', value: 0, txt: () => 'Ponés un tope para el súper y lo que no usás va al ahorro.' },
   { name: 'Moneda por día', type: 'porDia', value: 500, txt: (m) => `${m(500)} por día, casi sin darte cuenta: unos ${m(15000)} por mes.` },
-  { name: 'El 5% de todo lo que entra', type: 'pctIngresos', value: 5, txt: () => 'Sueldo, extras, lo que sea: el 5% va al ahorro.' },
+  { name: 'El 5% de todo lo que entra', type: 'pctIngresos', value: 5, txt: () => 'Cobro del mes, extras, lo que sea: el 5% va al ahorro.' },
   { name: 'Ahorro semanal', type: 'porSemana', value: 10000, txt: (m) => `${m(10000)} cada semana: más fácil que juntar todo a fin de mes.` },
 ];

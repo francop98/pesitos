@@ -179,7 +179,7 @@ function installmentsForm(s, d = {}) {
     <input type="hidden" name="modo" value="sueldo">
     <div class="field"><span class="label-like">¿Tenés la plata hoy?</span>
       <div class="seg" role="radiogroup" aria-label="¿Tenés la plata hoy?">
-        <button type="button" role="radio" data-action="iqTengo" data-v="no" aria-checked="true">No, pago con el sueldo</button>
+        <button type="button" role="radio" data-action="iqTengo" data-v="no" aria-checked="true">No, pago con lo que cobro</button>
         <button type="button" role="radio" data-action="iqTengo" data-v="si" aria-checked="false">Sí, la tengo</button>
       </div>
       <div class="iq-donde" data-iq-donde hidden><span class="small" style="font-weight:700">Mientras pagás las cuotas, la dejarías en:</span>
@@ -238,7 +238,7 @@ export const actions = {
     if (d.modo === 'sueldo' || !d.modo) {
       liq = parejo ? liquidez(s, cash, cuota, n) : null;
       veredicto = parejo ? (liq.cargada ? `Da casi lo mismo (${money(Math.abs(gana))} de diferencia): mirá tu tarjeta` : `Convienen las cuotas: el precio da casi igual y te quedás con la plata`) : gana >= 0 ? `Convienen las cuotas: ganás ${money(gana)}` : `Conviene pagar de contado: ahorrás ${money(-gana)}`;
-      detalle = `Pagando con tu sueldo de cada mes, las ${n} cuotas de ${money(cuota)} valen hoy <b>${money(valorHoy(cuota, n, i) - reinQ / (1 + i))}</b>${reinQ ? ' (ya descontado el reintegro)' : ''}. De contado pagás <b>${money(cash - reinC / (1 + i))}</b>${reinC ? ' (con el reintegro)' : ''}.`;
+      detalle = `Pagando con lo que cobrás cada mes, las ${n} cuotas de ${money(cuota)} valen hoy <b>${money(valorHoy(cuota, n, i) - reinQ / (1 + i))}</b>${reinQ ? ' (ya descontado el reintegro)' : ''}. De contado pagás <b>${money(cash - reinC / (1 + i))}</b>${reinC ? ' (con el reintegro)' : ''}.`;
     } else {
       const tna = tnaDeModo(d);
       const rr = tna / 100 * 30 / 365;
@@ -279,8 +279,8 @@ export const actions = {
       <div class="split small"><span>${recargo > 0.5 ? 'Pagás de más (interés o recargo)' : 'Recargo'}</span><b>${recargo > 0.5 ? `+${money(recargo)} (${pctTxt(recargo / cash)})` : '$0'}</b></div>
       ${rein ? `<div class="split small"><span>Reintegro ${reinQ ? 'en cuotas' : 'de contado'} (${tasaTxt(rpct)}%)</span><b class="pos">−${money(rein)}</b></div>
       <span class="small muted">${topeEn && (reinQ ? total : cash) > topeEn ? `Llegaste al tope: el reintegro máximo se alcanza con ${money(topeEn)}; lo que gastes de más no tiene reintegro.` : topeEn ? `El tope se alcanza con compras de ${money(topeEn)}.` : 'Sin tope.'} Suele acreditarse en el resumen o el mes siguiente.</span>` : ''}
-      <div class="split small"><span>Cada mes, hasta ${fin}</span><b>${money(cuota)}${sal ? ` · ${Math.max(1, Math.round((cuota / sal.amount) * 100))}% de tu sueldo` : ''}</b></div>
-      ${sal && cuota / sal.amount > 0.15 ? '<span class="small">Ojo: la cuota es más del 15% de tu sueldo. Sumada a otras cuotas, puede apretarte el mes.</span>' : ''}
+      <div class="split small"><span>Cada mes, hasta ${fin}</span><b>${money(cuota)}${sal ? ` · ${Math.max(1, Math.round((cuota / sal.amount) * 100))}% de tus ingresos` : ''}</b></div>
+      ${sal && cuota / sal.amount > 0.15 ? '<span class="small">Ojo: la cuota es más del 15% de tus ingresos. Sumada a otras cuotas, puede apretarte el mes.</span>' : ''}
     </div>
     <button class="btn ghost small" data-action="openLesson" data-id="cuotas" data-push="1">¿Cómo se calcula?</button>`);
   },
@@ -514,7 +514,7 @@ export const actions = {
     const r = d.modo === 'dolares' ? 0 : tnaDeModo(d, 'rinde') / 100 * 30 / 365;
     const mesesHasta = () => { const [y, m] = String(d.when || '').split('-').map(Number); return y ? Math.max(1, (y - now.getFullYear()) * 12 + (m - 1 - now.getMonth())) : 12; };
     const fechaDe = (k) => { const x = new Date(now.getFullYear(), now.getMonth() + k, 1); return `${MONTHS_LONG[x.getMonth()]} ${x.getFullYear()}`; };
-    const pctSueldo = (v) => (sal ? `<span class="text">Es el ${Math.max(1, Math.round((v / sal.amount) * 100))}% de tu sueldo.</span>` : '');
+    const pctSueldo = (v) => (sal ? `<span class="text">Es el ${Math.max(1, Math.round((v / sal.amount) * 100))}% de tus ingresos.</span>` : '');
     if (d.modo === 'cuanto') {
       const P = amt(d.monthly); if (!P) return;
       let saldo = have; let k = 0;

@@ -372,7 +372,7 @@ function abrirEliminar() {
   const u = actual;
   const mail = esPorMail(u);
   openModal('Eliminar mi cuenta', `<form class="form" id="f-eliminar">
-      <div class="card amber"><strong>Esto no se puede deshacer</strong><p class="text" style="margin:0">Se borran tu cuenta y todos tus datos de Pesitos: movimientos, sueldo, metas, tarjetas y ahorros. Si querés, antes descargá una copia desde el menú.</p></div>
+      <div class="card amber"><strong>Esto no se puede deshacer</strong><p class="text" style="margin:0">Se borran tu cuenta y todos tus datos de Pesitos: movimientos, ingresos, metas, tarjetas y ahorros. Si querés, antes descargá una copia desde el menú.</p></div>
       ${mail ? '<div class="field"><label for="e-clave">Tu contraseña, para confirmar</label><input id="e-clave" name="clave" type="password" autocomplete="current-password" required></div>' : '<p class="small muted" style="margin:0">Te vamos a pedir que confirmes con Google.</p>'}
       <div class="field"><label for="e-conf">Escribí ELIMINAR para confirmar</label><input id="e-conf" name="conf" autocomplete="off" required placeholder="ELIMINAR"></div>
       <p class="auth-error" role="alert" hidden></p>

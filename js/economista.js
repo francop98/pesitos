@@ -191,7 +191,7 @@ const DONDE = [
   [/categori/, 'Las categorías se crean, ordenan u ocultan desde la carga rápida de Inicio: tocá "Más" al final de la fila de categorías.'],
   [/medio|banco|billetera/, 'Tus bancos, billeteras y tarjetas se eligen en Menú ☰ → Mis medios de pago.'],
   [/deuda|prest/, 'Las deudas y préstamos tienen su pantalla: tocá el botón "Deudas y préstamos" en Movimientos (o Menú ☰ → Deudas y préstamos). Si tenés alguna abierta, también la ves en Inicio, en "Tu día".'],
-  [/sueldo/, 'Tu sueldo está en Movimientos → Estadísticas → Tu sueldo. También tenés un atajo en el menú ☰ → Tu sueldo.'],
+  [/sueldo|ingresos|cobro/, 'Tus ingresos están en Mi plata → Ingresos: ahí cargás lo que cobrás y ves si le ganás a la inflación.'],
   [/estadistic|grafic|en que (gasto|gaste)/, 'Las estadísticas están en Movimientos → Estadísticas (o tocando el resumen del mes).'],
   [/tarjeta/, 'Tus tarjetas están en Por pagar → Tarjetas: ahí ves cada resumen, las cuotas y cuánto tenés comprometido.'],
   [/meta|objetivo/, 'Las metas están en Mi plata → Metas.'],
@@ -221,7 +221,7 @@ const TEMAS = [
   { id: 'promos', k: [/promo|descuento|reintegro|beneficio/] },
   { id: 'dolar', k: [/dolar|cotizacion|blue|mep|euro|real\b|bitcoin|cripto/] },
   { id: 'rinde', k: [/rinde|tasa|interes|plazo fijo|billetera|mercado pago|uala|fci|money market/] },
-  { id: 'sueldo', k: [/sueldo|aumento|salario|le gane|poder de compra/] },
+  { id: 'sueldo', k: [/sueldo|ingreso|aumento|salario|le gane|poder de compra/] },
   { id: 'inflacion', k: [/inflacion|ipc|indec|precios/] },
   { id: 'extra', k: [/aguinaldo|bono|ingreso extra|me sobro/] },
   { id: 'invertir', k: [/donde (pongo|invierto|ahorro|meto|guardo)|invertir|inversion/] },
@@ -250,7 +250,7 @@ function responder(id, q, s, b) {
       return `${r.title}. ${r.text}${r.extra ? '\n\n' + r.extra : ''}\n\nAntes de decidir: ¿lo necesitás o lo querés? Si es un gusto grande, esperá 48 horas.`;
     }
     case 'hoy':
-      if (b.noIncome) return 'Cargá tu sueldo y te digo cuánto podés gastar por día.';
+      if (b.noIncome) return 'Cargá lo que cobrás y te digo cuánto podés gastar por día.';
       return `Hoy podés gastar ${money(Math.max(0, b.todayLeft))}${b.todayLeft < 0 ? ` (hoy ya te pasaste ${money(-b.todayLeft)})` : ''}. Hasta el cobro (${b.cycle.daysLeft} días) te quedan ${money(Math.max(0, b.free))} libres, ya descontando fijos y ahorro.`;
     case 'gaste': {
       const mk = /mes pasado|anterior/.test(q) ? addMonthKey(monthKey(), -1) : monthKey();
@@ -317,8 +317,8 @@ function responder(id, q, s, b) {
     }
     case 'sueldo': {
       const st = salaryStats(s);
-      if (!st) return 'Todavía no cargaste sueldos. Andá a Movimientos → Estadísticas → Tu sueldo y cargá los últimos meses.';
-      let t = `En los últimos ${st.span} meses tu sueldo subió ${pct(st.nomGrowth)} y la inflación fue ${pct(st.inflation)}: en términos reales ${st.realGrowth >= 0 ? 'ganaste' : 'perdiste'} ${pct(Math.abs(st.realGrowth), 1, false)}.`;
+      if (!st) return 'Todavía no cargaste tus cobros. Andá a Mi plata → Ingresos y cargá los últimos meses.';
+      let t = `En los últimos ${st.span} meses lo que cobrás subió ${pct(st.nomGrowth)} y la inflación fue ${pct(st.inflation)}: en términos reales ${st.realGrowth >= 0 ? 'ganaste' : 'perdiste'} ${pct(Math.abs(st.realGrowth), 1, false)}.`;
       if (st.toRecover > 0) t += `\n\nPara volver a tu mejor mes necesitarías un aumento de ${pct(st.toRecover, 0, false)}. Es un buen número para llevar a una negociación.`;
       return t;
     }

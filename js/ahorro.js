@@ -283,7 +283,7 @@ export function render(s) {
     <div class="tabs tabs-4" role="tablist" aria-label="Sección" style="grid-template-columns:repeat(4,minmax(0,1fr))">
       <button role="tab" data-action="ahorroVista" data-v="cuentas" aria-pressed="${vista === 'cuentas'}">Cuentas</button>
       <button role="tab" data-action="ahorroVista" data-v="mis" aria-pressed="${vista === 'mis'}">Ahorros</button>
-      <button role="tab" data-action="ahorroVista" data-v="sueldo" aria-pressed="${vista === 'sueldo'}">Sueldo</button>
+      <button role="tab" data-action="ahorroVista" data-v="sueldo" aria-pressed="${vista === 'sueldo'}">Ingresos</button>
       <button role="tab" data-action="ahorroVista" data-v="plan" aria-pressed="${vista === 'plan'}">Metas</button>
     </div>
     ${vista === 'sueldo' ? sueldoCuerpo(s, 'ahorro') : ''}
