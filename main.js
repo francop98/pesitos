@@ -102,7 +102,7 @@ function render() {
   if (!ready) return;
   setMoneda((state.settings || {}).moneda);
   usarFeriados(state);
-  setCustomCategories(state.customCategories, (state.catPrefs || {}).eliminadas || []);
+  setCustomCategories(state.customCategories, (state.catPrefs || {}).eliminadas || [], (state.catPrefs || {}).nombres || {});
   setCustomWallets(state.customWallets);
   document.body.classList.toggle('no-nav', !state.ready);
   document.body.classList.remove('sin-sesion');

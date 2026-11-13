@@ -224,31 +224,47 @@ function walletsBody(s) {
     <button class="btn primary block" data-action="closeModal">Listo</button>`;
 }
 
-// Administrar categorías: crear (con emoji opcional), ordenar y ocultar
+// Administrar categorías ("Más" en la fila de categorías): todas, marcadas y sin marcar.
+// Marcar = aparece al cargar gastos. También crear, editar (nombre y emoji), borrar y ordenar.
 function categoriesBody(s) {
   const prefs = s.catPrefs || {};
   const orden = prefs.orden || 'frecuentes';
   const ocultas = new Set(prefs.ocultas || []);
   const lista = categoriasOrdenadas(s, { conOcultas: true });
-  return `<form class="form card" data-submit="saveCategory" autocomplete="off">
-      <strong style="font-size:15px">Crear categoría</strong>
-      <div class="field-row cat-new">
-        <div class="field"><label for="cat-e">Emoji (opcional)</label><input id="cat-e" name="emoji" class="emoji-input" maxlength="8" placeholder="🙂" aria-describedby="cat-e-h"></div>
-        <div class="field"><label for="cat-n">Nombre</label><input id="cat-n" name="label" placeholder="Ej: Fútbol de los jueves" required maxlength="30"></div>
-      </div>
-      <span class="hint" id="cat-e-h">Para el emoji, tocá el campo y elegilo desde el teclado del celular (en la compu: Windows + punto).</span>
-      <button class="btn primary block" type="submit">Crear categoría</button>
-    </form>
+  const marcadas = lista.filter((c) => !ocultas.has(c.id)).length;
+  return `<p class="small muted" style="margin:0">Marcá las que usás: son las que aparecen al cargar un gasto. Las que no marcás quedan guardadas acá. <b>${marcadas} de ${lista.length}</b> marcadas.</p>
+    <details class="card plegable"${(s.customCategories || []).length ? '' : ' open'}><summary><strong>+ Crear una categoría</strong></summary>
+      <form class="form" data-submit="saveCategory" autocomplete="off">
+        <div class="field-row cat-new">
+          <div class="field"><label for="cat-e">Emoji (opcional)</label><input id="cat-e" name="emoji" class="emoji-input" maxlength="8" placeholder="🙂" aria-describedby="cat-e-h"></div>
+          <div class="field"><label for="cat-n">Nombre</label><input id="cat-n" name="label" placeholder="Ej: Clases de cerámica" required maxlength="30"></div>
+        </div>
+        <span class="hint" id="cat-e-h">Para el emoji, tocá el campo y elegilo desde el teclado del celular (en la compu: Windows + punto).</span>
+        <button class="btn primary block" type="submit">Crear categoría</button>
+      </form>
+    </details>
+    <div class="card tight cat-lista" data-sortable="catOrdenar">${lista.map((c) => { const on = !ocultas.has(c.id); return `<div class="row cat-admin ${on ? '' : 'oculta'}" data-sort-id="${esc(c.id)}">
+        <button type="button" class="grip" data-grip aria-label="Mover ${esc(c.label)} (flechas arriba y abajo)">${icon('grip', 18)}</button>
+        <button type="button" class="cat-check" data-action="catOcultar" data-id="${esc(c.id)}" role="checkbox" aria-checked="${on}" aria-label="${on ? 'Desmarcar' : 'Marcar'} ${esc(c.label)}" ${c.id === 'otros' ? 'disabled title="Otros siempre está"' : ''}>${on ? icon('check', 16, 2.6) : ''}</button>
+        <span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span><span class="meta">${c.custom ? 'Creada por vos' : c.id === 'otros' ? 'Siempre está, para lo que no entra en ninguna' : esc(c.hint || '')}</span></span>
+        <button class="icon-btn mini" data-action="catEditar" data-id="${esc(c.id)}" aria-label="Editar ${esc(c.label)}">${icon('edit', 16)}</button>
+        ${c.id !== 'otros' ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Eliminar ${esc(c.label)}">${icon('trash', 16)}</button>` : ''}
+      </div>`; }).join('')}</div>
     <div class="field"><span class="small" style="font-weight:700">Ordenar por</span>
       <div class="tabs">${[['frecuentes', 'Más usadas'], ['personalizado', 'A mi gusto'], ['alfabetico', 'A-Z']].map(([v, l]) => `<button type="button" data-action="catOrden" data-v="${v}" aria-pressed="${orden === v}">${l}</button>`).join('')}</div>
-      <span class="hint">${orden === 'frecuentes' ? 'Primero las que más usaste en los últimos 3 meses.' : orden === 'personalizado' ? 'En el orden que elegiste.' : 'Por orden alfabético.'} Para acomodarlas a tu gusto, arrastrá cada una desde ${icon('grip', 13)}. El ojo oculta las que no usás.</span></div>
-    <div class="card tight cat-lista" data-sortable="catOrdenar">${lista.map((c) => `<div class="row cat-admin ${ocultas.has(c.id) ? 'oculta' : ''}" data-sort-id="${esc(c.id)}">
-        <button type="button" class="grip" data-grip aria-label="Mover ${esc(c.label)} (flechas arriba y abajo)">${icon('grip', 18)}</button>
-        <span class="cat-icon">${catIcon(c, 18)}</span><span class="grow"><span class="name">${esc(c.label)}</span>${c.custom ? '<span class="meta">Creada por vos</span>' : c.hint ? `<span class="meta">${esc(c.hint)}</span>` : ''}</span>
-        <button class="icon-btn mini" data-action="catOcultar" data-id="${esc(c.id)}" aria-label="${ocultas.has(c.id) ? 'Mostrar' : 'Ocultar'} ${esc(c.label)}" aria-pressed="${!ocultas.has(c.id)}">${icon(ocultas.has(c.id) ? 'eyeOff' : 'eye', 17)}</button>
-        ${c.id !== 'otros' ? `<button class="icon-btn mini" data-action="deleteCategory" data-id="${esc(c.id)}" aria-label="Eliminar ${esc(c.label)}">${icon('trash', 16)}</button>` : ''}
-      </div>`).join('')}</div>
+      <span class="hint">${orden === 'frecuentes' ? 'Primero las que más usaste en los últimos 3 meses.' : orden === 'personalizado' ? 'En el orden que elegiste.' : 'Por orden alfabético.'} Para acomodarlas a tu gusto, arrastrá cada una desde ${icon('grip', 13)}.</span></div>
     ${(prefs.eliminadas || []).length ? `<button class="btn ghost block" data-action="catRestaurar">Restaurar categorías eliminadas (${prefs.eliminadas.length})</button>` : ''}`;
+}
+function catEditForm(c) {
+  return `<form class="form" data-submit="guardarCatEdit" autocomplete="off"><input type="hidden" name="id" value="${esc(c.id)}">
+    <div class="field-row cat-new">
+      <div class="field"><label for="ce-e">Emoji</label><input id="ce-e" name="emoji" class="emoji-input" maxlength="8" value="${esc(c.emoji || '')}" placeholder="🙂"></div>
+      <div class="field"><label for="ce-n">Nombre</label><input id="ce-n" name="label" value="${esc(c.label)}" required maxlength="30"></div>
+    </div>
+    ${c.custom ? '' : `<span class="hint">Es una categoría de Pesitos: le cambiás cómo se ve y la sigo detectando sola (${esc(c.hint || '')}).</span>`}
+    <button class="btn primary block" type="submit">Guardar</button>
+    ${!c.custom && c.renombrada ? `<button class="btn ghost block" type="button" data-action="catNombreOriginal" data-id="${esc(c.id)}">Volver al nombre original</button>` : ''}
+  </form>`;
 }
 
 function weekDetail(w) {
@@ -606,12 +622,34 @@ export const commonActions = {
     setModalBody('#cats-body', categoriesBody(ctx.state)); ctx.render();
   },
   catOcultar(ctx, el) {
+    if (el.dataset.id === 'otros') return;
     ctx.update((s) => {
       const set = new Set((s.catPrefs && s.catPrefs.ocultas) || []);
       if (set.has(el.dataset.id)) set.delete(el.dataset.id); else set.add(el.dataset.id);
       s.catPrefs = { ...(s.catPrefs || {}), ocultas: [...set] };
     });
     setModalBody('#cats-body', categoriesBody(ctx.state)); ctx.render();
+  },
+
+  catEditar(ctx, el) { const c = allCategories().find((x) => x.id === el.dataset.id); if (c) openModal(`Editar "${c.label}"`, catEditForm(c), { push: true }); },
+  guardarCatEdit(ctx, d) {
+    const label = String(d.label || '').trim().slice(0, 30); if (!label) return;
+    const id = d.id;
+    if (allCategories().some((c) => c.id !== id && normalize(c.label) === normalize(label))) { toast('Ya hay una categoría con ese nombre'); return; }
+    const emoji = soloEmoji(d.emoji);
+    if (String(d.emoji || '').trim() && !emoji) toast('Ese campo es solo para un emoji: lo dejé sin emoji');
+    const nombre = label.charAt(0).toUpperCase() + label.slice(1);
+    ctx.commit((s) => {
+      const cc = (s.customCategories || []).find((c) => c.id === id);
+      if (cc) { cc.label = nombre; if (emoji) cc.emoji = emoji; else delete cc.emoji; }
+      else s.catPrefs = { ...(s.catPrefs || {}), nombres: { ...((s.catPrefs || {}).nombres || {}), [id]: { label: nombre, ...(emoji ? { emoji } : {}) } } };
+      setCustomCategories(s.customCategories, (s.catPrefs || {}).eliminadas || [], (s.catPrefs || {}).nombres || {});
+    });
+    modalBack(); setModalBody('#cats-body', categoriesBody(ctx.state)); toast('Categoría guardada');
+  },
+  catNombreOriginal(ctx, el) {
+    ctx.commit((s) => { const n = { ...((s.catPrefs || {}).nombres || {}) }; delete n[el.dataset.id]; s.catPrefs = { ...(s.catPrefs || {}), nombres: n }; setCustomCategories(s.customCategories, s.catPrefs.eliminadas || [], n); });
+    modalBack(); setModalBody('#cats-body', categoriesBody(ctx.state)); toast('Volvió al nombre original');
   },
 
   // ---------- categorías propias ----------

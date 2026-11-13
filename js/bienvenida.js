@@ -7,14 +7,14 @@ import { uid } from './almacenamiento.js';
 import { todayISO, esc, money, normalize, setMoneda } from './formato.js';
 import { parseAmount } from './interprete.js';
 import { wordmark, icon, sprout } from './interfaz.js';
-import { PROVINCES, provinceLabel, WALLETS } from './categorias.js';
+import { PROVINCES, provinceLabel, WALLETS, CATEGORIES, soloEmoji, setCustomCategories } from './categorias.js';
 import { entenderCobro, textoDeCobro, fechaDeCobro } from './feriados.js';
 import { campoCiudad, activarCiudades } from './ciudades.js';
 
 // v33: menos preguntas y más combinadas. Pasos: ingresos → cuánto y cuándo → ahorro →
 // gastos fijos → medios y cuenta → zona. El saldo de hoy, las tarjetas, metas y fondos
 // se cargan después, a mano (Inicio avisa).
-const ALL_STEPS = ['nombre', 'ingresos', 'monto', 'ahorro', 'fijos', 'medios', 'zona'];
+const ALL_STEPS = ['nombre', 'ingresos', 'monto', 'ahorro', 'fijos', 'categorias', 'medios', 'zona'];
 const mainSteps = () => (knownName ? ALL_STEPS.slice(1) : ALL_STEPS);
 const WALLET_GROUPS = ['Billeteras', 'Bancos', 'Tarjetas'];
 
@@ -30,7 +30,7 @@ const varia = () => (INGRESOS.find((x) => x[0] === draft.ingresos) || [])[3];
 // gastos fijos más comunes (tocás los que tenés y ponés el monto)
 const FIJOS = ['Alquiler', 'Expensas', 'Luz', 'Gas', 'Agua', 'Internet', 'Celular', 'Prepaga u obra social', 'Streaming', 'Gimnasio', 'Colegio', 'Seguro del auto', 'Cuota de préstamo', 'Monotributo'];
 
-const fresh = () => ({ name: '', ingresos: '', moneda: 'ARS', salary: 0, payRule: null, savingMode: '', savingPct: 0, savingAmount: 0, province: '', city: '', wallets: [], customWallets: [], fijos: {}, fijoOtro: [], cuentaSueldo: '', cuentaPrincipal: '', otraCuenta: false });
+const fresh = () => ({ cats: [], catsNuevas: [], name: '', ingresos: '', moneda: 'ARS', salary: 0, payRule: null, savingMode: '', savingPct: 0, savingAmount: 0, province: '', city: '', wallets: [], customWallets: [], fijos: {}, fijoOtro: [], cuentaSueldo: '', cuentaPrincipal: '', otraCuenta: false });
 let step = 'hola';
 let trail = []; // [{ step, q, a }]
 let draft = fresh();
@@ -45,7 +45,8 @@ function nextStep(cur) {
     case 'monto': return 'ahorro';
     case 'ahorro': return draft.savingMode === 'fixed' ? 'ahorroMonto' : 'fijos';
     case 'ahorroMonto': return 'fijos';
-    case 'fijos': return 'medios';
+    case 'fijos': return 'categorias';
+    case 'categorias': return 'medios';
     case 'medios': return 'zona';
     default: return 'listo';
   }
@@ -121,6 +122,22 @@ function current() {
             <button class="btn primary block" type="submit">Seguir (${sel.length})</button></form>` : ''}
           ${inputForm('otroFijo', '¿Otro? Escribí cuál (ej. jardinero)', 'text', 'Agregar')}
           ${sel.length ? '' : `<div class="chips">${chip('', 'No tengo / los cargo después')}</div>`}`,
+      };
+    }
+    case 'categorias': {
+      const n = draft.cats.length + draft.catsNuevas.length;
+      return {
+        bubbles: ['¿En qué gastás? Marcá las categorías que vas a usar: son las que te aparecen al anotar un gasto. Las demás quedan guardadas y las sumás cuando quieras.'],
+        controls: `<div class="chips">${CATEGORIES.filter((c) => c.id !== 'otros').map((c) => `<button type="button" class="chip toggle" data-action="guideCat" data-id="${c.id}" aria-pressed="${draft.cats.includes(c.id)}">${esc(c.short)}</button>`).join('')}
+            ${draft.catsNuevas.map((c, i) => `<button type="button" class="chip toggle" data-action="guideCatQuitar" data-i="${i}" aria-pressed="true">${c.emoji ? `${c.emoji} ` : ''}${esc(c.label)} ✕</button>`).join('')}</div>
+          <span class="small muted guide-hint">"Otros" siempre está, para lo que no entra en ninguna.</span>
+          <form class="form guide-cat-nueva" data-submit="guideCatNueva" autocomplete="off">
+            <span class="label-like">¿Falta alguna? Creala</span>
+            <div class="field-row cat-new"><div class="field"><label for="g-ce" class="sr-only">Emoji</label><input id="g-ce" name="emoji" class="emoji-input" maxlength="8" placeholder="🙂" aria-label="Emoji (opcional)"></div>
+              <div class="field"><label for="g-cn" class="sr-only">Nombre</label><input id="g-cn" name="label" placeholder="Ej: Clases de cerámica" maxlength="30" aria-label="Nombre de la categoría"></div>
+              <button type="submit" class="btn small" style="align-self:flex-end">Crear</button></div>
+          </form>
+          ${n ? `<button class="btn primary block" data-action="guideNext" data-value="ok">Seguir (${n})</button>` : `<div class="chips">${chip('todas', 'Prefiero ver todas')}</div>`}`,
       };
     }
     case 'medios': {
@@ -220,6 +237,12 @@ function answer(ctx, raw, fromInput) {
     }
     case 'monto': { draft.salary = 0; draft.payRule = varia() ? { tipo: 'varia' } : null; shown = 'Prefiero no decirlo ahora'; break; }
     case 'fijos': shown = 'Los cargo después'; break;
+    case 'categorias': {
+      if (value === 'todas') { draft.cats = []; draft.catsNuevas = []; shown = 'Todas'; break; }
+      const noms = [...draft.cats.map((id) => (CATEGORIES.find((c) => c.id === id) || {}).short), ...draft.catsNuevas.map((c) => `${c.emoji ? c.emoji + ' ' : ''}${c.label}`)].filter(Boolean);
+      shown = noms.join(', ');
+      break;
+    }
     case 'zona': draft.province = ''; draft.city = ''; shown = 'Prefiero no decirlo'; break;
     case 'ahorro': {
       const [mode, pct] = value.split(':');
@@ -289,6 +312,17 @@ export const actions = {
     const con = Object.entries(draft.fijos);
     avanzar(ctx, con.map(([k, v]) => (v ? `${k} ${money(v)}` : k)).join(', '));
   },
+  guideCat(ctx, el) { const id = el.dataset.id; draft.cats = draft.cats.includes(id) ? draft.cats.filter((x) => x !== id) : [...draft.cats, id]; ctx.render(); },
+  guideCatQuitar(ctx, el) { draft.catsNuevas.splice(Number(el.dataset.i), 1); ctx.render(); },
+  guideCatNueva(ctx, d) {
+    const label = String(d.label || '').trim().slice(0, 30);
+    if (!label) { nota = 'Escribí el nombre de la categoría.'; ctx.render(); return; }
+    const nombre = label.charAt(0).toUpperCase() + label.slice(1);
+    const base = CATEGORIES.find((c) => normalize(c.label) === normalize(label) || normalize(c.short) === normalize(label));
+    if (base) { if (!draft.cats.includes(base.id)) draft.cats.push(base.id); ctx.render(); return; }
+    if (!draft.catsNuevas.some((c) => normalize(c.label) === normalize(label))) draft.catsNuevas.push({ label: nombre, emoji: soloEmoji(d.emoji) });
+    ctx.render();
+  },
   guideCuenta(ctx, el) { draft[el.dataset.k] = el.value; },
   guideOtraCuenta(ctx, el) { draft.otraCuenta = el.checked; if (!el.checked) draft.cuentaPrincipal = ''; ctx.render(); },
   guideProv(ctx, el) { draft.province = PROVINCES.includes(el.value) ? el.value : ''; draft.city = ''; ctx.render(); },
@@ -342,6 +376,13 @@ export const actions = {
           s.rules.custom.push({ id: 'r_fixed', name: 'Ahorro mensual fijo', type: 'fixedMonthly', value: d.savingAmount, on: true });
           s.asked.savingAmount = { done: true };
         }
+      }
+      // categorías: las que no marcó quedan ocultas (las puede sumar desde "Más"); las nuevas se crean
+      if (d.cats.length || d.catsNuevas.length) {
+        s.catPrefs = { ...(s.catPrefs || {}), ocultas: CATEGORIES.filter((c) => c.id !== 'otros' && !d.cats.includes(c.id)).map((c) => c.id) };
+        s.customCategories = s.customCategories || [];
+        for (const c of d.catsNuevas) if (!s.customCategories.some((x) => normalize(x.label) === normalize(c.label))) s.customCategories.push({ id: 'c_' + uid(), label: c.label, ...(c.emoji ? { emoji: c.emoji } : {}) });
+        setCustomCategories(s.customCategories, s.catPrefs.eliminadas || [], s.catPrefs.nombres || {});
       }
       s.wallets = [...new Set([...(s.wallets || []), ...d.wallets])];
       s.customWallets = s.customWallets || [];

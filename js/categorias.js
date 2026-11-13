@@ -71,10 +71,14 @@ export const catReal = (id) => CATEGORY_ALIAS[id] || CAT_SEPARADAS[id] || id;
 
 // Categorías propias del usuario (se registran al cargar el estado)
 let customCats = [];
-export function setCustomCategories(list, borradas) {
+export function setCustomCategories(list, borradas, nombres) {
   customCats = (list || []).map((c) => ({ id: c.id, label: c.label, icon: 'tag', emoji: c.emoji || '', words: [], custom: true }));
   if (borradas !== undefined) eliminadas = new Set(borradas || []);
+  if (nombres !== undefined) renombres = nombres || {};
 }
+// nombre y emoji que el usuario le puso a una categoría de Pesitos (s.catPrefs.nombres = { id: { label, emoji } })
+let renombres = {};
+const conNombre = (c) => { const r = renombres[c.id]; return r ? { ...c, label: r.label || c.label, short: r.label || c.short, emoji: r.emoji || c.emoji || '', renombrada: true } : c; };
 // categorías de Pesitos que el usuario eliminó (se pueden restaurar)
 let eliminadas = new Set();
 
@@ -111,11 +115,11 @@ export function categoriasOrdenadas(s, { conOcultas = false } = {}) {
   return lista;
 }
 export const allCategories = () => [
-  ...CATEGORIES.filter((c) => c.id !== 'otros' && !eliminadas.has(c.id)),
+  ...CATEGORIES.filter((c) => c.id !== 'otros' && !eliminadas.has(c.id)).map(conNombre),
   ...customCats,
-  ...CATEGORIES.filter((c) => c.id === 'otros'),
+  ...CATEGORIES.filter((c) => c.id === 'otros').map(conNombre),
 ];
-export const catById = (id0) => { const id = catReal(id0); return allCategories().find((c) => c.id === id) || CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1]; };
+export const catById = (id0) => { const id = catReal(id0); return allCategories().find((c) => c.id === id) || conNombre(CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1]); };
 export const catLabel = (id) => catById(id).label;
 
 // Formas de ahorro / inversión. "asset" es la moneda o activo por defecto.
