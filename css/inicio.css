@@ -26,7 +26,7 @@
 .dia-fila .v { font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 button.dia-fila { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 
-/* widget de Inicio */
+/* carrusel de tarjetas verdes (Mi plata → Ahorros, por moneda) */
 .hero-wrap { display: flex; flex-direction: column; gap: 8px; }
 .hero-carrusel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 .hero-carrusel::-webkit-scrollbar { display: none; }
@@ -52,15 +52,24 @@ button.dia-fila { width: 100%; background: none; border: none; font: inherit; co
 .arriba.en-hoja { z-index: 40; bottom: calc(20px + env(safe-area-inset-bottom)); }
 .arriba[hidden] { display: none; }
 
-/* Inicio: tarjeta "Hoy podés gastar" más compacta (solo el widget de Inicio) */
-[data-widget] > .slide.hero { padding: 14px 18px; gap: 4px; }
-[data-widget] > .slide .hero-label { font-size: 13px; }
-[data-widget] > .slide .hero-number { font-size: 34px; letter-spacing: -1px; }
-[data-widget] > .slide .bar { margin-top: 4px; height: 6px; }
-[data-widget] > .slide .hero-msg, [data-widget] > .slide .small { font-size: 12.5px; line-height: 1.4; }
-[data-widget] > .slide .hero-msg.alerta { padding: 7px 10px; margin-top: 2px; }
-[data-widget] > .slide .hero-info { width: 22px; height: 22px; }
-[data-widget] > .slide .hero-acciones { margin-top: 0; }
+/* Inicio: tarjeta "Hoy podés gastar" compacta, con lo que queda hasta el cobro abajo */
+.hero-inicio { padding: 14px 18px; gap: 4px; color: #fff; }
+.hero-inicio .hero-label { font-size: 13px; }
+.hero-inicio .hero-number { font-size: 34px; letter-spacing: -1px; }
+.hero-inicio .bar { margin-top: 4px; height: 6px; }
+.hero-inicio .hero-msg, .hero-inicio .small { font-size: 12.5px; line-height: 1.4; }
+.hero-inicio .hero-msg.alerta { padding: 7px 10px; margin-top: 2px; }
+.hero-inicio .hero-info { width: 22px; height: 22px; }
+.hero-inicio .hero-acciones { margin-top: 0; }
+.hero-cobro { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 10px; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .18); font-size: 13px; color: var(--green-on); }
+.hero-cobro b { color: #fff; font-size: 15px; font-weight: 800; }
+
+/* cómo te fue en el mes */
+.card.cierre { border: 2px solid var(--green-soft); }
+.cierre-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; }
+.cierre-cifras > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cierre-cifras .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.cierre-cifras b { font-size: 15px; font-weight: 800; white-space: nowrap; }
 
 /* "Hoy te pasaste": el número en ámbar (aviso), no en lima (logro) */
 .hero-number.negative { color: #F2B33D; }

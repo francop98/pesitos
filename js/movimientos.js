@@ -1,7 +1,6 @@
 // Movimientos: ingresos y gastos separados, fijos que se cargan solos,
 // sugerencias de mejora y acceso a tarjetas.
 
-import { reintegrosDelMes } from './reintegros.js';
 import { money, esc, monthKey, addMonthKey, monthDiff, monthName, relDay, num, MONTHS_LONG } from './formato.js';
 
 const monthLabel = (mk) => { const [y, m] = mk.split('-').map(Number); return `${MONTHS_LONG[m - 1]} ${y}`; };
@@ -64,8 +63,6 @@ export function render(s) {
   const dias = [];
   for (const x of list) { const d = dias[dias.length - 1]; if (d && d.date === x.date) d.items.push(x); else dias.push({ date: x.date, items: [x] }); }
   const nFijos = s.fixed.filter((f) => fixedActive(f, mk)).length;
-  const reintMes = reintegrosDelMes(s, mk);
-  const ahorroPesitos = ((s.savedByApp || {})[mk] || 0) + reintMes;
 
   return `<section class="screen">
     ${screenHead('Movimientos', `<span class="head-actions"><a class="icon-btn" href="#/buscar" aria-label="Buscar movimientos">${icon('search', 20)}</a><button class="icon-btn" data-action="openImportar" aria-label="Importar movimientos del banco o la tarjeta">${icon('upload', 20)}</button></span>`)}
@@ -82,7 +79,6 @@ export function render(s) {
       <span><span class="k">Quedó</span><b class="${inc - gastos < 0 ? 'neg' : ''}">${money(inc - gastos)}</b></span>
       <span class="mov-ver">Ver estadísticas ${icon('chevron', 14)}</span>
     </a>
-    ${ahorroPesitos || offset === 0 ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos en ${monthLabel(mk).split(' ')[0]}</b><span class="small">${ahorroPesitos ? `${reintMes ? `Reintegros ${money(reintMes)} · ` : ''}promos y desafíos` : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(ahorroPesitos)}</b></button>` : ''}
 
     ${`
       ${pending ? `<button class="card amber u-bd-none-ta-left-dir-row-items-center" data-action="openPending"><span class="u-c-amber">${icon('receipt')}</span><span class="text u-flex-1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé, solo revisalos.</span>${icon('chevron', 16)}</button>` : ''}

@@ -24,7 +24,7 @@ Con Live Server corriendo, entrá desde el celular a `http://IP-DE-TU-COMPU:5500
 | Pantalla | Qué tiene |
 |---|---|
 | **Arranque** | Charla guiada (sueldo, cobro, forma de ahorrar, provincia, ciudad de una lista y medios de pago), todas salteables, y un tutorial corto. Lo demás lo pregunta la app de a poco ("Pesitos quiere saber", máximo 3 por día) |
-| **Inicio** | "Hoy podés gastar", carga rápida con Gasto/Ingreso, "Págate primero" (Ya lo aparté / Todavía no), meta principal, ¿Me lo compro?, cierre semanal, resumen de tarjeta, sugerencias de mejora, promos del día y contador de plata ahorrada |
+| **Inicio** | Una tarjeta con "Hoy podés gastar" y lo que queda hasta el cobro, ojito para ocultar los números, carga rápida con Gasto/Ingreso, el aviso más importante (el resto en la campanita), "Cómo te fue en el mes" al cobrar y "Tu día" (próximo pago, promo de hoy, cuentas y deudas) |
 | **Movimientos** | Ingresos y gastos por mes, gastos fijos con nombre libre (avisa si suben), comprobantes para confirmar, sugerencias de mejora |
 | **Tarjetas** | Próximo resumen, cuotas pendientes (cuota X de N), compromisos de los próximos 6 meses, uso del límite |
 | **Sueldo** | Evolución nominal vs real (ajustada por inflación), mejor mes, crecimiento real, cuánto pedir de aumento |
@@ -36,7 +36,7 @@ Con Live Server corriendo, entrá desde el celular a `http://IP-DE-TU-COMPU:5500
 | **Herramientas** | ¿Me lo compro?, cuotas o contado, cuánto ahorrar por mes, cuánto rinde mi plata, conversor |
 | **Buscar** | Búsqueda en vivo por texto, categoría, medio de pago, etiqueta, fechas y monto; exporta lo encontrado a Excel (CSV) |
 | **Presupuestos** | Tope por categoría con barra de avance, sugerencia según tu promedio y aviso al pasar el 80 % y el 100 % |
-| **Mis cuentas** | Saldo de cada cuenta (efectivo, bancos, billeteras) que se mueve solo con cada gasto, ingreso y pago; transferencias entre cuentas; patrimonio neto |
+| **Mis cuentas** | Opcional: elegís qué cuentas seguir y su saldo se mueve solo con cada gasto, ingreso y pago. Una vez por mes, al cobrar, te pregunta si coincide con el banco (si falta plata: "son gastos que no anoté" o "solo ajustá el saldo"); transferencias entre cuentas |
 | **Deudas** | Lo que te deben y lo que debés, pagos parciales, recordatorio por WhatsApp; los gastos compartidos crean la deuda solos |
 | **Estadísticas** | Torta por categoría, comparación con el período anterior, ingresos y gastos mes a mes, comercios, etiquetas y medios de pago; exporta a Excel o PDF |
 
@@ -94,6 +94,7 @@ pesitos/
 ├── vercel.json             Tareas programadas y configuración de Vercel
 ├── package.json            Dependencias del servidor (firebase-admin, web-push)
 ├── pages/                  terminos.html y privacidad.html
+├── tests/                  Chequeos y pruebas (no se publican: ver tests/LEEME.md)
 ├── assets/                 Íconos de la app y vendor/ (Tesseract, pdf.js y SheetJS, para leer tickets y resúmenes en el dispositivo)
 ├── api/                    Servidor en Vercel: datos.js, actualizar.js y _lib/
 └── js/
@@ -124,7 +125,7 @@ pesitos/
     ├── categorias.js       Categorías, medios de pago, provincias y desafíos
     ├── acciones.js         Acciones compartidas (carga, edición, copias)
     ├── ejemplo.js          Datos de ejemplo
-    ├── cuentas.js · miscuentas.js     Saldos por cuenta, transferencias y patrimonio
+    ├── cuentas.js · miscuentas.js     Saldos por cuenta, transferencias y cuadre mensual con el banco
     ├── presupuestos.js · deudas.js · buscar.js · estadisticas.js   (una pantalla por archivo)
     ├── exportar.js         Excel (CSV) y PDF
     ├── ayuda.js            Tutorial de bienvenida y Ayuda (preguntas frecuentes)

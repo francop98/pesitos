@@ -329,10 +329,6 @@ export function quickForm(id, s = null, medioHtml = '') {
       <button type="submit" class="icon-btn dark" aria-label="Anotar">${icon('plus', 20, 2.2)}</button>
     </div>
     <input type="hidden" name="category" value="auto">
-    ${s && (s.proyectos || []).some((p) => !p.cerrado) ? `<input type="hidden" name="proyecto" value="">
-    <div class="medio-fila"><span class="medio-label">Proyecto</span><div class="medio-row" role="radiogroup" aria-label="Proyecto">
-      <button type="button" class="medio-chip" role="radio" data-action="pickProyecto" data-v="" aria-checked="true">Ninguno</button>
-      ${s.proyectos.filter((p) => !p.cerrado).map((p) => `<button type="button" class="medio-chip" role="radio" data-action="pickProyecto" data-v="${esc(p.id)}" aria-checked="false">📁 ${esc(p.nombre)}</button>`).join('')}</div></div>` : ''}
     <input type="search" class="cat-buscar" placeholder="Buscar categoría" aria-label="Buscar categoría" data-input="catFiltrar" autocomplete="off" hidden>
     <div class="cat-row" role="radiogroup" aria-label="Categoría">
       <button type="button" class="cat-chip cat-lupa" data-action="catLupa" aria-label="Buscar categoría"><span class="cat-chip-ic">${icon('search', 18)}</span><span>Buscar</span></button>
@@ -578,6 +574,34 @@ document.addEventListener('input', (e) => {
   });
   if (nuevo !== v) { el.value = nuevo; ponerCursor(el, antes, /\d/); }
 }, true);
+
+// ---------- charla de arranque (bienvenida, cuenta y clave) ----------
+// La pantalla queda fija: solo se mueven los mensajes y, si no entran, los controles.
+// Con el teclado abierto se achica al lugar visible (y esconde la barra de arriba),
+// así el campo nunca queda tapado y el fondo no se desplaza.
+let altoMax = 0;
+function ajustarCharla() {
+  const vv = window.visualViewport;
+  const g = document.querySelector('.guide');
+  if (!vv || !g) return;
+  altoMax = Math.max(altoMax, vv.height);
+  document.documentElement.style.setProperty('--alto-visible', `${Math.round(vv.height)}px`);
+  g.classList.toggle('teclado', vv.height < altoMax * 0.8);
+  if (window.scrollY) window.scrollTo(0, 0);
+  const f = document.activeElement;
+  if (f && f.closest && f.closest('.guide-controls')) f.scrollIntoView({ block: 'nearest' });
+}
+export function bajarCharla() {
+  ajustarCharla();
+  const chat = document.querySelector('.guide .guide-chat');
+  if (chat) chat.scrollTop = chat.scrollHeight;
+  window.scrollTo(0, 0);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', ajustarCharla);
+  window.visualViewport.addEventListener('scroll', ajustarCharla);
+  document.addEventListener('focusin', (e) => { if (e.target.closest && e.target.closest('.guide-controls')) setTimeout(ajustarCharla, 250); });
+}
 
 // ---------- flechita para volver arriba ----------
 // Cuando bajás y dejás de ver la flecha de volver (o el título), aparece abajo a la

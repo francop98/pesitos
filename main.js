@@ -31,7 +31,7 @@ import { setMoneda } from './js/formato.js';
 import { refreshLive } from './js/datosvivos.js';
 import { refreshRendimientos } from './js/rendimientos.js';
 import { refreshFeriados, usarFeriados } from './js/feriados.js';
-import { openModal, closeModal, toast, hydrateNavIcons } from './js/interfaz.js';
+import { openModal, closeModal, toast, hydrateNavIcons, bajarCharla } from './js/interfaz.js';
 import * as onboarding from './js/bienvenida.js';
 import * as inicio from './js/inicio.js';
 import * as movimientos from './js/movimientos.js';
@@ -111,7 +111,7 @@ function render() {
     main.innerHTML = onboarding.render(state);
     const field = main.querySelector('[data-autofocus]');
     if (field && window.matchMedia('(pointer: fine)').matches) field.focus({ preventScroll: true });
-    window.scrollTo(0, document.body.scrollHeight);
+    bajarCharla();
     return;
   }
   nav.hidden = false;

@@ -8,7 +8,7 @@
 // =========================================================
 
 import { esc } from './formato.js';
-import { wordmark, icon, sprout, toast, openModal, closeModal } from './interfaz.js';
+import { wordmark, icon, sprout, bajarCharla, toast, openModal, closeModal } from './interfaz.js';
 import { abrirLlave, limpiarCodigo } from './cifrado.js';
 
 const send = (label = 'Seguir') => `<button type="submit" class="icon-btn green" aria-label="${label}">${icon('send', 20, 2.2)}</button>`;
@@ -33,7 +33,7 @@ function dibujar(cont, opts) {
   cont.innerHTML = pantalla(opts);
   const f = cont.querySelector('[data-autofocus]');
   if (f && window.matchMedia('(pointer: fine)').matches) f.focus({ preventScroll: true });
-  window.scrollTo(0, document.body.scrollHeight);
+  bajarCharla();
 }
 
 function verClave(cont) {

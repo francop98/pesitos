@@ -1,0 +1,13 @@
+{
+  "name": "pesitos-pruebas",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de Pesitos (no se publican en Vercel).",
+  "scripts": {
+    "chequear": "node chequear-archivos.mjs",
+    "test": "node chequear-archivos.mjs && node pruebas.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

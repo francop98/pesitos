@@ -8,11 +8,17 @@
 .onb-hero .tag { color: var(--lime); font-size: 20px; font-weight: 800; }
 
 /* arranque guiado (charla) con colores de la app */
-.guide { min-height: 100dvh; display: flex; flex-direction: column; gap: 16px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+.guide { height: var(--alto-visible, 100dvh); display: flex; flex-direction: column; gap: 16px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); overflow: hidden; overflow: clip; }
+.guide.teclado { padding-bottom: 8px; }
+.guide.teclado .guide-top { display: none; }
+.guide.teclado .guide-controls { max-height: 80%; }
+html:has(.guide), body:has(.guide) { overflow: hidden; overscroll-behavior: none; }
+.guide-top { flex-shrink: 0; }
 .guide-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--green); color: #fff; padding: 18px 20px 22px; border-radius: 0 0 28px 28px; }
 .guide-brand { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .guide-brand > span:last-child { color: var(--lime); font-size: 13px; font-weight: 700; }
-.guide-chat { flex: 1; justify-content: flex-end; gap: 10px; padding: 0 20px; }
+.guide-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; gap: 10px; padding: 0 20px; }
+.guide-chat > :first-child { margin-top: auto; }
 .bot-row { display: flex; align-items: flex-end; gap: 8px; animation: up .25s ease-out; }
 .bot-avatar { width: 32px; height: 32px; border-radius: 10px; background: var(--green); display: grid; place-items: center; flex-shrink: 0; }
 .bot-avatar.ghost { background: transparent; }
@@ -20,7 +26,7 @@
 .guide-chat .bubble.bot { border: 1px solid var(--line); }
 .guide-chat .bubble.faded { opacity: .6; font-size: 14px; margin-left: 40px; box-shadow: none; }
 .guide-chat .bubble.me { background: var(--green); font-size: 14px; }
-.guide-controls { position: sticky; bottom: 0; background: var(--bg); padding: 8px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+.guide-controls { flex-shrink: 0; max-height: 62%; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); padding: 8px 20px 2px; display: flex; flex-direction: column; gap: 10px; }
 .guide-controls .chip { border-color: var(--green); color: var(--green-text); }
 .guide-controls .chip:not([aria-pressed="true"]):not(.primary):hover { background: var(--green-soft); }
 .guide-hint { margin: -2px 4px 0; }

@@ -1,6 +1,6 @@
 // =========================================================
-// Pesitos — pantalla "Mis cuentas": saldo de cada cuenta, transferencias,
-// ajustar con el saldo real y patrimonio.
+// Pesitos — pantalla "Mis cuentas": saldo de las cuentas que seguís, transferencias
+// y cuadrar con el banco una vez por mes.
 // =========================================================
 
 import { money, esc, todayISO, relDay, num, parseISO, MONTHS } from './formato.js';
@@ -10,7 +10,7 @@ import { uid } from './almacenamiento.js';
 import { tasaDe, textoTasa, valorHoy } from './rendimientos.js';
 import { budget, metaDiario } from './calculos.js';
 import { monedaBase } from './cotizaciones.js';
-import { listaCuentas, cuentaPrincipal, saldoCuenta, cuentasConSaldo, movimientosDeCuenta, totalCuentas, nombreCuenta, patrimonio, detalleSaldo, cuentaPuedeRendir, tnaCuenta } from './cuentas.js';
+import { listaCuentas, cuentaPrincipal, saldoCuenta, cuentasConSaldo, movimientosDeCuenta, totalCuentas, nombreCuenta, detalleSaldo, cuentaPuedeRendir, tnaCuenta } from './cuentas.js';
 
 const signo = (v) => `${v >= 0 ? '+' : '−'}${money(Math.abs(v))}`;
 const opcionesCuenta = (s, sel) => listaCuentas(s).map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -22,47 +22,36 @@ export function render(s) {
   `;
 }
 
-/** Saldo de cada cuenta y transferencias (también en Mi plata → Cuentas). */
+/** Saldo de las cuentas que seguís y transferencias (también en Mi plata → Cuentas).
+ *  Seguir el saldo es opcional: elegís qué cuentas y te pregunto una vez por mes, al cobrar, si coincide. */
 export function cuerpo(s) {
-  const todas = listaCuentas(s);
   const con = cuentasConSaldo(s);
+  const sin = listaCuentas(s).filter((c) => !con.some((x) => x.id === c.id));
   const ppal = cuentaPrincipal(s);
+  const ult = s.comparacion && s.comparacion.ultima;
   return `
-    <div class="card green u-gap-6">
-      <span class="hero-label">${con.length ? 'Tenés en tus cuentas' : 'Cargá el saldo de tus cuentas'}</span>
-      <span class="hero-number u-fs-34">${con.length ? money(totalCuentas(s)) : '—'}</span>
-      <span class="small on-green-muted">${con.length ? `Se actualiza solo con lo que anotás${con.some((c) => tnaCuenta(s, c.id)) ? ' y con los intereses de las cuentas que rinden' : ''}. Si no coincide con tu banco, tocá la cuenta y ajustalo.` : 'Tocá una cuenta y poné cuánto tiene hoy: después se actualiza sola con cada gasto e ingreso.'}</span>
-      ${con.length ? `<button class="link-btn on-green-muted u-self-start" data-action="openComparar">Comparar con el banco${s.comparacion && s.comparacion.ultima ? ` (última vez: ${relDay(s.comparacion.ultima).toLowerCase()})` : ''} ›</button>` : ''}
+    ${con.length ? `<div class="card green u-gap-6">
+      <span class="hero-label">Tenés en ${con.length === 1 ? esc(con[0].name) : 'tus cuentas'}</span>
+      <span class="hero-number u-fs-34">${money(totalCuentas(s))}</span>
+      <span class="small on-green-muted">Se actualiza solo con lo que anotás${con.some((c) => tnaCuenta(s, c.id)) ? ' y con los intereses' : ''}. Cuando cobrás te pregunto si coincide con el banco${ult ? ` (última vez: ${relDay(ult).toLowerCase()})` : ''}.</span>
+      <button class="link-btn on-green-muted u-self-start" data-action="openComparar">Cuadrar con el banco ahora ›</button>
     </div>
-    <div class="card tight">${todas.map((c) => { const sal = saldoCuenta(s, c.id); return `<button class="row" data-action="abrirCuenta" data-id="${esc(c.id)}">
+    <div class="card tight">${con.map((c) => { const sal = saldoCuenta(s, c.id); return `<button class="row" data-action="abrirCuenta" data-id="${esc(c.id)}">
       <span class="cat-icon ${c.id === ppal ? 'green' : ''}">${icon(c.id === 'efectivo' ? 'wallet' : 'card', 18)}</span>
-      <span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${c.id === ppal ? 'Cuenta principal · ' : ''}${sal == null ? 'Sin saldo cargado' : `Desde el ${s.cuentas[c.id].desde.split('-').reverse().slice(0, 2).join('/')}`}${sal != null && tnaCuenta(s, c.id) ? ` · rinde ${textoTasa(tasaDe(s, c.id), money)}` : ''}</span></span>
-      <span class="amount ${sal != null && sal < 0 ? 'neg' : ''}">${sal == null ? 'Cargar' : money(sal)}</span></button>`; }).join('')}</div>
+      <span class="grow"><span class="name">${esc(c.name)}</span><span class="meta">${c.id === ppal ? 'Cuenta principal · ' : ''}Desde el ${s.cuentas[c.id].desde.split('-').reverse().slice(0, 2).join('/')}${tnaCuenta(s, c.id) ? ` · rinde ${textoTasa(tasaDe(s, c.id), money)}` : ''}</span></span>
+      <span class="amount ${sal < 0 ? 'neg' : ''}">${money(sal)}</span></button>`; }).join('')}</div>
+    ${sin.length ? '<button class="btn small ghost u-self-start" data-action="openSeguirCuentas">+ Seguir otra cuenta</button>' : ''}`
+    : `<div class="card seguir-cuentas">
+      <strong>Saldo de tus cuentas <span class="chip-mini">Opcional</span></strong>
+      <span class="text">Si querés, llevo el saldo de las cuentas que elijas. Una vez por mes, cuando cobrás, te pregunto si coincide con el banco: si falta plata, suelen ser gastos que no anotaste.</span>
+      <button class="btn small green u-self-start" data-action="openSeguirCuentas">Elegir cuentas</button>
+    </div>`}
     <p class="small muted">¿Falta una cuenta? Agregala en menú ☰ → Mis medios de pago. Las tarjetas de crédito están en <a href="#/tarjetas">Por pagar → Tarjetas</a>.</p>
 
     ${(s.transferencias || []).length ? `<div class="section-title"><span>Últimas transferencias</span></div>
     <div class="card tight">${s.transferencias.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8).map((t) => `<button class="row" data-action="editarTransferencia" data-id="${esc(t.id)}">
       <span class="cat-icon">${icon('swap', 18)}</span><span class="grow"><span class="name">${esc(nombreCuenta(s, t.from))} → ${esc(nombreCuenta(s, t.to))}</span><span class="meta">${relDay(t.date)}${t.note ? ' · ' + esc(t.note) : ''}</span></span><span class="amount">${money(t.amount)}</span></button>`).join('')}</div>` : ''}
   </section>`;
-}
-
-
-/** Patrimonio neto: lo que tenés menos lo que debés (arriba de Mi plata). */
-export function patrimonioHtml(s, abierto = false) {
-  const pat = patrimonio(s);
-  return `<div class="card patrimonio">
-    <button class="pat-top" data-action="patToggle" aria-expanded="${abierto}"><span class="grow"><span class="small muted u-fw-700">Tu patrimonio neto</span><b class="pat-v ${pat.neto >= 0 ? '' : 'neg'}">${money(pat.neto)}</b><span class="small muted">Lo que tenés menos lo que debés</span></span>${icon('chevron', 18)}</button>
-    ${abierto ? `<div class="pat-detalle">
-      <div class="split"><span>Cuentas</span><b>${money(pat.cuentas)}</b></div>
-      <div class="split"><span>Ahorros e inversiones</span><b>${money(pat.ahorros)}</b></div>
-      ${pat.meDeben ? `<div class="split"><span>Te deben</span><b>${money(pat.meDeben)}</b></div>` : ''}
-      ${pat.tarjetas ? `<div class="split"><span>Tarjetas (lo que falta pagar)</span><b>−${money(pat.tarjetas)}</b></div>` : ''}
-      ${pat.creditos ? `<div class="split"><span>Créditos y cuotas que faltan</span><b>−${money(pat.creditos)}</b></div>` : ''}
-      ${pat.debo ? `<div class="split"><span>Debés a otras personas</span><b>−${money(pat.debo)}</b></div>` : ''}
-      ${pat.conCuentas ? '' : '<span class="small muted">Para que sea exacto, cargá el saldo de tus cuentas.</span>'}
-      ${pat.meDeben || pat.debo ? `<button class="btn small ghost u-self-start" data-action="verDeudas">Ver ${pat.debo && pat.meDeben ? 'lo que debés y te deben' : pat.debo ? 'a quién le debés' : 'quién te debe'}</button>` : ''}
-    </div>` : ''}
-  </div>`;
 }
 
 function formTransferencia(s, t = {}) {
@@ -169,21 +158,45 @@ function formAhorrar(s, monto = 0, tipoForzado = '', metaId = '', otro = false) 
   </form>`;
 }
 
-// ---------- comparar con el banco (una vez por semana) ----------
-// El saldo que calcula Pesitos puede alejarse del real (un gasto sin anotar, un débito,
-// un reintegro distinto). Cada 7 días te pido que lo compares y ajusto la diferencia.
-export function compararPendiente(s) {
-  if (!cuentasConSaldo(s).length) return false;
+// ---------- cuadrar con el banco (una vez por mes, al cobrar) ----------
+// El saldo que calcula Pesitos se aleja del real cuando algo no se anota. Después de cada
+// cobro te pido el saldo real de las cuentas que seguís; si falta plata, elegís si fueron
+// gastos que no anotaste (se suman en Otros, en el mes que pasó) o si solo ajusto el saldo.
+export function cuadrePendiente(s) {
+  const con = cuentasConSaldo(s); if (!con.length) return false;
+  const inicio = budget(s).cycle.startISO;
+  if (todayISO() < inicio) return false;
+  if (con.every((c) => s.cuentas[c.id].desde >= inicio)) return false; // las cargaste después de cobrar
   const u = s.comparacion && s.comparacion.ultima;
-  if (!u) return true;
-  return (Date.now() - new Date(u + 'T12:00:00').getTime()) / 86400000 >= 7;
+  return !u || u < inicio;
 }
-export function compararCard(s) {
-  if (!compararPendiente(s)) return '';
-  const n = cuentasConSaldo(s).length;
-  return `<div class="card"><div class="tip-head"><span class="u-c-green">${icon('scale', 20)}</span><strong>¿Tu saldo coincide con el del banco?</strong></div>
-    <span class="text">Una vez por semana conviene comparar: si anotaste todo, coincide; si no, lo ajusto y seguimos desde el saldo real.</span>
-    <div class="btn-row"><button class="btn small primary" data-action="openComparar">Comparar ${n === 1 ? 'mi cuenta' : `mis ${n} cuentas`}</button><button class="btn small" data-action="compararCoincide">Coinciden</button></div></div>`;
+export function cuadreCard(s) {
+  if (!cuadrePendiente(s)) return '';
+  const con = cuentasConSaldo(s);
+  return `<div class="card"><div class="tip-head"><span class="u-c-green">${icon('scale', 20)}</span><strong>Cobraste: ¿cuánto tenés hoy en ${con.length === 1 ? esc(con[0].name) : 'tus cuentas'}?</strong></div>
+    <span class="text">Una vez por mes comparo tu saldo con el del banco. Si coincide, seguimos; si falta plata, lo acomodamos.</span>
+    <div class="btn-row"><button class="btn small primary" data-action="openComparar">Poner el saldo</button><button class="btn small" data-action="compararCoincide">Coincide</button></div></div>`;
+}
+// lo que quedó del formulario mientras elegís qué fue la diferencia
+let cuadre = null;
+const diaAntes = (iso) => { const d = parseISO(iso); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function aplicarCuadre(ctx, comoGasto) {
+  const c = cuadre; if (!c) return;
+  ctx.commit((s) => {
+    if (comoGasto && c.falta >= 1) {
+      // al cobrar, lo que falta es del mes que pasó; si cuadrás a mitad de mes, va al comienzo de este
+      const inicio = budget(s).cycle.startISO;
+      const dias = (Date.parse(todayISO()) - Date.parse(inicio)) / 86400000;
+      s.expenses.push({ id: uid(), date: dias <= 7 ? diaAntes(inicio) : inicio, amount: Math.round(c.falta), category: 'otros', note: 'Gastos sin anotar', installments: 1, ajusteCuadre: true });
+    }
+    for (const [id, saldo] of Object.entries(c.reales)) s.cuentas = { ...(s.cuentas || {}), [id]: { saldo, desde: todayISO() } };
+    s.comparacion = { ultima: todayISO(), difs: c.difs.slice(0, 6) };
+    // si seguís todas tus cuentas, también es tu saldo total de partida para lo que viene
+    if (listaCuentas(s).every((x) => s.cuentas && s.cuentas[x.id])) s.lastClose = { date: todayISO(), balance: Math.round(totalCuentas(s)) };
+  });
+  cuadre = null;
+  closeModal();
+  if (comoGasto) toast(`Listo: sumé ${money(c.falta)} de gastos sin anotar y ajusté el saldo`);
 }
 
 export const actions = {
@@ -252,28 +265,53 @@ export const actions = {
   },
   openComparar(ctx) {
     const s = ctx.state;
-    openModal('Comparar con el banco', `<form class="form" data-submit="guardarComparar">
+    openModal('Cuadrar con el banco', `<form class="form" data-submit="guardarComparar">
       <p class="text muted u-m-0">Abrí la app de cada banco o billetera y escribí el saldo de hoy. Si coincide, dejalo vacío.</p>
       ${cuentasConSaldo(s).map((c) => `<div class="field"><label for="cmp-${esc(c.id)}">${esc(c.name)}</label><input id="cmp-${esc(c.id)}" name="c_${esc(c.id)}" inputmode="decimal" placeholder="Pesitos: ${money(saldoCuenta(s, c.id) || 0)}"></div>`).join('')}
       <button class="btn primary block" type="submit">Listo</button></form>`);
   },
   guardarComparar(ctx, d) {
-    const difs = [];
-    ctx.commit((s) => {
-      for (const c of cuentasConSaldo(s)) {
-        const raw = String(d[`c_${c.id}`] || '').trim(); if (!raw) continue;
-        const real = num(raw); const calc = saldoCuenta(s, c.id) || 0;
-        if (Math.abs(real - calc) >= 1) difs.push(`${c.name}: ${real > calc ? '+' : '−'}${money(Math.abs(real - calc))}`);
-        s.cuentas = { ...(s.cuentas || {}), [c.id]: { saldo: real, desde: todayISO() } };
-      }
-      s.comparacion = { ultima: todayISO(), difs: difs.slice(0, 6) };
-    });
-    closeModal();
-    toast(difs.length ? `Ajustado. Diferencia: ${difs.join(' · ')}` : '¡Coincide todo!');
+    const s = ctx.state;
+    const reales = {}; const difs = []; let falta = 0; let sobra = 0;
+    for (const c of cuentasConSaldo(s)) {
+      const raw = String(d[`c_${c.id}`] || '').trim(); if (!raw) continue;
+      const real = num(raw); const calc = saldoCuenta(s, c.id) || 0;
+      reales[c.id] = real;
+      if (Math.abs(real - calc) >= 1) { difs.push(`${c.name}: ${real > calc ? '+' : '−'}${money(Math.abs(real - calc))}`); if (real < calc) falta += calc - real; else sobra += real - calc; }
+    }
+    cuadre = { reales, difs, falta: Math.round(falta) };
+    if (falta < 1) {
+      aplicarCuadre(ctx, false);
+      toast(!difs.length ? '¡Coincide todo!' : `Tenés ${money(sobra)} más de lo que calculé (¿un ingreso sin anotar?). Ajusté el saldo`);
+      return;
+    }
+    openModal('Falta plata', `<p class="text u-m-0">Tenés <b>${money(falta)}</b> menos de lo que calculé${difs.length > 1 ? ` (${esc(difs.join(' · '))})` : ''}. ¿Qué fue?</p>
+      <button class="btn primary block" data-action="cuadreGastos">Son gastos que no anoté</button>
+      <span class="small muted">Los sumo en Otros como "Gastos sin anotar", así tus números del mes quedan reales.</span>
+      <button class="btn block" data-action="cuadreSoloSaldo">Solo ajustá el saldo</button>`);
   },
+  cuadreGastos(ctx) { aplicarCuadre(ctx, true); },
+  cuadreSoloSaldo(ctx) { aplicarCuadre(ctx, false); toast('Listo: ajusté el saldo'); },
   compararCoincide(ctx) {
     ctx.commit((s) => { s.comparacion = { ultima: todayISO(), difs: [] }; });
-    toast('¡Bien! Te pregunto de nuevo en una semana');
+    toast('¡Bien! Te pregunto de nuevo cuando cobres');
+  },
+  openSeguirCuentas(ctx) {
+    const s = ctx.state;
+    const sin = listaCuentas(s).filter((c) => !(s.cuentas && s.cuentas[c.id]));
+    openModal('Elegir cuentas', `<form class="form" data-submit="guardarSeguirCuentas">
+      <p class="text muted u-m-0">Poné cuánto tenés hoy en las cuentas que querés seguir. Las que dejes vacías no las sigo.</p>
+      ${sin.map((c) => `<div class="field"><label for="sc-${esc(c.id)}">${esc(c.name)}</label><input id="sc-${esc(c.id)}" name="c_${esc(c.id)}" inputmode="decimal" placeholder="No la sigo"></div>`).join('')}
+      <button class="btn primary block" type="submit">Guardar</button></form>`);
+  },
+  guardarSeguirCuentas(ctx, d) {
+    const ids = Object.keys(d).filter((k) => k.startsWith('c_') && String(d[k]).trim()).map((k) => k.slice(2));
+    if (!ids.length) { toast('Poné el saldo de al menos una cuenta'); return; }
+    ctx.commit((s) => {
+      for (const id of ids) s.cuentas = { ...(s.cuentas || {}), [id]: { saldo: num(d[`c_${id}`]), desde: todayISO() } };
+      if (!s.cuentaPrincipal) s.cuentaPrincipal = ids[0];
+    });
+    closeModal(); toast(ids.length === 1 ? 'Listo: sigo esa cuenta' : `Listo: sigo ${ids.length} cuentas`);
   },
   abrirCuenta(ctx, el) {
     const s = ctx.state; const id = el.dataset.id;

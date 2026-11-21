@@ -415,9 +415,5 @@ export function expectedBalance(s, todayStr = toISO(startOfToday())) {
   return s.lastClose.balance + inc - exp - tr - fixedDue;
 }
 
-export function closeDue(s) {
-  if (!s.lastClose) return true;
-  return daysBetween(parseISO(s.lastClose.date), startOfToday()) >= 7;
-}
 
 export { monthKey };

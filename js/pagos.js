@@ -71,29 +71,6 @@ function section(title, list, note = '') {
     <div class="card tight">${list.map(row).join('')}</div>`;
 }
 
-// gráfico de la plata disponible día a día hasta el cobro
-function chart(pr) {
-  const pts = pr.points;
-  if (pts.length < 2) return '';
-  const W = 350; const H = 120; const pad = 8;
-  const vals = pts.map((p) => p.balance);
-  const min = Math.min(0, ...vals); const max = Math.max(...vals, 1);
-  const x = (i) => pad + (i * (W - pad * 2)) / (pts.length - 1);
-  const y = (v) => pad + (1 - (v - min) / (max - min || 1)) * (H - pad * 2);
-  const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.balance).toFixed(1)}`).join(' ');
-  const mi = pts.findIndex((p) => p.date === pr.minDate);
-  const zero = y(0);
-  return `<svg role="img" aria-label="Plata disponible estimada hasta el cobro" viewBox="0 0 ${W} ${H + 18}" width="100%">
-    ${min < 0 ? `<rect x="0" y="${zero}" width="${W}" height="${H - zero}" fill="rgba(242,179,61,.18)"/>` : ''}
-    <line x1="0" y1="${zero}" x2="${W}" y2="${zero}" stroke="rgba(255,255,255,.35)" stroke-dasharray="4 4"/>
-    <polyline points="${line}" fill="none" stroke="#C6F36B" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-    ${pts.map((p, i) => (p.out.length ? `<circle cx="${x(i)}" cy="${y(p.balance)}" r="3.5" fill="#FFFFFF"/>` : '')).join('')}
-    ${mi >= 0 ? `<circle cx="${x(mi)}" cy="${y(pts[mi].balance)}" r="6" fill="${pts[mi].balance < 0 ? '#F2B33D' : '#C6F36B'}" stroke="#1F6F4A" stroke-width="2"/>` : ''}
-    <text x="${pad}" y="${H + 14}" font-size="11" fill="#D6EBDF">Hoy</text>
-    <text x="${W - pad}" y="${H + 14}" font-size="11" fill="#D6EBDF" text-anchor="end">Cobro ${shortDate(pr.until)}</text>
-  </svg>`;
-}
-
 function calendar(s) {
   const mk = addMonthKey(monthKey(), calOffset);
   const [y, m] = mk.split('-').map(Number);
@@ -169,9 +146,7 @@ export function render(s) {
     <div class="card green u-gap-6-p-20">
       <span class="hero-label">Hasta tu próximo cobro (${shortDate(cycle.nextISO)}) tenés que pagar</span>
       <span class="u-fs-34-fw-800-ls-n1">${money(untilPay)}</span>
-      ${chart(pr)}
       <span class="small on-green-muted">${esc(cov.text)}${pr.estimated ? ' Estimado con lo que anotaste.' : ''}</span>
-      ${pr.estimated ? '<button class="btn small u-bg-rgba255-255-255-_14-c-fff-bdc-transparent" data-action="openClose">Hacerlo exacto con mi saldo real</button>' : ''}
     </div>
 
     ${!cov.ok ? `<div class="card amber">

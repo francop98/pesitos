@@ -12,13 +12,6 @@
 .cuenta-rinde { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .montos-ocultos-nota { align-self: flex-start; }
 .cuentas-cuotas { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-top: 1px solid rgba(0,0,0,.08); border-bottom: 1px solid rgba(0,0,0,.08); }
-.patrimonio { padding: 0; }
-.pat-top { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 16px; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
-.pat-top .grow { display: flex; flex-direction: column; gap: 1px; }
-.pat-v { font-size: 24px; font-weight: 800; letter-spacing: -.5px; }
-.pat-top > svg { transform: rotate(90deg); transition: transform .2s; flex-shrink: 0; }
-.pat-top[aria-expanded="true"] > svg { transform: rotate(-90deg); }
-.pat-detalle { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 14px; }
 .deudas-card { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; border: 2px solid var(--line); text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 14px; }
 .deudas-card.activa { border-color: var(--amber-pill); background: var(--amber-bg); }
 .deudas-card[aria-pressed="true"] { outline: 2px solid var(--green); outline-offset: 1px; }
@@ -81,3 +74,4 @@
 .destinos { display: flex; flex-direction: column; gap: 6px; }
 .destino-op { border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px; align-items: flex-start; }
 .destino-op:has(input:checked) { border-color: var(--green-mid); background: var(--green-soft); }
+.seguir-cuentas { gap: 8px; }

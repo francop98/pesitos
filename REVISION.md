@@ -63,7 +63,7 @@ Estos no vienen de ninguna API: hay que confirmarlos con una búsqueda web en ca
 4. **Valores fijos.** Repasar la tabla 3 con búsquedas web (fecha actual en la búsqueda). Anotar lo que cambió, con la fuente.
 5. **Versiones.** Si `pendientes` dice que hay versión mayor nueva de firebase o firebase-admin, proponerla, pero no actualizar sin probar: cambia la API.
 6. **Feriados del año que viene.** Desde noviembre, confirmar que ya estén. Si no, no es urgente; la app usa los del año en curso.
-7. **Probar la app.** Correr la app local con Playwright (servidor estático + Firebase falso) y recorrer pantallas a 320, 375, 414, 768 y 1280 px, sin errores de consola y sin scroll del fondo con modales abiertos.
+7. **Probar la app.** `node tests/chequear-archivos.mjs` (lista de `sw.js`, imports y HTML sin CSS/JS adentro) y `cd tests && npm test` (pruebas de punta a punta con Firebase de mentira; ver `tests/LEEME.md`). Además, recorrer pantallas a 320, 375, 414, 768 y 1280 px, sin errores de consola y sin scroll del fondo con modales abiertos.
 8. **Si hay que cambiar algo:**
    - subir la versión de caché en `sw.js` (`pesitos-vNN`);
    - entregar un zip **solo con los archivos modificados**, nombrado `pesitos-cambios-vNN.zip`;
@@ -83,3 +83,4 @@ Estos no vienen de ninguna API: hay que confirmarlos con una búsqueda web en ca
 ## Registro de revisiones
 
 - 2026-11-11: se crea este archivo y el chequeo automático de fuentes externas (v35). Promos al día (fuente del 5/11 en la última mirada). Percepción del 30% vigente (Fortuna Web, sept. 2026).
+- 2026-11-21: v51. Simplificación (Inicio con una sola tarjeta, saldo de cuentas opcional con cuadre mensual, sin gráfico en Por pagar, sin crear proyectos), resumen "Cómo te fue en el mes", aviso de datos externos en la campanita, `/api/datos?extra=` solo con cuenta verificada y carpeta `tests/`.

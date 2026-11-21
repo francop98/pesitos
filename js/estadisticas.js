@@ -12,6 +12,7 @@ import { avancePresupuesto, barra as barraTope } from './presupuestos.js';
 import { screenHead, icon, catIcon , abrirSelectorMes, closeModal, ojoMontos } from './interfaz.js';
 import { nombreCuenta, patrimonio } from './cuentas.js';
 import { descargarCSV, imprimirResumen, tablaMovimientos } from './exportar.js';
+import { reintegrosDelMes } from './reintegros.js';
 
 const PALETA = ['#1F6F4A', '#9BD34A', '#F2B33D', '#3E8ED0', '#E0703C', '#8E6CC9', '#2BB3A3', '#D85A8C', '#7A8B99', '#B5892F'];
 let periodo = 'mes';
@@ -19,6 +20,7 @@ let statsTab = 'gastos'; // 'gastos' | 'sueldo'
 /** Abrir Estadísticas en una pestaña (la ruta vieja #/sueldo llega acá). */
 export function renderVista(s, v) { statsTab = v; return render(s); }
 export const usarPestana = (v) => { statsTab = v; };
+export const usarPeriodo = (p) => { periodo = p; };
 const PERIODOS = [['mes', 'Este mes'], ['anterior', 'Mes pasado'], ['3m', '3 meses'], ['6m', '6 meses'], ['anio', 'Este año'], ['anioPasado', 'Año pasado']];
 
 function meses(p = periodo) {
@@ -238,6 +240,7 @@ export function cuerpo(s) {
       <div class="stat three"><span class="k">Gastos</span><span class="v">${money(r.gastos)}</span>${cambio(comp(r.gastos, prev.gastos))}</div>
       <div class="stat three"><span class="k">${r.ahorro >= 0 ? 'Te quedó' : 'Faltó'}</span><span class="v ${r.ahorro >= 0 ? 'pos' : 'neg'}">${money(Math.abs(r.ahorro))}</span>${r.ingresos ? `<span class="small muted">${pct(r.tasa, 0, false)} de lo que entró</span>` : ''}</div>
     </div>
+    ${(() => { const v = ms.reduce((a, m) => a + ((s.savedByApp || {})[m] || 0) + reintegrosDelMes(s, m), 0); return v >= 1 || periodo === 'mes' ? `<button class="card mov-ahorro" data-action="ahorroPesitosInfo"><span class="grow"><b class="t">Te ahorraste con Pesitos</b><span class="small">${v >= 1 ? 'Reintegros, promos y desafíos' : 'Todavía nada este mes. Tocá y mirá cómo se suma'}</span></span><b class="v">${money(v)}</b></button>` : ''; })()}
     <div class="card">
       <strong>En qué se fue</strong>
       ${cats.length ? `<div class="dona-wrap">${dona(items, r.variables)}<div class="dona-ley">${items.map((it, i) => `<button class="ley-item" ${it.c !== 'resto' ? `data-action="buscarCon" data-filtro='${esc(JSON.stringify({ cat: it.c, desde: `${ms[0]}-01`, hasta: `${ms[ms.length - 1]}-31`, tipo: 'gastos' }))}'` : ''}><i style="background:${PALETA[i % PALETA.length]}"></i><span class="grow">${esc(it.label)}</span><b>${Math.round((it.v / r.variables) * 100)}%</b></button>`).join('')}</div></div>` : '<p class="text muted">Todavía no hay gastos en este período.</p>'}

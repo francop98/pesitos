@@ -16,7 +16,7 @@ import {
   deleteUser, signOut, setPersistence, browserLocalPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { esc } from './formato.js';
-import { wordmark, icon, sprout, openModal, closeModal, toast } from './interfaz.js';
+import { wordmark, icon, sprout, bajarCharla, openModal, closeModal, toast } from './interfaz.js';
 
 let actual = null;
 let errorPendiente = '';
@@ -160,7 +160,7 @@ function dibujar() {
   contenedor.innerHTML = pantalla();
   const f = contenedor.querySelector('[data-autofocus]');
   if (f && window.matchMedia('(pointer: fine)').matches) f.focus({ preventScroll: true });
-  window.scrollTo(0, document.body.scrollHeight);
+  bajarCharla();
 }
 function ir(nuevo, respuesta) {
   if (respuesta !== undefined) charla.push({ paso, q: actual_().bubbles.slice(-1)[0], a: respuesta });

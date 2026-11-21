@@ -118,7 +118,8 @@ export function cuerpo(s) {
       <span class="grow"><span class="name">${esc(p.nombre)}${p.cerrado ? ' <span class="pill">Terminado</span>' : ''}</span>
         <span class="meta">${r.movs} movimiento${r.movs === 1 ? '' : 's'}${(p.con || []).length ? ` · entre ${p.con.length + 1}` : ''}${p.presupuesto ? ` · ${Math.round((r.gastado / p.presupuesto) * 100)}% de ${money(p.presupuesto)}` : ''}${p.fin && !p.cerrado ? ` · hasta el ${fechaTxt(p.fin)}` : ''}${p.conAhorros ? ' · con ahorros' : ''}</span>
         ${p.presupuesto ? barra(r.gastado / p.presupuesto) : ''}</span>
-      <span class="amount">${money(r.gastado)}</span></button>`; }).join('')}</div>`
+      <span class="amount">${money(r.gastado)}</span></button>`; }).join('')}</div>
+    <span class="small muted">Ya no se crean proyectos nuevos: para algo puntual, creá un objetivo en Mi plata → Metas. Estos quedan para que no pierdas lo que cargaste.</span>`
     : `<div class="card proy-vacio">
         <span class="cat-icon green">${icon('folder', 20)}</span>
         <strong>Agrupá los gastos de un objetivo puntual</strong>
@@ -128,8 +129,7 @@ export function cuerpo(s) {
           <li>Desglose por categoría.</li>
           <li>Podés pagarlo con ahorros y que no afecte tu "Hoy podés gastar".</li>
         </ul>
-      </div>`}
-    <button class="btn primary block" data-action="nuevoProyecto">+ Nuevo proyecto</button>`;
+      </div>`}`;
 }
 
 // Si tiene presupuesto y fecha objetivo: compara lo gastado con el tiempo que pasó.

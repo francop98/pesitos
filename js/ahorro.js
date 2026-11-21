@@ -9,7 +9,7 @@ import { insights } from './economista.js';
 import { arsPer, convert, refreshRates, ratesAge, ratesStale, DOLARES, dolarRef, nombreDolar, monedaBase } from './cotizaciones.js';
 import { comoAhorroHtml, desafiosHtml } from './asesor.js';
 import { resumenProyecto } from './proyectos.js';
-import { cuerpo as cuerpoCuentas, patrimonioHtml, panelAhorrar } from './miscuentas.js';
+import { cuerpo as cuerpoCuentas, panelAhorrar } from './miscuentas.js';
 import { cuerpo as sueldoCuerpo } from './sueldo.js';
 import { ring, tipCard, icon, screenHead, openModal, closeModal, toast, setModalBody, borrarConDeshacer, ojoMontos, taparMontos } from './interfaz.js';
 import { uid } from './almacenamiento.js';
@@ -90,7 +90,7 @@ function cotizDe(s, cur) {
   const v = arsPer(s, cur);
   return v ? `${assetById(cur).label.toLowerCase()} a ${pesos(v)}` : 'sin cotización';
 }
-// el widget verde: una tarjeta por cada moneda en la que ahorrás, para deslizar (como el de Inicio)
+// el widget verde: una tarjeta por cada moneda en la que ahorrás, para deslizar
 function slideMoneda(s, g, grupos, total) {
   const base = monedaBase(s);
   const enBase = g.cur === base;
@@ -161,7 +161,6 @@ function conversionAhorros(s) {
   </div>`;
 }
 
-let patAbierto = false;
 /** Abrir Mi plata en una pestaña (las rutas viejas #/cuentas llegan acá). */
 export function renderVista(s, v) { vista = v; return render(s); }
 
@@ -257,14 +256,8 @@ function moverEnAhorro(s, id, pesosMonto, fecha) {
 }
 
 // "+ Nueva": primero elegís qué es
-function elegirMeta(paso = '') {
+function elegirMeta() {
   const op = (accion, titulo, texto, ej, extra = '') => `<button class="card elegir-meta" data-action="${accion}"${extra}><strong>${titulo}</strong><span class="small">${texto}</span><span class="small muted">${ej}</span></button>`;
-  if (paso === 'objetivo') return `<div class="u-d-flex-dir-column-gap-10">
-    <p class="small muted u-m-0">¿Qué querés hacer con este objetivo?</p>
-    ${op('nuevaMetaComun', 'Juntar hasta llegar a un monto', 'Te muestro cuánto llevás y cuándo llegás a este ritmo.', 'Ej: bici nueva, la seña de un alquiler')}
-    ${op('nuevoProyecto', 'Juntar y después gastarlo en algo', 'Ahorrás para algo puntual y después ves cuánto gastaste de lo que juntaste.', 'Ej: un viaje, pintar el depto, una fiesta', ' data-ahorrar="1"')}
-    ${op('nuevoProyecto', 'Solo llevar la cuenta de lo que gasto', 'Para algo que vas pagando sin haber ahorrado antes. Juntás sus gastos y ves el total.', 'Ej: una obra en cuotas, el casamiento de un amigo', ' data-ahorrar="0"')}
-  </div>`;
   return `<div class="u-d-flex-dir-column-gap-10">
     ${op('nuevoFondo', 'Un fondo fijo', 'Plata que querés tener siempre, sin fecha de fin. Si la usás, la volvés a llenar.', 'Ej: respaldo para arreglos de la casa, colchón para un cambio de trabajo')}
     ${op('nuevaMetaObjetivo', 'Un objetivo', 'Algo que querés lograr: llegar a un monto, comprarte algo, un viaje.', 'Ej: un curso, un instrumento, un viaje')}
@@ -277,8 +270,6 @@ export function render(s) {
 
   return `<section class="screen">
     ${screenHead('Mi plata', ojoMontos('ahorro'))}
-
-    ${taparMontos(patrimonioHtml(s, patAbierto), 'ahorro')}
 
     <div class="tabs tabs-4 u-cols-rep4-fr" role="tablist" aria-label="Sección">
       <button role="tab" data-action="ahorroVista" data-v="cuentas" aria-pressed="${vista === 'cuentas'}">Cuentas</button>
@@ -408,7 +399,6 @@ export const actions = {
     if (location.hash === '#/ahorro') ctx.render(); else ctx.go('ahorro');
     setTimeout(() => { const el = document.getElementById('pasar-ahorros'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 120);
   },
-  patToggle(ctx) { patAbierto = !patAbierto; ctx.render(); },
   refreshQuotes(ctx) {
     toast('Actualizando cotizaciones…');
     refreshRates(ctx, true).then((ok) => { toast(ok ? 'Cotizaciones actualizadas' : 'Sin conexión: uso las últimas guardadas'); const m = document.getElementById('cotiz-modal'); if (m) m.innerHTML = quotes(ctx.state, true); });
@@ -450,7 +440,7 @@ export const actions = {
     if (t) t.hidden = el.value !== 'manual';
   },
   openGoalForm() { openModal('¿Qué querés crear?', elegirMeta()); },
-  nuevaMetaObjetivo() { openModal('Un objetivo', elegirMeta('objetivo'), { push: true }); },
+  nuevaMetaObjetivo(ctx) { openModal('Un objetivo', goalForm({}, ctx.state), { push: true }); },
   nuevaMetaComun(ctx) { openModal('Juntar hasta un monto', goalForm({}, ctx.state), { push: true }); },
   nuevoFondo(ctx) { openModal('Fondo fijo', goalForm({ tipo: 'fondo' }, ctx.state), { push: true }); },
   goalTipo(ctx, el) {

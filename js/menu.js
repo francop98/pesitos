@@ -235,7 +235,6 @@ export const menuActions = {
   openMenu(ctx) { abrirMenu(ctx); },
   irSueldo(ctx) { ctx.go('sueldo'); },
   irEstadisticas(ctx) { ctx.go('estadisticas'); },
-  irProyectos(ctx) { ctx.go('proyectos'); },
   irDeudas(ctx) { ctx.go('deudas'); },
   irReintegros(ctx) { ctx.go('reintegros'); },
   irBeneficios(ctx) { ctx.go('beneficios'); },

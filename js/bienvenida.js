@@ -304,7 +304,7 @@ export const actions = {
     if (form) for (const inp of form.querySelectorAll('input[data-n]')) draft.fijos[inp.dataset.n] = parseAmount(inp.value) || 0;
     if (f in draft.fijos) delete draft.fijos[f]; else draft.fijos[f] = 0;
     ctx.render();
-    const inp = document.querySelector(`.guide-fijos input[data-n="${CSS.escape(f)}"]`); if (inp) inp.focus();
+    const inp = document.querySelector(`.guide-fijos input[data-n="${CSS.escape(f)}"]`); if (inp) { inp.focus({ preventScroll: true }); inp.scrollIntoView({ block: 'nearest' }); }
   },
   guideFijoMonto(ctx, el) { draft.fijos[el.dataset.n] = parseAmount(el.value) || 0; },
   guideFijos(ctx, d) {

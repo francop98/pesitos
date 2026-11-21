@@ -6,11 +6,21 @@
 import { refs, todayAR } from './_lib/actualizar.js';
 import { inZone } from './_lib/zona.js';
 import { menosDias, DIAS_RENOVAR } from './_lib/fuente.js';
+import { auth } from './_lib/firebase.js';
+
+async function cuentaVerificada(req) {
+  const m = String(req.headers.authorization || '').match(/^Bearer (.{20,4096})$/);
+  if (!m) return null;
+  try { const t = await auth().verifyIdToken(m[1]); return t.email_verified ? t.uid : null; } catch { return null; }
+}
 
 export default async function handler(req, res) {
   try {
     const { DOC, CFG } = refs();
-    const extra = String(req.query.extra || '').split(',').map((n) => n.replace(/[^\p{L}\p{N} .+-]/gu, '').trim().slice(0, 40)).filter((n) => n.length >= 3).slice(0, 5);
+    // los medios que agregaron los usuarios solo se registran con una cuenta verificada
+    // (si no, cualquiera podría llenar la lista hasta el tope)
+    const cuenta = await cuentaVerificada(req);
+    const extra = !cuenta ? [] : String(req.query.extra || '').split(',').map((n) => n.replace(/[^\p{L}\p{N} .+-]/gu, '').trim().slice(0, 40)).filter((n) => n.length >= 3).slice(0, 5);
     if (extra.length) {
       const cfg = (await CFG.get()).data() || {};
       const list = cfg.extraWallets || [];
@@ -21,7 +31,7 @@ export default async function handler(req, res) {
     const today = todayAR();
     const prov = String(req.query.prov || '').slice(0, 40);
     const ciudad = String(req.query.ciudad || '').slice(0, 40);
-    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
+    res.setHeader('Cache-Control', cuenta ? 'private, no-store' : 's-maxage=600, stale-while-revalidate=3600');
     return res.status(200).json({
       // incluye las que vencieron hace hasta 10 días: la app pregunta si las renovaron
       promos: (doc.promos || []).filter((p) => p.validTo >= menosDias(today, DIAS_RENOVAR) && (!prov || inZone(p.zone, prov, ciudad))),

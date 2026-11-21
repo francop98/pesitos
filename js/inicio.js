@@ -1,26 +1,25 @@
-// Inicio: cuánto podés gastar hoy, tu meta, lo que necesita tu atención
+// Inicio: cuánto podés gastar hoy, lo que necesita tu atención
 // (sueldo del mes, ahorro, resumen semanal) y accesos rápidos.
 
-import { proyectosActivos, resumenProyecto } from './proyectos.js';
 import { money, esc, monthKey, MONTHS_LONG, MONTHS, num, todayISO, monthName, parseISO , addMonthKey } from './formato.js';
-import { budget, mainGoal, metaDiario, diarioConfig, MODOS_DIARIO, goalEta, goalPct, savedThisMonth, cardSummary, lastSalary, lastWeekStart, weekSummary , monthIncome, monthExpenses, fixedTotal } from './calculos.js';
+import { budget, metaDiario, diarioConfig, MODOS_DIARIO, lastSalary, lastWeekStart, weekSummary } from './calculos.js';
 import { insights } from './economista.js';
 import { renderQuestion, suggestions, renderSuggestion } from './guia.js';
-import { lessonCard } from './aprender.js';
 import { catLabel } from './categorias.js';
 import { alerts, dueLabel, closings, agenda } from './agenda.js';
 import { promosForDay } from './economista.js';
-import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo, patrimonio, cuentaPrincipal } from './cuentas.js';
+import { totalCuentas, cuentasConSaldo, totalMeDeben, totalDebo, cuentaPrincipal } from './cuentas.js';
 import { projection, coverage } from './flujo.js';
 import { reglaDeCobro, fechaDeCobro } from './feriados.js';
 import { alertaPresupuestos } from './presupuestos.js';
 import { mediosRapidos } from './acciones.js';
 import { instalada } from './menu.js';
 import { bioDisponible, bioActiva, bloqueoActions } from './bloqueo.js';
-import { wordmark, icon, sprout, ring, tipCard, quickForm, openModal, closeModal, toast, setModalBody } from './interfaz.js';
+import { wordmark, icon, sprout, tipCard, quickForm, openModal, closeModal, toast, setModalBody, ojoMontos, taparMontos } from './interfaz.js';
+import { resumen as resumenMes, usarPeriodo } from './estadisticas.js';
 import { uid } from './almacenamiento.js';
-import { reintegrosPorConfirmar } from './reintegros.js';
-import { compararCard } from './miscuentas.js';
+import { reintegrosPorConfirmar, reintegrosDelMes } from './reintegros.js';
+import { cuadreCard } from './miscuentas.js';
 import { chipModo, datosEspacio, cuentasDelMes } from './espacios.js';
 
 const MODE_TEXT = {
@@ -153,6 +152,21 @@ function reintConfirmarCard(s) {
   return `<button class="card amber u-bd-none-ta-left" data-action="irReintegros"><strong>¿Te llegaron ${l.length === 1 ? 'el reintegro' : `${l.length} reintegros`}? (${money(t)})</strong><span class="text">Confirmalo${l.length === 1 ? '' : 's'} para sumarlo${l.length === 1 ? '' : 's'} a tu saldo.</span></button>`;
 }
 
+// Datos que llegan solos (promos, inflación, dólar, tasas): si el chequeo del servidor
+// encontró problemas o hace días que no se actualizan, te aviso (antes solo se veía en
+// Menú → Estado de la app).
+function datosCard(s) {
+  const problemas = ((s.live && s.live.salud && s.live.salud.problemas) || []).slice(0, 3);
+  const viejo = (t, dias) => t && Date.now() - t > dias * 86400000;
+  if (viejo(s.live && s.live.updatedAt ? Date.parse(s.live.updatedAt) : 0, 3)) problemas.push('Las promos y la inflación no se actualizan hace más de 3 días.');
+  if (viejo(s.rates && s.rates.okAt, 3)) problemas.push('Las cotizaciones del dólar no se actualizan hace más de 3 días.');
+  if (!problemas.length) return '';
+  return `<div class="card amber"><div class="tip-head"><span class="u-c-amber">${icon('bulb', 20)}</span><strong>Algunos datos pueden no estar al día</strong></div>
+    ${problemas.map((x) => `<span class="small">• ${esc(x)}</span>`).join('')}
+    <span class="small">Lo tuyo (gastos, ingresos, saldos) no se ve afectado.</span>
+    <button class="btn small u-self-start" data-action="openEstado">Ver el estado</button></div>`;
+}
+
 // Todo lo que pide tu atención, ordenado por importancia.
 // En Inicio se ve solo el primero; el resto queda en "Novedades".
 function avisos(s, b) {
@@ -162,12 +176,13 @@ function avisos(s, b) {
     payAlerts(s),
     coverageAlert(s),
     reintConfirmarCard(s),
-    info(compararCard(s)),
+    cuadreCard(s),
     salaryCard(s, b),
     arranqueCard(s, b),
     savingCard(s, b),
     info(renderQuestion(s)),
     alertaPresupuestos(s),
+    datosCard(s),
     pending ? `<button class="card amber u-bd-none-ta-left-dir-row-items-center" data-action="openPending"><span class="u-c-amber">${icon('receipt')}</span><span class="text u-flex-1"><b>${pending} comprobante${pending > 1 ? 's' : ''} para confirmar.</b> Ya los categoricé.</span>${icon('chevron', 16)}</button>` : '',
     info(closingTip(s)),
     info(weekCard(s)),
@@ -236,7 +251,7 @@ function heroMensaje(s, b, payText) {
   }
   // venís gastando más rápido que tu ritmo normal
   if (b.adelanto > b.normalDaily * 0.5 && b.normalDaily > 0) {
-    return linea(`Por día, para llegar bien: ${payText}. Ojo: este mes vas <b>${diasTxt(b.adelanto / b.normalDaily)} adelantado</b> respecto de tu ritmo normal.`);
+    return linea(`Ojo: este mes vas <b>${diasTxt(b.adelanto / b.normalDaily)} adelantado</b> respecto de tu ritmo normal.`);
   }
   // venís gastando menos: una parte se suma a tus próximos días y otra se sugiere ahorrar
   if (b.colchon > Math.max(500, b.normalDaily * 0.3)) {
@@ -248,101 +263,20 @@ function heroMensaje(s, b, payText) {
     return `${linea(`No gastaste ${money(b.colchon)} de días anteriores: ${partes.join(' y ')}.`)}
       <span class="hero-acciones"><button class="link-btn on-green-muted" data-action="openDiario">Cómo se reparte</button></span>`;
   }
-  return linea(`Por día, para llegar bien: ${payText}.`);
+  return est ? linea(est.trim()) : '';
 }
 
-// Tu ritmo: cómo venís esta semana, cuántos días seguidos dentro de lo previsto y lo de ayer.
-function ritmoDia(s, iso) {
-  return s.expenses.filter((e) => !e.pending && !e.fromSavings && e.date === iso && !(e.installments > 1)).reduce((a, e) => a + e.amount, 0)
-    + s.expenses.filter((e) => !e.pending && !e.fromSavings && e.date === iso && e.installments > 1).reduce((a, e) => a + e.amount / e.installments, 0);
-}
-function ritmoSlide(s, b) {
-  if (b.noIncome || !(b.normalDaily > 0)) return '';
-  const hoy = new Date(); hoy.setHours(12, 0, 0, 0);
-  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const dSem = (hoy.getDay() + 6) % 7; // lunes = 0
-  let gastoSem = 0;
-  for (let k = 0; k <= dSem; k++) { const d = new Date(hoy); d.setDate(d.getDate() - k); gastoSem += ritmoDia(s, iso(d)); }
-  const ritmoSem = b.normalDaily * (dSem + 1);
-  const pct = Math.min(1, gastoSem / Math.max(1, ritmoSem));
-  // días seguidos (hasta ayer) sin pasarte de tu ritmo, desde que usás la app
-  const primero = s.expenses.reduce((a, e) => (!a || e.date < a ? e.date : a), '');
-  let racha = 0;
-  for (let k = 1; k <= 60; k++) { const d = new Date(hoy); d.setDate(d.getDate() - k); if (!primero || iso(d) < primero) break; if (ritmoDia(s, iso(d)) > b.normalDaily) break; racha++; }
-  const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1);
-  const sobroAyer = primero && iso(ayer) >= primero ? b.normalDaily - ritmoDia(s, iso(ayer)) : 0;
-  const dif = ritmoSem - gastoSem;
-  return `<div class="card green hero slide">
-      <span class="hero-label">Esta semana gastaste</span>
-      <span class="hero-number">${money(gastoSem)}</span>
-      <div class="bar" role="img" aria-label="Usaste el ${Math.round(pct * 100)}% de tu ritmo de la semana"><span style="width:${Math.round(pct * 100)}%"></span></div>
-      <span class="small on-green-muted">${dif >= 0 ? `Vas <b>${money(dif)} abajo</b> de tu ritmo de la semana (${money(ritmoSem)}).` : `Vas <b>${money(-dif)} arriba</b> de tu ritmo de la semana (${money(ritmoSem)}).`}${racha >= 2 ? ` 🔥 ${racha} días seguidos dentro de lo previsto.` : ''}</span>
-      ${sobroAyer >= 500 && b.paraAhorrar >= 1 ? `<span class="small on-green-muted">Ayer te sobraron ${money(sobroAyer)}: lo podés pasar desde Mi plata → Ahorros.</span>` : ''}
-    </div>`;
-}
-
-// Cartel principal: un widget que se desliza de costado con distintos datos.
-const K_WIDGET = 'pesitos_widget';
-const widgetGuardado = () => { try { return Number(localStorage.getItem(K_WIDGET)) || 0; } catch { return 0; } };
-function widget(s, b, payText) {
-  const mk = monthKey();
-  const entro = monthIncome(s, mk); const salio = monthExpenses(s, mk).total + fixedTotal(s, mk);
-  const prevMk = addMonthKey(mk, -1); const dia = new Date().getDate();
-  const salioAntes = s.expenses.filter((e) => !e.pending && e.date.slice(0, 7) === prevMk && Number(e.date.slice(8)) <= dia).reduce((a, e) => a + (e.installments > 1 ? e.amount / e.installments : e.amount), 0);
-  const varMes = monthExpenses(s, mk).total;
-  const pat = patrimonio(s);
-  const cyclePct = Math.min(1, Math.max(0, 1 - b.cycle.daysLeft / Math.max(1, Math.round((b.cycle.next - b.cycle.start) / 86400000))));
-  const slides = [
-    `<div class="card green hero slide">
+// Tarjeta principal: cuánto podés gastar hoy y, abajo, lo que te queda hasta el cobro.
+function hero(s, b, payText) {
+  const varia = reglaDeCobro(s.profile).tipo === 'varia';
+  return `<div class="card green hero hero-inicio">
       <span class="hero-label">${b.noIncome || b.todayLeft >= 0 ? 'Hoy podés gastar' : 'Hoy te pasaste'}<button class="hero-info" data-action="openDiario" aria-label="Cómo se calcula y cómo se reparte lo que no gastás">${icon('info', 15)}</button></span>
       <span class="hero-number${!b.noIncome && b.todayLeft < 0 ? ' negative' : ''}">${b.noIncome ? '—' : money(Math.abs(b.todayLeft))}</span>
       <div class="bar" role="img" aria-label="Usaste el ${Math.round(b.usedPct * 100)}% de tu plata del ciclo"><span style="width:${Math.round(b.usedPct * 100)}%"></span></div>
       ${b.noIncome ? '<span class="small on-green-muted">Contame cuánto cobrás para empezar.</span>' : heroMensaje(s, b, payText)}
-    </div>`,
-    `<div class="card green hero slide">
-      <span class="hero-label">Hasta el cobro te quedan</span>
-      <span class="hero-number">${b.noIncome ? '—' : money(Math.max(0, b.free))}</span>
-      <div class="bar" role="img" aria-label="Pasó el ${Math.round(cyclePct * 100)}% del mes"><span style="width:${Math.round(cyclePct * 100)}%"></span></div>
-      <span class="small on-green-muted">${payText[0].toUpperCase() + payText.slice(1)} (${b.cycle.next.getDate()}/${b.cycle.next.getMonth() + 1}). Ya descontados tus gastos fijos${b.saving ? ` y ${money(b.saving)} de ahorro` : ''}.</span>
-    </div>`,
-    ritmoSlide(s, b),
-  ].filter(Boolean);
-  // carrusel infinito: copia de la última al principio y de la primera al final;
-  // al llegar a una copia salta (sin animación) a la real.
-  const n = slides.length;
-  const i = Math.min(n - 1, widgetGuardado());
-  const vueltas = n > 1;
-  const copia = (h) => h.replace('class="card green hero slide"', 'class="card green hero slide copia" aria-hidden="true" inert');
-  const todas = vueltas ? [copia(slides[n - 1]), ...slides, copia(slides[0])] : slides;
-  requestAnimationFrame(() => { const c = document.querySelector('[data-widget]'); if (c) c.scrollLeft = paso(c) * (i + (vueltas ? 1 : 0)); });
-  return `<div class="hero-wrap"><div class="hero-carrusel" data-widget data-n="${n}" data-vueltas="${vueltas ? 1 : 0}" aria-roledescription="carrusel" aria-label="Resumen de tu plata">${todas.join('')}</div>
-    <div class="hero-puntos" role="tablist">${slides.map((_, k) => `<button role="tab" data-action="widgetIr" data-i="${k}" aria-label="Ver ${['hoy', 'hasta el cobro', 'tu ritmo'][k]}" aria-selected="${k === i}"></button>`).join('')}</div></div>`;
+      ${b.noIncome ? '' : `<div class="hero-cobro"><span>${varia ? 'Hasta fin de mes' : 'Hasta el cobro'}: <b>${money(Math.max(0, b.free))}</b></span><span>${payText}${varia ? '' : ` (${b.cycle.next.getDate()}/${b.cycle.next.getMonth() + 1})`}</span></div>`}
+    </div>`;
 }
-// al deslizar el widget, se marca el puntito, se recuerda y se da la vuelta
-// (paso = ancho de una tarjeta + el espacio entre tarjetas)
-const paso = (c) => { const a = c.children[0]; const b = c.children[1]; return a && b ? b.offsetLeft - a.offsetLeft : Math.max(1, c.clientWidth); };
-const posReal = (c) => {
-  const n = Number(c.dataset.n) || 1; const v = c.dataset.vueltas === '1';
-  const p = Math.round(c.scrollLeft / Math.max(1, paso(c)));
-  return v ? (p - 1 + n) % n : p;
-};
-let finScroll = 0;
-const darVuelta = (c) => {
-  if (c.dataset.vueltas !== '1') return;
-  const n = Number(c.dataset.n); const w = paso(c);
-  const p = Math.round(c.scrollLeft / Math.max(1, w));
-  if (p === 0) c.scrollLeft = w * n;
-  else if (p === n + 1) c.scrollLeft = w;
-};
-document.addEventListener('scroll', (e) => {
-  const c = e.target;
-  if (!c || !c.matches || !c.matches('[data-widget]')) return;
-  const i = posReal(c);
-  c.parentElement.querySelectorAll('.hero-puntos button').forEach((b, k) => b.setAttribute('aria-selected', String(k === i)));
-  try { localStorage.setItem(K_WIDGET, String(i)); } catch { /* nada */ }
-  clearTimeout(finScroll); finScroll = setTimeout(() => darVuelta(c), 140);
-}, true);
-document.addEventListener('scrollend', (e) => { const c = e.target; if (c && c.matches && c.matches('[data-widget]')) { clearTimeout(finScroll); darVuelta(c); } }, true);
 
 // Día de cobro: si ya cobraste este mes y todavía no cargaste el sueldo, te lo recuerdo (hasta 5 días después)
 function sueldoPorCargar(s) {
@@ -403,48 +337,82 @@ function tuDia(s, yaHayPagos = false) {
     ${rec ? fila('#/pagos', 'bell', 'Recordatorio', esc(rec.name), rec.days === 0 ? 'hoy' : rec.days === 1 ? 'mañana' : rec.days < 0 ? 'pendiente' : `en ${rec.days} días`) : ''}
     ${promo ? fila('#/beneficios', 'ticket', 'Promo de hoy', `${promo.pct}% ${esc(promo.merchant || catLabel(promo.category))}`, esc(promo.name)) : ''}
     ${con ? fila('#/cuentas', 'wallet', 'En tus cuentas', money(totalCuentas(s)), '') : ''}
-    ${proyectosActivos(s).slice(0, 3).map((p) => { const r = resumenProyecto(s, p); return fila('#/proyectos', 'folder', `Proyecto · ${esc(p.nombre)}`, `${money(r.gastado)}${p.presupuesto ? ` de ${money(p.presupuesto)}` : ' gastado'}`, ''); }).join('')}
     ${tm || td ? fila('#/deudas', 'people', 'Deudas y préstamos', `${tm ? `Te deben ${money(tm)}` : ''}${tm && td ? ' · ' : ''}${td ? `Debés ${money(td)}` : ''}`, '') : ''}`;
   return filas.trim() ? `<div class="card tight tu-dia"><span class="tu-dia-t">Tu día</span>${filas}</div>` : '';
 }
 
 export function render(s) {
   const b = budget(s);
-  const g = mainGoal(s);
   const days = b.cycle.daysLeft;
   const payText = reglaDeCobro(s.profile).tipo === 'varia'
     ? (days === 1 ? 'último día del mes' : `quedan ${days} días del mes`)
     : (days === 1 ? 'cobrás mañana' : `cobrás en ${days} días`);
   const lista = avisos(s, b);
   const sinLeer = nuevos(lista.slice(1));
+  const tapar = (h) => taparMontos(h, 'inicio');
   // si "Novedades" está abierto, se actualiza solo
   setTimeout(() => { const n = document.querySelector('#modal:not([hidden]) [data-novedades]'); if (n) n.outerHTML = novedadesHtml(s); }, 0);
 
   return `<section class="screen">
     <div class="topbar">
       <div class="head-left"><button class="icon-btn menu-btn" data-action="openMenu" aria-label="Menú">${icon('menu', 22)}</button>${s.espacio ? '' : wordmark(26)}${chipModo(s)}</div>
-      <span class="head-actions"><button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><a class="icon-btn" href="#/asesor" aria-label="Asesor y ayuda">${icon('help', 22)}</a></span>
+      <span class="head-actions">${ojoMontos('inicio')}<button class="icon-btn campana" data-action="openNovedades" aria-label="Novedades${sinLeer ? `: ${sinLeer} sin ver` : ''}">${icon('bell', 22)}${sinLeer ? `<span class="badge-num">${sinLeer}</span>` : ''}</button><a class="icon-btn" href="#/asesor" aria-label="Asesor y ayuda">${icon('help', 22)}</a></span>
     </div>
 
     ${s.demo ? '<div class="card amber u-p-10-14"><span class="small">Estás viendo <b>datos de ejemplo</b>. Podés borrarlos desde el menú ☰ → Copia de seguridad.</span></div>' : ''}
 
-    ${s.espacio ? espacioHero(s) : widget(s, b, payText)}
+    ${tapar(s.espacio ? espacioHero(s) : hero(s, b, payText))}
 
     ${quickForm('q-home', s, mediosRapidos(s))}
 
-    ${s.espacio ? espacioDia(s) : `${lista[0] || ''}
+    ${s.espacio ? tapar(espacioDia(s)) : tapar(`${lista[0] || ''}
 
-    ${tuDia(s, !!lista[0] && lista[0] === payAlerts(s))}`}
+    ${cierreCard(s)}
 
-    ${g && !s.espacio ? `<a class="card goal-row u-td-none-c-inherit-dir-row" href="#/ahorro">
-      ${ring(goalPct(g), 56, 7, `${g.name}: ${Math.round(goalPct(g) * 100)}%`)}
-      <div class="grow u-d-flex-dir-column-gap-2">
-        <span class="small muted u-fw-600">Tu meta</span>
-        <span class="u-fs-16-fw-800">${esc(g.name)}</span>
-        <span class="small muted">${esc(goalEta(g).text.replace('A este ritmo llegás', 'Llegás'))}</span>
-      </div>
-    </a>` : ''}
+    ${tuDia(s, !!lista[0] && lista[0] === payAlerts(s))}`)}
   </section>`;
+}
+
+// ---------- cómo te fue en el mes ----------
+// Desde el día de cobro (o desde el 1.º si cobrás a fin de mes o te varía) te muestro
+// cómo te fue el mes pasado. Queda hasta que tocás "Listo"; el detalle sigue en
+// Movimientos → Estadísticas, eligiendo ese mes.
+export function cierrePendiente(s) {
+  if (s.espacio) return null;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const mk = addMonthKey(monthKey(), -1);
+  if ((s.cierres || {})[mk]) return null;
+  const hay = (s.expenses || []).some((e) => !e.pending && e.date.slice(0, 7) === mk) || (s.incomes || []).some((i) => i.date.slice(0, 7) === mk);
+  if (!hay) return null;
+  if (reglaDeCobro(s.profile).tipo !== 'varia') {
+    const pd = fechaDeCobro(s.profile, hoy.getFullYear(), hoy.getMonth()); pd.setHours(0, 0, 0, 0);
+    if (pd.getDate() <= 15 && hoy < pd) return null;
+  }
+  return mk;
+}
+function cierreCard(s) {
+  const mk = cierrePendiente(s); if (!mk) return '';
+  const r = resumenMes(s, [mk]);
+  const antes = resumenMes(s, [addMonthKey(mk, -1)]);
+  const top = Object.entries(r.byCat).sort((a, c) => c[1] - a[1])[0];
+  const conPesitos = ((s.savedByApp || {})[mk] || 0) + reintegrosDelMes(s, mk);
+  const mes = MONTHS_LONG[Number(mk.slice(5)) - 1];
+  const mesAntes = MONTHS_LONG[Number(addMonthKey(mk, -1).slice(5)) - 1];
+  const dif = antes.gastos ? (r.gastos - antes.gastos) / antes.gastos : null;
+  const frases = [];
+  if (dif != null && Math.abs(dif) >= 0.02) frases.push(`Gastaste <b>${Math.abs(Math.round(dif * 100))}% ${dif > 0 ? 'más' : 'menos'}</b> que en ${mesAntes}.`);
+  if (top) frases.push(`Lo que más pesó: ${esc(catLabel(top[0]).toLowerCase())} (${money(top[1])}).`);
+  if (conPesitos >= 1) frases.push(`Con Pesitos te ahorraste <b>${money(conPesitos)}</b> en promos y reintegros.`);
+  return `<div class="card cierre">
+    <div class="tip-head"><span class="cat-icon green u-w-26-h-26-r-8">${icon('calendar', 16)}</span><strong>Cómo te fue en ${mes}</strong></div>
+    <div class="cierre-cifras">
+      <span><span class="k">Entró</span><b class="pos">${money(r.ingresos)}</b></span>
+      <span><span class="k">Gastaste</span><b>${money(r.gastos)}</b></span>
+      <span><span class="k">${r.ahorro >= 0 ? 'Te quedó' : 'Faltó'}</span><b class="${r.ahorro >= 0 ? '' : 'neg'}">${money(Math.abs(r.ahorro))}</b></span>
+    </div>
+    ${frases.length ? `<p class="text">${frases.join(' ')}</p>` : ''}
+    <div class="btn-row"><button class="btn small green" data-action="cierreVer" data-mk="${mk}">Ver el detalle</button><button class="btn small" data-action="cierreListo" data-mk="${mk}">Listo</button></div>
+  </div>`;
 }
 
 // Sugerencia de entrar con huella o cara (si el dispositivo lo permite y no hay bloqueo)
@@ -579,7 +547,8 @@ export const actions = {
     ctx.commit((s) => { s.diario = { ...(s.diario || {}), destino: el.value }; });
     setModalBody('.modal-body', diarioBody(ctx.state));
   },
-  widgetIr(ctx, el) { const c = document.querySelector('[data-widget]'); if (c) c.scrollTo({ left: paso(c) * (Number(el.dataset.i) + (c.dataset.vueltas === '1' ? 1 : 0)), behavior: 'smooth' }); },
+  cierreVer(ctx, el) { usarPeriodo(`mk:${el.dataset.mk}`); ctx.go('estadisticas'); },
+  cierreListo(ctx, el) { ctx.commit((s) => { s.cierres = { ...(s.cierres || {}), [el.dataset.mk]: true }; }); toast('Listo. El detalle queda en Movimientos → Estadísticas'); },
   openAtajos() { openModal('Más secciones', `<div class="tiles">${ATAJOS.slice(3).map(tile).join('')}</div>`); },
   async huellaSi(ctx) { await bloqueoActions.bloqueoBio(); ctx.render(); },
   huellaNo(ctx) { try { localStorage.setItem(K_HUELLA, '1'); } catch { /* nada */ } ctx.render(); toast('Listo. Si cambiás de idea, está en Menú → PIN de seguridad y huella'); },
@@ -595,6 +564,6 @@ export const actions = {
     const amount = num(d.amount);
     if (!amount) return;
     ctx.commit((s) => { const mk = monthKey(); s.savedByApp[mk] = (s.savedByApp[mk] || 0) + amount; s.tipsNo = { ...(s.tipsNo || {}), [`promo-${new Date().getDay()}`]: todayISO() }; });
-    closeModal(); toast(`¡Bien! Sumé ${money(amount)} a lo que te ahorraste (lo ves en Movimientos)`);
+    closeModal(); toast(`¡Bien! Sumé ${money(amount)} a lo que te ahorraste (lo ves en Movimientos → Estadísticas)`);
   },
 };

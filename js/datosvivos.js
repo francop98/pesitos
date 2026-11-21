@@ -7,6 +7,7 @@
 
 import { monthKey, addMonthKey, todayISO, normalize } from './formato.js';
 import { catReal } from './categorias.js';
+import { usuarioActual } from './autenticacion.js';
 
 const norm = (t) => normalize(t).replace(/[^a-z0-9]+/g, ' ').trim();
 // para comparar nombres de bancos: "Banco Patagonia" = "Patagonia"
@@ -29,11 +30,11 @@ const LIVE_TTL = 60 * 60 * 1000;           // 1 hora
 const IPC_TTL = 6 * 60 * 60 * 1000;        // 6 horas
 let busy = false;
 
-async function getJSON(url, ms = 10000) {
+async function getJSON(url, ms = 10000, extraHeaders = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const r = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' }, cache: 'no-store' });
+    const r = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json', ...extraHeaders }, cache: 'no-store' });
     if (!r.ok) throw new Error(String(r.status));
     return await r.json();
   } finally { clearTimeout(t); }
@@ -74,7 +75,10 @@ export async function refreshLive(ctx, force = false) {
     if (s.profile && s.profile.city) q.set('ciudad', s.profile.city);
     if (extra) q.set('extra', extra);
     const url = q.toString() ? `${LIVE_URL}?${q}` : LIVE_URL;
-    tasks.push(getJSON(url).then((j) => {
+    // para sumar tus medios a la búsqueda, el servicio pide que sea una cuenta real
+    const u = extra ? usuarioActual() : null;
+    const token = u && u.getIdToken ? await u.getIdToken().catch(() => '') : '';
+    tasks.push(getJSON(url, 10000, token ? { Authorization: `Bearer ${token}` } : {}).then((j) => {
       if (j && (Array.isArray(j.promos) || j.ipc)) patch.live = { promos: j.promos || [], ipc: j.ipc || {}, updatedAt: j.updatedAt || null, fuenteFecha: j.fuenteFecha || null, salud: j.salud || null, sources: j.sources || [], prov: zonaActual, at: now };
     }).catch(() => { patch.liveFailedAt = now; }));
   }

@@ -10,7 +10,7 @@ import { parseAmount } from './interprete.js';
 import { weekSummary } from './calculos.js';
 import { suggestions, renderSuggestion } from './guia.js';
 import { LESSONS } from './aprender.js';
-import { buyImpact, expectedBalance, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal, periodoDe, notaCobro } from './calculos.js';
+import { buyImpact, mainGoal, lastSalary, cuotasReales, budget, holdingsTotal, periodoDe, notaCobro } from './calculos.js';
 import { statementDates, statementOf, resumenDeCompra } from './agenda.js';
 import { demoState } from './ejemplo.js';
 import { detectarReintegro, promosCandidatas } from './reintegros.js';
@@ -155,7 +155,7 @@ export function entryForm(s, e, kind) {
         ${ahorros.length ? `<optgroup label="Tus ahorros">${ahorros.map((h) => `<option value="ahorro:${esc(h.id)}" ${sel === 'ahorro:' + h.id ? 'selected' : ''}>${esc(h.name)} (hay ${money(valorHoy(s, h))})</option>`).join('')}</optgroup>` : ''}
       </select><span class="hint">Si sale de un fondo o de tus ahorros, no te baja lo que podés gastar: lo descuento de ahí.</span></div>`;
     })()}
-    ${(s.proyectos || []).some((p) => !p.cerrado || p.id === e.proyectoId) ? `<div class="field"><label for="f-proy">Proyecto (opcional)</label><select id="f-proy" name="proyectoId"><option value="">Ninguno</option>${s.proyectos.filter((p) => !p.cerrado || p.id === e.proyectoId).map((p) => `<option value="${esc(p.id)}" ${p.id === e.proyectoId ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>` : ''}
+    ${e.proyectoId && (s.proyectos || []).some((p) => p.id === e.proyectoId) ? `<div class="field"><label for="f-proy">Proyecto</label><select id="f-proy" name="proyectoId"><option value="">Ninguno</option>${s.proyectos.filter((p) => p.id === e.proyectoId).map((p) => `<option value="${esc(p.id)}" ${p.id === e.proyectoId ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>` : ''}
     ${isIncome || !(e.reintegro && !e.reintegro.no) ? '' : (() => { const r = e.reintegro; return `<details class="reint-box"><summary><span>💸 Reintegro: ${money(r.monto)}</span><span class="small muted">${r.ok ? `llegó el ${r.fecha.split('-').reverse().join('/')}` : `el ${r.fecha.split('-').reverse().join('/')}`}</span></summary>
       <input type="hidden" name="reintEdit" value="1">
       <div class="field-row"><div class="field"><label for="f-rm">Te devolvieron</label><input id="f-rm" name="reintMonto" inputmode="decimal" value="${r.monto}"></div>
@@ -274,8 +274,7 @@ function weekDetail(w) {
       <span class="text">${esc(w.verdict)}</span></div>
     ${w.top.length ? `<div class="card tight">${w.top.map((c) => `<div class="row"><span class="grow"><span class="name">${esc(catLabel(c.cat))}</span></span><span class="amount">${money(c.amount)}</span></div>`).join('')}</div>` : ''}
     ${w.income ? `<span class="small muted">Ingresos de la semana: ${money(w.income)}</span>` : ''}
-    <p class="small muted">El resumen se arma solo cada lunes a las 00:00 con lo que anotaste. Si querés que también cuente lo que no anotaste (efectivo, gastos chicos), ajustalo con tu saldo real.</p>
-    <button class="btn block" data-action="openClose" data-push="1">Ajustar con mi saldo real</button>`;
+    <p class="small muted">El resumen se arma solo cada lunes a las 00:00 con lo que anotaste.</p>`;
 }
 
 // ---------- ¿Me lo compro? Guía de decisión ----------
@@ -896,37 +895,6 @@ export const commonActions = {
     ctx.commit((s) => { const e = s.expenses.find((x) => x.id === el.dataset.id); if (e) delete e.pending; });
     setModalBody('#pending-body', pendingList(ctx.state));
     toast('Confirmado');
-  },
-
-  // ---------- cierre semanal ----------
-  openClose(ctx, el) {
-    const exp = expectedBalance(ctx.state);
-    openModal('Ajustar con mi saldo', `<p class="text">${ctx.state.lastClose
-      ? `¿Cuánto tenés en total hoy entre cuentas, billeteras y efectivo? No incluyas ahorros ni inversiones. Según lo anotado deberías tener cerca de <b>${money(exp)}</b>. La diferencia la sumo como "gastos varios".`
-      : 'Indicá cuánto tenés hoy entre cuentas, billeteras y efectivo (sin ahorros ni inversiones). Lo tomo como punto de partida: la próxima vez que ajustes, completo solo lo que no anotaste.'}</p>
-      <form class="form" data-submit="closeSubmit">
-        <div class="field"><label for="c-bal">Saldo total hoy</label><input id="c-bal" name="balance" inputmode="decimal" placeholder="Ej: 250.000" required></div>
-        <button class="btn primary block" type="submit">Ajustar</button>
-      </form>`, { push: !!(el && el.dataset && el.dataset.push) });
-  },
-  closeSubmit(ctx, d) {
-    const bal = num(d.balance);
-    const exp = expectedBalance(ctx.state);
-    const today = todayISO();
-    let msg = 'Listo. Desde hoy hago el cierre con este saldo.';
-    ctx.commit((s) => {
-      if (exp != null) {
-        const diff = exp - bal;
-        if (diff > 500) {
-          s.expenses.push({ id: uid(), date: today, amount: Math.round(diff), category: 'otros', note: 'Gastos varios (cierre semanal)', installments: 1 });
-          msg = `Sumé ${money(diff)} como gastos varios. Panorama completo sin anotar cada café.`;
-        } else if (diff < -500) msg = `Tenés ${money(-diff)} más de lo esperado. ¿Un ingreso sin anotar?`;
-        else msg = 'Todo cuadra. ¡Bien ahí!';
-      }
-      s.lastClose = { date: today, balance: bal };
-    });
-    closeModal();
-    toast(msg);
   },
 
   // ---------- págate primero ----------

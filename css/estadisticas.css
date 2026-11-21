@@ -59,3 +59,13 @@
 /* Mi plata → Metas: subtítulos de las dos familias y opciones de "+ Nueva" */
 .sub-titulo { display: block; font-size: 13px; font-weight: 800; color: var(--ink); margin: 6px 2px -4px; }
 .sub-titulo span { font-weight: 500; color: var(--muted); margin-left: 4px; }
+
+/* "Te ahorraste con Pesitos" del período */
+.mov-ahorro { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; }
+.mov-ahorro .v { font-size: 17px; font-weight: 800; white-space: nowrap; }
+button.mov-ahorro { border: none; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+button.mov-ahorro { display: flex; flex-direction: row; align-items: center; gap: 10px; background: var(--green-soft); color: var(--green-text); border: 1px solid transparent; }
+button.mov-ahorro .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+button.mov-ahorro .t { font-size: 14px; }
+button.mov-ahorro .small { color: inherit; opacity: .85; }
+button.mov-ahorro .v { color: inherit; }

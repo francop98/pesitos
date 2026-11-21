@@ -183,7 +183,7 @@ const DONDE = [
   [/cashback|reintegro|me devuelv|devoluci/, 'Los reintegros se calculan solos cuando anotás una compra con un medio que tiene promo. Los ves en Menú ☰ → Reintegros y cashback: lo que te van a devolver, cuándo, y cuando confirmás que llegó se suma a tu saldo. Ahí también cargás el cashback de tu billetera y elegís cuándo te devuelve cada una.'],
   [/recordatorio|recordar|acordarme|descuento por|pedir descuento/, 'En Por pagar tocá la campanita (arriba) para crear un recordatorio: mover plata antes de un débito, llamar para pedir un descuento, etc. Para un descuento por unos meses (por ejemplo, el celular), editá el gasto fijo o el pago y abrí "Descuento por un tiempo": te aviso antes de que termine.'],
   [/con que (pago|conviene)|donde conviene pagar|que tarjeta uso|que billetera uso/, 'En Herramientas → "¿Con qué conviene pagar?" te muestro, para tus servicios y compras de siempre, qué banco o billetera te devuelve más (las tuyas y las que no tenés).'],
-  [/proyecto|obra|remodelacion/, 'Los proyectos están en Mi plata → Metas, junto a tus metas: son ahorro para algo puntual (o solo los gastos de algo). Creás uno con su tipo (obra, viaje, evento, emprendimiento…), presupuesto y fecha objetivo, y al cargar cada gasto elegís el proyecto.'],
+  [/proyecto|obra|remodelacion/, 'Para juntar plata para algo puntual (una obra, un viaje, un evento) creá un objetivo en Mi plata → Metas. Si ya tenías proyectos, siguen ahí. Para separar los gastos de algo, ponele una etiqueta con # al anotarlo (por ejemplo, #obra) y buscala en Movimientos.'],
   [/tema|oscuro|modo noche|letra/, 'El tema (Auto, Claro u Oscuro) y el tamaño de letra están en Menú ☰ → La app.'],
   [/aviso|notificacion/, 'Los avisos en el celular están en Menú ☰ → La app → Avisos en el celular.'],
   [/instal/, 'Para instalar Pesitos: Menú ☰ → La app → Instalar Pesitos como app. En iPhone: en Safari tocá Compartir → Agregar a inicio.'],
@@ -195,7 +195,7 @@ const DONDE = [
   [/estadistic|grafic|en que (gasto|gaste)/, 'Las estadísticas están en Movimientos → Estadísticas (o tocando el resumen del mes).'],
   [/tarjeta/, 'Tus tarjetas están en Por pagar → Tarjetas: ahí ves cada resumen, las cuotas y cuánto tenés comprometido.'],
   [/meta|objetivo/, 'Las metas están en Mi plata → Metas.'],
-  [/saldo|cuenta/, 'El saldo de cada cuenta está en Mi plata → Cuentas.'],
+  [/saldo|cuenta/, 'Seguir el saldo de tus cuentas es opcional: en Mi plata → Cuentas elegís cuáles. Una vez por mes, cuando cobrás, te pregunto si coincide con el banco.'],
   [/ahorro|inversion/, 'Tus ahorros están en Mi plata → Ahorros, y tu forma de ahorrar en Mi plata → Ahorros → Cómo ahorro.'],
   [/promo|beneficio|descuento/, 'Las promos están en Inicio → "Tu día" → Promo de hoy, o en Beneficios.'],
   [/fijo|alquiler|servicio/, 'Los gastos fijos están en Por pagar → Fijos.'],
@@ -278,7 +278,7 @@ function responder(id, q, s, b) {
     }
     case 'saldo': {
       const con = cuentasConSaldo(s);
-      if (!con.length) return 'Todavía no cargaste el saldo de tus cuentas. Hacelo en Mi plata → Cuentas: después se actualiza solo con cada gasto e ingreso.';
+      if (!con.length) return 'No seguís el saldo de ninguna cuenta (es opcional). Si querés, elegí cuáles en Mi plata → Cuentas: después se actualiza solo con cada gasto e ingreso.';
       return `En tus cuentas tenés ${money(totalCuentas(s))}:\n${con.map((c) => `• ${c.name}: ${money(saldoCuenta(s, c.id))}`).join('\n')}${holdingsTotal(s) ? `\n\nY ahorrado: ${money(holdingsTotal(s))}.` : ''}`;
     }
     case 'cobro': {
@@ -343,7 +343,7 @@ function responder(id, q, s, b) {
     }
     case 'proyectos': {
       const ps = s.proyectos || [];
-      if (!ps.length) return 'No tenés proyectos. Crealos desde Mi plata → Metas: le ponés un presupuesto y una fecha, ahorrás para eso y le vas sumando los gastos.';
+      if (!ps.length) return 'No tenés proyectos. Para algo puntual, creá un objetivo en Mi plata → Metas, y para juntar sus gastos ponele una etiqueta con # al anotarlos.';
       return ps.map((p) => { const g = s.expenses.filter((e) => e.proyectoId === p.id).reduce((a, e) => a + e.amount, 0); return `• ${p.nombre}: ${money(g)} gastados${p.presupuesto ? ` de ${money(p.presupuesto)} (${Math.round((g / p.presupuesto) * 100)}%)` : ''}${p.cerrado ? ' · terminado' : ''}`; }).join('\n');
     }
     default: return null;
